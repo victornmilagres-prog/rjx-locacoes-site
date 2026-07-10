@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faça sua Locação | Rjx Locações</title>
+<meta name="description" content="Solicite um orçamento de locação de equipamentos estéticos com a Rjx. Escolha o equipamento, o período e receba a proposta pelo WhatsApp.">
+<link rel="icon" href="assets/logo-black.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="assets/logo-black.png" alt="Rjx Locações"></a>
+    <nav class="nav-links">
+      <a href="index.html">Início</a>
+      <a href="equipamentos.html">Equipamentos</a>
+      <a href="seja-cliente.html">Seja Cliente</a>
+      <a href="faca-sua-locacao.html" class="active">Faça sua Locação</a>
+      <a href="reclamacao-sugestao.html">Reclamações</a>
+      <a href="contato.html">Contato</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="faca-sua-locacao.html" class="btn btn-outline-dark">Faça sua Locação</a>
+      <a href="https://wa.me/5521976078440" class="btn btn-primary" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+    <button class="nav-toggle" aria-label="Abrir menu"><span></span><span></span><span></span></button>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <div class="breadcrumb"><a href="index.html">Início</a> / Faça sua Locação</div>
+    <span class="eyebrow">Orçamento sem compromisso</span>
+    <h1 class="mt-16">Faça sua locação</h1>
+    <p>Escolha o equipamento e o período desejado — nossa equipe te retorna com a proposta em poucos minutos.</p>
+  </div>
+</section>
+
+<section>
+  <div class="container grid-2">
+    <div>
+      <span class="eyebrow">Como funciona</span>
+      <h2 class="mt-16" style="font-size:30px;">Do pedido à entrega, em 3 passos</h2>
+      <ul class="check-list mt-24">
+        <li><b>1. Solicitação</b> — preencha o formulário com o equipamento e período desejado</li>
+        <li><b>2. Confirmação</b> — nossa equipe confirma disponibilidade e envia o orçamento pelo WhatsApp</li>
+        <li><b>3. Entrega</b> — levamos o equipamento até sua clínica, já com o contrato de locação</li>
+      </ul>
+      <p class="mt-24" style="color:var(--gray); font-size:15px;">
+        Frete grátis para clínicas em Niterói, São Gonçalo e Rio de Janeiro. Consulte condições para outras regiões.
+      </p>
+    </div>
+
+    <div class="form-card shard-tl">
+      <form data-wa-form data-wa-intro="Olá! Gostaria de solicitar um orçamento de locação.">
+        <div class="form-row">
+          <div class="field">
+            <label for="clinica">Nome da clínica</label>
+            <input type="text" id="clinica" data-wa-field="Clínica" required>
+          </div>
+          <div class="field">
+            <label for="responsavel">Seu nome</label>
+            <input type="text" id="responsavel" data-wa-field="Responsável" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="whatsapp">WhatsApp para contato</label>
+          <input type="tel" id="whatsapp" data-wa-field="WhatsApp" placeholder="(21) 90000-0000" required>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="equipamento">Equipamento desejado</label>
+            <select id="equipamento" data-wa-field="Equipamento" required>
+              <option value="">Selecione...</option>
+              <option>Criolipólise · Criodermis 2.0</option>
+              <option>Endolaser · Pioon 1470</option>
+              <option>Lavieen</option>
+              <option>Ultraformer MPT</option>
+              <option>Ainda não sei — quero indicação</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="periodo">Período desejado</label>
+            <select id="periodo" data-wa-field="Período">
+              <option value="">Selecione...</option>
+              <option>Mensal</option>
+              <option>Trimestral</option>
+              <option>Semestral</option>
+              <option>Anual</option>
+              <option>Ainda não sei</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="cidade">Cidade da clínica</label>
+          <input type="text" id="cidade" data-wa-field="Cidade" placeholder="Ex: Niterói">
+        </div>
+        <div class="field">
+          <label for="msg">Observações (opcional)</label>
+          <textarea id="msg" data-wa-field="Observações" placeholder="Alguma informação adicional para o orçamento"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Solicitar orçamento pelo WhatsApp</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-logo"><img src="assets/logo-white.png" alt="Rjx Locações"></div>
+        <p>Locação de equipamentos estéticos de alta tecnologia para clínicas do Rio de Janeiro e região.</p>
+      </div>
+      <div>
+        <h4>Navegação</h4>
+        <a href="index.html">Início</a><br>
+        <a href="equipamentos.html">Equipamentos</a><br>
+        <a href="seja-cliente.html">Seja Cliente</a><br>
+        <a href="faca-sua-locacao.html">Faça sua Locação</a><br>
+      <a href="reclamacao-sugestao.html">Reclamação/Sugestão</a>
+      </div>
+      <div>
+        <h4>Equipamentos</h4>
+        <a href="equipamentos/criolipolise.html">Criolipólise Criodermis 2.0</a><br>
+        <a href="equipamentos/endolaser.html">Endolaser Pioon 1470</a><br>
+        <a href="equipamentos/lavieen.html">Lavieen</a><br>
+        <a href="equipamentos/ultraformer.html">Ultraformer MPT</a>
+      </div>
+      <div>
+        <h4>Contato</h4>
+        <p>Rua Mem de Sá, 19, Icaraí<br>sala 810 · Niterói/RJ · CEP 24220-260</p>
+        <p><a href="tel:+5521976078440">(21) 97607-8440</a></p>
+        <p><a href="mailto:rjxlocacoes@gmail.com">rjxlocacoes@gmail.com</a></p>
+      </div>
+    </div>
+    <div class="footer-legal">
+      <span>RJX Baiense Locações de Equipamentos LTDA · CNPJ 51.797.671/0001-66</span>
+      <span>© 2026 Rjx Locações. Todos os direitos reservados.</span>
+    </div>
+  </div>
+</footer>
+<a class="wa-float" href="https://wa.me/5521976078440" target="_blank" rel="noopener" aria-label="WhatsApp">
+  <svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.29-1.39a9.9 9.9 0 0 0 4.75 1.21h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.13-2.9-7-1.87-1.87-4.35-2.9-7-2.9zm0 18.06h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.26-4.38c0-4.53 3.69-8.22 8.24-8.22 2.2 0 4.27.86 5.82 2.42a8.15 8.15 0 0 1 2.41 5.81c0 4.54-3.69 8.23-8.22 8.23zm4.51-6.16c-.25-.12-1.47-.72-1.7-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.78.97-.15.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.15.16-.25.24-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.43-.14-.01-.31-.01-.48-.01-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.57.12.17 1.75 2.67 4.24 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.11-.23-.17-.48-.29z"/></svg>
+</a>
+<script src="js/main.js"></script>
+</body>
+</html>
