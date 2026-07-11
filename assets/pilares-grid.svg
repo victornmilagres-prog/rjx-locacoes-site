@@ -1,0 +1,62 @@
+<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+  <rect width="600" height="600" fill="#f1ebe1"/>
+
+  <g transform="translate(40,40)">
+    <rect width="240" height="240" rx="6" fill="#faf7f2" stroke="#e4dccd" stroke-width="1.5"/>
+    <circle cx="120" cy="90" r="38" fill="#7a1220"/>
+    <g stroke="#faf7f2" stroke-width="6" stroke-linecap="round" fill="none">
+      <path d="M104 106 L128 82"/>
+      <path d="M128 82 A11 11 0 1 0 136 74 L128 82 Z" fill="#faf7f2" stroke="none"/>
+      <circle cx="132" cy="78" r="10" fill="none" stroke="#faf7f2" stroke-width="5"/>
+    </g>
+    <text x="120" y="165" text-anchor="middle" font-family="Fraunces, serif" font-weight="600" font-size="19" fill="#17130f">Equipamentos</text>
+    <text x="120" y="188" text-anchor="middle" font-family="Fraunces, serif" font-weight="600" font-size="19" fill="#17130f">revisados</text>
+    <text x="120" y="214" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-size="13" fill="#5c554e">Manutenção e calibração</text>
+  </g>
+
+  <g transform="translate(320,40)">
+    <rect width="240" height="240" rx="6" fill="#faf7f2" stroke="#e4dccd" stroke-width="1.5"/>
+    <circle cx="120" cy="90" r="38" fill="#7a1220"/>
+    <g fill="none" stroke="#faf7f2" stroke-width="6" stroke-linecap="round">
+      <path d="M98 96 A22 22 0 0 1 142 96"/>
+      <path d="M98 96 L98 112"/>
+      <path d="M142 96 L142 112"/>
+      <rect x="90" y="96" width="14" height="22" rx="6" fill="#faf7f2" stroke="none"/>
+      <rect x="136" y="96" width="14" height="22" rx="6" fill="#faf7f2" stroke="none"/>
+      <path d="M104 118 Q104 128 116 128" stroke-width="5"/>
+    </g>
+    <text x="120" y="165" text-anchor="middle" font-family="Fraunces, serif" font-weight="600" font-size="19" fill="#17130f">Suporte técnico</text>
+    <text x="120" y="188" text-anchor="middle" font-family="Fraunces, serif" font-weight="600" font-size="19" fill="#17130f">direto</text>
+    <text x="120" y="214" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-size="13" fill="#5c554e">Sem central genérica</text>
+  </g>
+
+  <g transform="translate(40,320)">
+    <rect width="240" height="240" rx="6" fill="#faf7f2" stroke="#e4dccd" stroke-width="1.5"/>
+    <circle cx="120" cy="90" r="38" fill="#7a1220"/>
+    <g fill="#faf7f2">
+      <rect x="94" y="80" width="34" height="22" rx="2"/>
+      <path d="M128 88 h14 l10 12 v10 h-24 z"/>
+      <circle cx="106" cy="106" r="7" fill="#7a1220" stroke="#faf7f2" stroke-width="3"/>
+      <circle cx="134" cy="106" r="7" fill="#7a1220" stroke="#faf7f2" stroke-width="3"/>
+    </g>
+    <text x="120" y="158" text-anchor="middle" font-family="Fraunces, serif" font-weight="600" font-size="18" fill="#17130f">Logística própria</text>
+    <text x="120" y="181" text-anchor="middle" font-family="Fraunces, serif" font-weight="600" font-size="18" fill="#17130f">e agilidade</text>
+    <text x="120" y="205" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-size="12" fill="#5c554e">Niterói, Rio de Janeiro</text>
+    <text x="120" y="221" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-size="12" fill="#5c554e">e Região Metropolitana</text>
+  </g>
+
+  <g transform="translate(320,320)">
+    <rect width="240" height="240" rx="6" fill="#faf7f2" stroke="#e4dccd" stroke-width="1.5"/>
+    <circle cx="120" cy="90" r="38" fill="#7a1220"/>
+    <g fill="none" stroke="#faf7f2" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="100" y="70" width="40" height="46" rx="3"/>
+      <path d="M108 82 h24"/>
+      <path d="M108 90 h24"/>
+      <path d="M108 98 h14"/>
+    </g>
+    <path d="M112 106 l7 7 12 -14" fill="none" stroke="#faf7f2" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="120" y="165" text-anchor="middle" font-family="Fraunces, serif" font-weight="600" font-size="19" fill="#17130f">Contrato</text>
+    <text x="120" y="188" text-anchor="middle" font-family="Fraunces, serif" font-weight="600" font-size="19" fill="#17130f">transparente</text>
+    <text x="120" y="214" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-size="13" fill="#5c554e">Sem letra miúda</text>
+  </g>
+</svg>
