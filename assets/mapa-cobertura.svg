@@ -32,34 +32,52 @@
     </g>
   </g>
 
-  <path d="M175 210 C 260 260, 300 340, 245 405" fill="none"
-        stroke="#a9813f" stroke-width="2.5" stroke-dasharray="2 10" stroke-linecap="round"/>
-  <path d="M245 405 C 320 430, 380 380, 430 300" fill="none"
-        stroke="#a9813f" stroke-width="2.5" stroke-dasharray="2 10" stroke-linecap="round"/>
-
-  <g>
-    <circle cx="430" cy="300" r="34" fill="#7a1220" opacity=".08"/>
-    <circle cx="430" cy="300" r="9" fill="#7a1220"/>
-    <circle cx="430" cy="300" r="9" fill="none" stroke="#faf7f2" stroke-width="2.5"/>
-    <text x="430" y="352" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-weight="700" font-size="20" fill="#17130f">Niterói</text>
-  </g>
-
-  <g>
-    <circle cx="245" cy="405" r="38" fill="#7a1220" opacity=".1"/>
-    <circle cx="245" cy="405" r="10" fill="#7a1220"/>
-    <circle cx="245" cy="405" r="10" fill="none" stroke="#faf7f2" stroke-width="3"/>
-    <text x="245" y="462" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-weight="700" font-size="22" fill="#17130f">Rio de Janeiro</text>
-  </g>
-
-  <g>
-    <circle cx="175" cy="210" r="28" fill="#7a1220" opacity=".08"/>
-    <circle cx="175" cy="210" r="8" fill="#7a1220"/>
-    <circle cx="175" cy="210" r="8" fill="none" stroke="#faf7f2" stroke-width="2.5"/>
-    <text x="175" y="185" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-weight="700" font-size="18" fill="#17130f">São Gonçalo</text>
-  </g>
-
-  <g transform="translate(90,470)" opacity=".9">
+  <g transform="translate(40,52)">
     <text x="0" y="0" font-family="Fraunces, serif" font-weight="600" font-style="italic" font-size="26" fill="#7a1220">Cobertura Rjx</text>
-    <text x="0" y="26" font-family="Source Sans 3, sans-serif" font-size="14" fill="#5c554e">Região Metropolitana do Rio de Janeiro</text>
+    <text x="0" y="24" font-family="Source Sans 3, sans-serif" font-size="14" fill="#5c554e">Região Metropolitana do Rio de Janeiro</text>
+  </g>
+
+  <path d="M190 480 C 240 450, 320 420, 370 380" fill="none"
+        stroke="#a9813f" stroke-width="2.5" stroke-dasharray="2 10" stroke-linecap="round"/>
+  <path d="M370 380 C 350 320, 360 270, 400 220" fill="none"
+        stroke="#a9813f" stroke-width="2.5" stroke-dasharray="2 10" stroke-linecap="round"/>
+  <path d="M400 220 C 440 200, 480 180, 520 160" fill="none"
+        stroke="#a9813f" stroke-width="2.5" stroke-dasharray="2 10" stroke-linecap="round"/>
+  <path d="M370 380 C 405 405, 440 440, 470 480" fill="none"
+        stroke="#a9813f" stroke-width="2.5" stroke-dasharray="2 10" stroke-linecap="round"/>
+
+  <g>
+    <circle cx="190" cy="480" r="38" fill="#7a1220" opacity=".1"/>
+    <circle cx="190" cy="480" r="10" fill="#7a1220"/>
+    <circle cx="190" cy="480" r="10" fill="none" stroke="#faf7f2" stroke-width="3"/>
+    <text x="190" y="543" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-weight="700" font-size="22" fill="#17130f">Rio de Janeiro</text>
+  </g>
+
+  <g>
+    <circle cx="370" cy="380" r="34" fill="#7a1220" opacity=".09"/>
+    <circle cx="370" cy="380" r="9" fill="#7a1220"/>
+    <circle cx="370" cy="380" r="9" fill="none" stroke="#faf7f2" stroke-width="2.5"/>
+    <text x="370" y="425" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-weight="700" font-size="20" fill="#17130f">Niterói</text>
+  </g>
+
+  <g>
+    <circle cx="400" cy="220" r="28" fill="#7a1220" opacity=".08"/>
+    <circle cx="400" cy="220" r="8" fill="#7a1220"/>
+    <circle cx="400" cy="220" r="8" fill="none" stroke="#faf7f2" stroke-width="2.5"/>
+    <text x="400" y="185" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-weight="700" font-size="18" fill="#17130f">São Gonçalo</text>
+  </g>
+
+  <g>
+    <circle cx="520" cy="160" r="24" fill="#7a1220" opacity=".08"/>
+    <circle cx="520" cy="160" r="7" fill="#7a1220"/>
+    <circle cx="520" cy="160" r="7" fill="none" stroke="#faf7f2" stroke-width="2.5"/>
+    <text x="520" y="128" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-weight="700" font-size="17" fill="#17130f">Itaboraí</text>
+  </g>
+
+  <g>
+    <circle cx="470" cy="480" r="28" fill="#7a1220" opacity=".08"/>
+    <circle cx="470" cy="480" r="8" fill="#7a1220"/>
+    <circle cx="470" cy="480" r="8" fill="none" stroke="#faf7f2" stroke-width="2.5"/>
+    <text x="470" y="516" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-weight="700" font-size="18" fill="#17130f">Maricá</text>
   </g>
 </svg>
