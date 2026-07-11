@@ -1,0 +1,38 @@
+<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="frame2">
+      <path d="M22 0 L600 0 L600 578 L578 600 L0 600 L0 22 Z"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#frame2)">
+    <rect width="600" height="600" fill="#17130f"/>
+    <g stroke="#2b241d" stroke-width="1">
+      <line x1="0" y1="80" x2="600" y2="80"/>
+      <line x1="0" y1="180" x2="600" y2="180"/>
+      <line x1="0" y1="280" x2="600" y2="280"/>
+      <line x1="0" y1="380" x2="600" y2="380"/>
+      <line x1="0" y1="480" x2="600" y2="480"/>
+      <line x1="80" y1="0" x2="80" y2="600"/>
+      <line x1="180" y1="0" x2="180" y2="600"/>
+      <line x1="280" y1="0" x2="280" y2="600"/>
+      <line x1="380" y1="0" x2="380" y2="600"/>
+      <line x1="480" y1="0" x2="480" y2="600"/>
+    </g>
+    <path d="M60 500 L220 380 L340 430 L540 240" fill="none" stroke="#a9813f" stroke-width="2" stroke-dasharray="1 9" stroke-linecap="round" opacity=".8"/>
+    <circle cx="60" cy="500" r="4" fill="#a9813f"/>
+    <circle cx="220" cy="380" r="4" fill="#a9813f"/>
+    <circle cx="340" cy="430" r="4" fill="#a9813f"/>
+    <circle cx="540" cy="240" r="5" fill="#a9813f"/>
+  </g>
+
+  <text x="300" y="290" text-anchor="middle" font-family="Fraunces, serif" font-weight="600" font-size="120" fill="#faf7f2">500+</text>
+  <text x="300" y="340" text-anchor="middle" font-family="Source Sans 3, sans-serif" font-weight="700" font-size="20" letter-spacing="2" fill="#a9813f">CLÍNICAS PARCEIRAS</text>
+
+  <line x1="240" y1="368" x2="360" y2="368" stroke="#5c554e" stroke-width="1"/>
+  <text x="300" y="398" text-anchor="middle" font-family="Fraunces, serif" font-style="italic" font-weight="500" font-size="20" fill="#cfc7bc">desde 2023</text>
+
+  <g transform="translate(30,30)">
+    <text x="0" y="0" font-family="Source Sans 3, sans-serif" font-weight="700" font-size="13" letter-spacing="2" fill="#7a1220">RJX LOCAÇÕES</text>
+  </g>
+</svg>
