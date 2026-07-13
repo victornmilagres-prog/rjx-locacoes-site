@@ -29,7 +29,9 @@ async function getAccessToken() {
     }),
   });
   if (!resp.ok) {
-    throw new Error('Falha na autenticação com o EstoqueNOW');
+    const bodyText = await resp.text().catch(() => '');
+    console.error('EstoqueNOW token error', resp.status, bodyText);
+    throw new Error('Falha na autenticação com o EstoqueNOW: ' + resp.status + ' ' + bodyText);
   }
   const data = await resp.json();
   cachedToken = data.access_token;
@@ -98,6 +100,7 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({ label: item.label, month, days });
   } catch (err) {
+    console.error('disponibilidade handler error:', err && err.message, err && err.stack);
     return res.status(500).json({
       error: 'Não foi possível consultar a disponibilidade agora. Tente novamente em instantes ou fale com a gente pelo WhatsApp.',
     });
