@@ -88,49 +88,41 @@
 
 <section class="section-soft">
   <div class="container">
-    <div class="section-head">
+    <div class="section-head text-center" style="margin-left:auto; margin-right:auto;">
       <span class="eyebrow">Disponibilidade em tempo real</span>
-      <h2>Consulte o calendário antes de pedir</h2>
-      <p>Veja dia a dia se o equipamento está livre para o período que você precisa.</p>
+      <h2>Consulte a disponibilidade antes de pedir</h2>
+      <p>Escolha o equipamento e o período — a gente confere direto no nosso sistema, na hora.</p>
     </div>
-    <div class="grid-2">
-      <div>
+    <div class="avail-quick-card" style="max-width:640px; margin:0 auto;" data-availability-quick>
+      <span class="avail-live-badge"><span class="avail-live-dot"></span>Disponibilidade em tempo real</span>
+      <h3 class="avail-quick-title">Consulte a disponibilidade</h3>
+      <form data-avail-form>
         <div class="field">
           <label for="avail-equip-select">Escolha o equipamento</label>
-          <select id="avail-equip-select" data-avail-equip-select>
+          <select id="avail-equip-select" data-avail-equip-select required>
+            <option value="">Selecione...</option>
             <option value="criolipolise">Criolipólise · Criodermis 2.0</option>
             <option value="endolaser">Endolaser · Pioon</option>
             <option value="lavieen">Lavieen</option>
-            <option value="ultraformer">Ultraformer MPT (2 unidades disponíveis)</option>
+            <option value="ultraformer">Ultraformer MPT</option>
           </select>
         </div>
-        <p style="color:var(--gray); font-size:15px;">
-          O calendário mostra a disponibilidade real, direto do nosso sistema de gestão. Dias em verde
-          têm equipamento livre; em vermelho, já reservado. Qualquer dúvida, é só chamar no WhatsApp.
-        </p>
-        <div class="mt-24">
-          <a href="https://wa.me/5521976078440" class="btn btn-outline-dark" target="_blank" rel="noopener">Confirmar pelo WhatsApp</a>
-        </div>
-      </div>
-      <div class="availability-widget" data-availability-calendar data-avail-equip="criolipolise">
-        <span class="avail-live-badge"><span class="avail-live-dot"></span>Disponibilidade em tempo real</span>
-        <div class="avail-cal-header">
-          <span class="avail-cal-title" data-avail-cal-title></span>
-          <div class="avail-cal-nav">
-            <button type="button" data-avail-prev aria-label="Mês anterior">‹</button>
-            <button type="button" data-avail-next aria-label="Próximo mês">›</button>
+        <div class="form-row">
+          <div class="field">
+            <label>Data de início</label>
+            <input type="date" data-avail-start required>
+          </div>
+          <div class="field">
+            <label>Data de término</label>
+            <input type="date" data-avail-end required>
           </div>
         </div>
-        <div class="avail-cal-grid" data-avail-cal-grid></div>
-        <div class="avail-cal-legend">
-          <span><i class="avail-cal-dot dot-available"></i> Disponível</span>
-          <span><i class="avail-cal-dot dot-unavailable"></i> Indisponível</span>
-        </div>
-        <div class="avail-status-msg" data-avail-status></div>
-        <div class="avail-disclaimer">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-          <span>Disponibilidade consultada agora mesmo, direto do nosso sistema de gestão. Como outras clínicas também reservam em tempo real, ela pode mudar a qualquer momento — confirme pelo WhatsApp antes de fechar.</span>
-        </div>
+        <button type="submit" class="btn btn-primary btn-block">Consultar disponibilidade</button>
+      </form>
+      <div class="avail-result-msg" data-avail-result></div>
+      <div class="avail-disclaimer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>Disponibilidade consultada agora mesmo, direto do nosso sistema de gestão. Como outras clínicas também reservam em tempo real, ela pode mudar a qualquer momento — confirme pelo WhatsApp antes de fechar.</span>
       </div>
     </div>
   </div>
