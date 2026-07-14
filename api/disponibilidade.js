@@ -1,6 +1,4 @@
-// /api/disponibilidade.js
-// Vercel Serverless Function — proxies availability queries to the EstoqueNOW API,
-// keeping the client_id/client_secret safely on the server. Never exposed to the browser.
+// /api/disponibilidade.js — DEBUG BUILD, testing internal calendar endpoint
 
 const ALLOWED_ITEMS = {
   criolipolise: { id: '2515213', cod: '000044', label: 'Criolipólise · Criodermis 2.0' },
@@ -26,8 +24,6 @@ async function getAccessToken(force) {
     }),
   });
   if (!resp.ok) {
-    const bodyText = await resp.text().catch(() => '');
-    console.error('EstoqueNOW token error', resp.status, bodyText);
     throw new Error('Falha na autenticação com o EstoqueNOW');
   }
   const data = await resp.json();
@@ -37,55 +33,29 @@ async function getAccessToken(force) {
   return cachedToken;
 }
 
-function isValidMonth(str) {
-  return /^\d{4}-\d{2}$/.test(str);
-}
-
-function daysInMonth(year, month) {
-  return new Date(year, month, 0).getDate();
-}
-
-function pad(n) {
-  return String(n).padStart(2, '0');
-}
-
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
-
-  const { equipamento, month } = req.query || {};
-
-  const item = ALLOWED_ITEMS[equipamento];
-
   try {
     const token = await getAccessToken(req.query && req.query.force === '1');
 
-    if (req.query && req.query.debug === '2') {
-      const rentalId = req.query.rid;
-      if (rentalId) {
-        const url = `https://api.estoquenow.com.br/v1/rental/${encodeURIComponent(rentalId)}`;
-        const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-        const raw = await resp.json();
-        return res.status(200).json({ debug: 2, mode: 'rental-detail', status: resp.status, raw });
-      }
-      const rawQs = req.query.qs || '';
-      const url = `https://api.estoquenow.com.br/v1/rental?${rawQs}`;
+    if (req.query && req.query.debug === '4') {
+      const encId = req.query.encid;
+      const sDate = req.query.sdate || '2026-06-30';
+      const eDate = req.query.edate || '2026-07-31';
+      const url = `https://web.estoquenow.com.br/inventory/ajax_data_calendar_item/${encodeURIComponent(encId)}?start_date=${sDate}&end_date=${eDate}`;
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      const raw = await resp.json();
-      return res.status(200).json({ debug: 2, mode: 'rental-list', url, status: resp.status, raw });
+      const contentType = resp.headers.get('content-type') || '';
+      let raw;
+      if (contentType.includes('json')) {
+        raw = await resp.json();
+      } else {
+        raw = (await resp.text()).slice(0, 500);
+      }
+      return res.status(200).json({ debug: 4, url, status: resp.status, contentType, raw });
     }
 
-    if (!item) {
-      return res.status(400).json({ error: 'Equipamento inválido.' });
-    }
-    if (!month || !isValidMonth(month)) {
-      return res.status(400).json({ error: 'Informe o mês no formato AAAA-MM.' });
-    }
-
-    return res.status(200).json({ label: item.label, month, days: [] });
+    return res.status(200).json({ ok: true });
   } catch (err) {
-    console.error('disponibilidade handler error:', err && err.message, err && err.stack);
-    return res.status(500).json({
-      error: 'Não foi possível consultar a disponibilidade agora. Tente novamente em instantes ou fale com a gente pelo WhatsApp.',
-    });
+    return res.status(500).json({ error: String(err) });
   }
 };
