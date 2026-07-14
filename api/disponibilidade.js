@@ -2,7 +2,6 @@
 // Vercel Serverless Function — computes REAL day-by-day availability by reading
 // actual rental orders from EstoqueNOW (the documented "availability" endpoints
 // ignore date filters — this works around that by computing overlaps ourselves).
-// Keeps client_id/client_secret safely on the server, never exposed to the browser.
 
 const ALLOWED_ITEMS = {
   criolipolise: { id: '2515213', label: 'Criolipólise · Criodermis 2.0' },
@@ -11,18 +10,38 @@ const ALLOWED_ITEMS = {
   ultraformer:  { id: '2200560', label: 'Ultraformer MPT' },
 };
 
-// Active order statuses that hold a unit (exclude 1=budget/draft, 5=cancelled)
 const ACTIVE_STATUSES = '2,3,6,4,7';
 
 let cachedToken = null;
 let cachedTokenExpiresAt = 0;
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+async function fetchWithRetry(url, options, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const resp = await fetch(url, options);
+      if (resp.status >= 500 && attempt < retries) {
+        await sleep(300 * (attempt + 1));
+        continue;
+      }
+      return resp;
+    } catch (err) {
+      if (attempt < retries) {
+        await sleep(300 * (attempt + 1));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
 
 async function getAccessToken() {
   const now = Date.now();
   if (cachedToken && now < cachedTokenExpiresAt) {
     return cachedToken;
   }
-  const resp = await fetch('https://api.estoquenow.com.br/v1/oauth2/token', {
+  const resp = await fetchWithRetry('https://api.estoquenow.com.br/v1/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -59,7 +78,7 @@ function toDDMMYYYY(iso) {
 
 async function fetchItemTotalQty(token, id) {
   const url = `https://api.estoquenow.com.br/v1/inventory/availability/item/${encodeURIComponent(id)}`;
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const resp = await fetchWithRetry(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!resp.ok) return 1;
   const data = await resp.json();
   const n = Number(data && data.qtd);
@@ -75,7 +94,7 @@ async function fetchOrdersInRange(token, startIso, endIso) {
     `per_page=100`,
   ].join('&');
   const url = `https://api.estoquenow.com.br/v1/rental?${params}`;
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const resp = await fetchWithRetry(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!resp.ok) return [];
   const data = await resp.json();
   return (data && data.data) || [];
@@ -83,7 +102,7 @@ async function fetchOrdersInRange(token, startIso, endIso) {
 
 async function fetchOrderDetail(token, id) {
   const url = `https://api.estoquenow.com.br/v1/rental/${encodeURIComponent(id)}`;
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const resp = await fetchWithRetry(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!resp.ok) return null;
   return resp.json();
 }
@@ -113,12 +132,13 @@ module.exports = async (req, res) => {
       fetchOrdersInRange(token, monthStartIso, monthEndIso),
     ]);
 
-    const BATCH_SIZE = 8;
+    const BATCH_SIZE = 5;
     const details = [];
     for (let i = 0; i < orders.length; i += BATCH_SIZE) {
       const batch = orders.slice(i, i + BATCH_SIZE);
       const results = await Promise.all(batch.map((o) => fetchOrderDetail(token, o.id)));
       details.push(...results);
+      if (i + BATCH_SIZE < orders.length) await sleep(120);
     }
 
     const bookings = [];
