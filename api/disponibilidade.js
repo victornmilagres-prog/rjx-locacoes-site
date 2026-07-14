@@ -1,4 +1,4 @@
-// /api/disponibilidade.js — DEBUG BUILD, testing internal calendar endpoint
+// /api/disponibilidade.js — DEBUG BUILD (rental list test)
 
 let cachedToken = null;
 let cachedTokenExpiresAt = 0;
@@ -29,21 +29,12 @@ async function getAccessToken(force) {
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   try {
-    const token = await getAccessToken(req.query && req.query.force === '1');
-
-    const encId = req.query.encid;
-    const sDate = req.query.sdate || '2026-06-30';
-    const eDate = req.query.edate || '2026-07-31';
-    const url = `https://web.estoquenow.com.br/inventory/ajax_data_calendar_item/${encodeURIComponent(encId)}?start_date=${sDate}&end_date=${eDate}`;
+    const token = await getAccessToken(true);
+    const rawQs = req.query.qs || 'per_page=5';
+    const url = `https://api.estoquenow.com.br/v1/rental?${rawQs}`;
     const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    const contentType = resp.headers.get('content-type') || '';
-    let raw;
-    if (contentType.includes('json')) {
-      raw = await resp.json();
-    } else {
-      raw = (await resp.text()).slice(0, 800);
-    }
-    return res.status(200).json({ url, status: resp.status, contentType, raw });
+    const raw = await resp.json();
+    return res.status(200).json({ url, status: resp.status, raw });
   } catch (err) {
     return res.status(500).json({ error: String(err) });
   }
