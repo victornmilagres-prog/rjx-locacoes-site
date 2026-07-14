@@ -12,9 +12,9 @@ const ALLOWED_ITEMS = {
 let cachedToken = null;
 let cachedTokenExpiresAt = 0;
 
-async function getAccessToken() {
+async function getAccessToken(force) {
   const now = Date.now();
-  if (cachedToken && now < cachedTokenExpiresAt) {
+  if (cachedToken && now < cachedTokenExpiresAt && !force) {
     return cachedToken;
   }
   const resp = await fetch('https://api.estoquenow.com.br/v1/oauth2/token', {
@@ -55,34 +55,30 @@ module.exports = async (req, res) => {
   const { equipamento, month } = req.query || {};
 
   const item = ALLOWED_ITEMS[equipamento];
-  if (!item) {
-    return res.status(400).json({ error: 'Equipamento inválido.' });
-  }
-  if (!month || !isValidMonth(month)) {
-    return res.status(400).json({ error: 'Informe o mês no formato AAAA-MM.' });
-  }
-
-  const [year, mon] = month.split('-').map(Number);
-  const totalDays = daysInMonth(year, mon);
-  const dates = [];
-  for (let d = 1; d <= totalDays; d++) {
-    dates.push(`${year}-${pad(mon)}-${pad(d)}`);
-  }
 
   try {
-    const token = await getAccessToken();
+    const token = await getAccessToken(req.query && req.query.force === '1');
 
-    if (req.query && req.query.debug === '3') {
-      const sDate = req.query.sdate || dates[0];
-      const eDate = req.query.edate || dates[0];
-      const sTime = req.query.stime;
-      const eTime = req.query.etime;
-      let url = `https://api.estoquenow.com.br/v1/inventory/availability?id=${encodeURIComponent(item.id)}&start_date=${sDate}&end_date=${eDate}`;
-      if (sTime) url += `&start_time=${encodeURIComponent(sTime)}`;
-      if (eTime) url += `&end_time=${encodeURIComponent(eTime)}`;
+    if (req.query && req.query.debug === '2') {
+      const rentalId = req.query.rid;
+      if (rentalId) {
+        const url = `https://api.estoquenow.com.br/v1/rental/${encodeURIComponent(rentalId)}`;
+        const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        const raw = await resp.json();
+        return res.status(200).json({ debug: 2, mode: 'rental-detail', status: resp.status, raw });
+      }
+      const rawQs = req.query.qs || '';
+      const url = `https://api.estoquenow.com.br/v1/rental?${rawQs}`;
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       const raw = await resp.json();
-      return res.status(200).json({ debug: 3, sDate, eDate, url, status: resp.status, raw });
+      return res.status(200).json({ debug: 2, mode: 'rental-list', url, status: resp.status, raw });
+    }
+
+    if (!item) {
+      return res.status(400).json({ error: 'Equipamento inválido.' });
+    }
+    if (!month || !isValidMonth(month)) {
+      return res.status(400).json({ error: 'Informe o mês no formato AAAA-MM.' });
     }
 
     return res.status(200).json({ label: item.label, month, days: [] });
