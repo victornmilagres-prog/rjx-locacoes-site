@@ -274,6 +274,25 @@ section{ padding:100px 0; }
 
 .avail-note{ font-size:13px; color:var(--gray-soft); margin-top:10px; }
 
+.avail-live-badge{
+  display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700;
+  letter-spacing:.04em; text-transform:uppercase; color:var(--wine); margin-bottom:14px;
+}
+.avail-live-badge .avail-live-dot{
+  width:8px; height:8px; border-radius:50%; background:var(--wine);
+  box-shadow:0 0 0 rgba(122,18,32,.5); animation:avail-pulse 1.8s infinite;
+}
+@keyframes avail-pulse{
+  0%{ box-shadow:0 0 0 0 rgba(122,18,32,.45); }
+  70%{ box-shadow:0 0 0 8px rgba(122,18,32,0); }
+  100%{ box-shadow:0 0 0 0 rgba(122,18,32,0); }
+}
+.avail-disclaimer{
+  display:flex; gap:10px; align-items:flex-start; margin-top:18px; padding-top:16px;
+  border-top:1px solid var(--line); font-size:12.5px; color:var(--gray-soft); line-height:1.6;
+}
+.avail-disclaimer svg{ flex:none; width:15px; height:15px; margin-top:1px; }
+
 /* ---------- utility ---------- */
 .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:56px; align-items:center; }
 .mt-8{ margin-top:8px;} .mt-16{ margin-top:16px;} .mt-24{ margin-top:24px;} .mt-32{ margin-top:32px;}
