@@ -62,9 +62,9 @@ function extractQuantity(raw) {
 async function fetchDay(token, cod, dateStr) {
   const url = `https://api.estoquenow.com.br/v1/inventory/availability?cod=${encodeURIComponent(cod)}&start_date=${dateStr}&end_date=${dateStr}`;
   const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!resp.ok) return { date: dateStr, quantity: null };
+  if (!resp.ok) return { date: dateStr, quantity: null, _status: resp.status };
   const data = await resp.json();
-  return { date: dateStr, quantity: extractQuantity(data) };
+  return { date: dateStr, quantity: extractQuantity(data), _raw: data };
 }
 
 module.exports = async (req, res) => {
@@ -89,6 +89,11 @@ module.exports = async (req, res) => {
 
   try {
     const token = await getAccessToken();
+
+    if (req.query && req.query.debug === '1') {
+      const single = await fetchDay(token, item.cod, dates[0]);
+      return res.status(200).json({ debug: true, sample: single });
+    }
 
     const BATCH_SIZE = 8;
     const days = [];
