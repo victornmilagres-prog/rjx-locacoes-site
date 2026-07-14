@@ -6,10 +6,10 @@
 // actual calendar (like the "ver calendário" view inside EstoqueNOW itself).
 
 const ALLOWED_ITEMS = {
-  criolipolise: { cod: '000044', label: 'Criolipólise · Criodermis 2.0' },
-  endolaser:    { cod: '000001', label: 'Endolaser · Pioon' },
-  lavieen:      { cod: '000016', label: 'Lavieen' },
-  ultraformer:  { cod: '000015', label: 'Ultraformer MPT' },
+  criolipolise: { id: '2515213', cod: '000044', label: 'Criolipólise · Criodermis 2.0' },
+  endolaser:    { id: '1351370', cod: '000001', label: 'Endolaser · Pioon' },
+  lavieen:      { id: '2207555', cod: '000016', label: 'Lavieen' },
+  ultraformer:  { id: '2200560', cod: '000015', label: 'Ultraformer MPT' },
 };
 
 let cachedToken = null;
@@ -55,15 +55,18 @@ function pad(n) {
 }
 
 function extractQuantity(raw) {
-  const candidates = ['quantity', 'qty', 'quantidade', 'available_quantity', 'estoque', 'stock'];
+  const candidates = ['qtd_available', 'quantity', 'qty', 'quantidade', 'available_quantity', 'estoque', 'stock'];
   for (const key of candidates) {
-    if (raw && typeof raw[key] === 'number') return raw[key];
+    if (raw && raw[key] !== undefined && raw[key] !== null) {
+      const n = Number(raw[key]);
+      if (!isNaN(n)) return n;
+    }
   }
   return null;
 }
 
-async function fetchDay(token, cod, dateStr) {
-  const url = `https://api.estoquenow.com.br/v1/inventory/availability?cod=${encodeURIComponent(cod)}&start_date=${dateStr}&end_date=${dateStr}`;
+async function fetchDay(token, id, dateStr) {
+  const url = `https://api.estoquenow.com.br/v1/inventory/availability/item/${encodeURIComponent(id)}?start_date=${dateStr}&end_date=${dateStr}`;
   const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!resp.ok) return { date: dateStr, quantity: null };
   const data = await resp.json();
@@ -94,7 +97,7 @@ module.exports = async (req, res) => {
     const token = await getAccessToken();
 
     if (req.query && req.query.debug === '1') {
-      const url = `https://api.estoquenow.com.br/v1/inventory/availability?cod=${encodeURIComponent(item.cod)}&start_date=${dates[0]}&end_date=${dates[0]}`;
+      const url = `https://api.estoquenow.com.br/v1/inventory/availability/item/${encodeURIComponent(item.id)}?start_date=${dates[0]}&end_date=${dates[0]}`;
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       const raw = await resp.json();
       return res.status(200).json({ debug: true, status: resp.status, raw });
@@ -104,7 +107,7 @@ module.exports = async (req, res) => {
     const days = [];
     for (let i = 0; i < dates.length; i += BATCH_SIZE) {
       const batch = dates.slice(i, i + BATCH_SIZE);
-      const results = await Promise.all(batch.map((d) => fetchDay(token, item.cod, d)));
+      const results = await Promise.all(batch.map((d) => fetchDay(token, item.id, d)));
       days.push(...results);
     }
 
