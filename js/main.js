@@ -66,127 +66,94 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // ---------------------------------------------------------------------
-  // Availability calendar widget — queries /api/disponibilidade (a Vercel
-  // Serverless Function that safely proxies the EstoqueNOW API) and renders
-  // a month calendar, day by day, similar to the "ver calendário" view
-  // inside EstoqueNOW itself.
-  // Markup: <div class="availability-widget" data-availability-calendar data-avail-equip="ultraformer">
-  //           <div class="avail-cal-header">...<span data-avail-cal-title></span>...
-  //             <button data-avail-prev>‹</button><button data-avail-next>›</button></div>
-  //           <div class="avail-cal-grid" data-avail-cal-grid></div>
-  //           <div class="avail-status-msg" data-avail-status></div>
-  //         </div>
-  // Optional: a <select data-avail-equip-select> elsewhere on the page whose
-  // value swaps data-avail-equip on the nearest calendar and re-renders it.
-  var DOW_LABELS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
-  var MONTH_LABELS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  // Availability quick-check widget — queries /api/disponibilidade (a Vercel
+  // Serverless Function that safely proxies the EstoqueNOW API) for a specific
+  // date range and shows a simple available/unavailable result with a WhatsApp CTA.
+  // Markup: <div data-availability-quick data-avail-equip="ultraformer"> (equipment
+  // pages, equipment fixed) or data-avail-equip omitted + a
+  // <select data-avail-equip-select> inside (Equipamentos listing page).
+  //   <form data-avail-form>
+  //     <input type="date" data-avail-start> <input type="date" data-avail-end>
+  //     <button type="submit">...</button>
+  //   </form>
+  //   <div class="avail-result-msg" data-avail-result></div>
+  var WA_NUMBER = '5521976078440';
 
-  function pad2(n) { return String(n).padStart(2, '0'); }
+  function initAvailabilityQuick(widget) {
+    var form = widget.querySelector('[data-avail-form]');
+    var resultEl = widget.querySelector('[data-avail-result]');
+    var equipSelect = widget.querySelector('[data-avail-equip-select]');
+    var fixedEquip = widget.getAttribute('data-avail-equip');
+    if (!form || !resultEl) return;
 
-  function initAvailabilityCalendar(widget) {
-    var today = new Date();
-    var state = { year: today.getFullYear(), month: today.getMonth() + 1 }; // month is 1-indexed
-
-    var titleEl = widget.querySelector('[data-avail-cal-title]');
-    var gridEl = widget.querySelector('[data-avail-cal-grid]');
-    var statusEl = widget.querySelector('[data-avail-status]');
-    var prevBtn = widget.querySelector('[data-avail-prev]');
-    var nextBtn = widget.querySelector('[data-avail-next]');
-
-    function todayStr() {
-      return today.getFullYear() + '-' + pad2(today.getMonth() + 1) + '-' + pad2(today.getDate());
+    function showResult(state, html) {
+      resultEl.className = 'avail-result-msg ' + state;
+      resultEl.innerHTML = html;
     }
 
-    function buildSkeleton() {
-      var firstOfMonth = new Date(state.year, state.month - 1, 1);
-      var offset = firstOfMonth.getDay(); // 0=Sunday
-      var totalDays = new Date(state.year, state.month, 0).getDate();
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
 
-      var html = '';
-      DOW_LABELS.forEach(function (d) { html += '<div class="avail-cal-dow">' + d + '</div>'; });
-      for (var i = 0; i < offset; i++) html += '<div class="avail-cal-day is-empty"></div>';
-      for (var d2 = 1; d2 <= totalDays; d2++) {
-        var dateStr = state.year + '-' + pad2(state.month) + '-' + pad2(d2);
-        var isPast = dateStr < todayStr();
-        html += '<div class="avail-cal-day is-loading' + (isPast ? ' is-past' : '') + '" data-date="' + dateStr + '">' + d2 + '</div>';
+      var equipamento = fixedEquip || (equipSelect ? equipSelect.value : '');
+      var startInput = form.querySelector('[data-avail-start]');
+      var endInput = form.querySelector('[data-avail-end]');
+      var startDate = startInput ? startInput.value : '';
+      var endDate = endInput ? endInput.value : '';
+
+      if (!equipamento) {
+        showResult('is-bad', '<span class="avail-result-text"><span>Selecione um equipamento.</span></span>');
+        return;
       }
-      gridEl.innerHTML = html;
-      titleEl.textContent = MONTH_LABELS[state.month - 1] + ' ' + state.year;
-    }
+      if (!startDate || !endDate) {
+        showResult('is-bad', '<span class="avail-result-text"><span>Selecione as duas datas.</span></span>');
+        return;
+      }
 
-    function applyResults(days) {
-      var byDate = {};
-      days.forEach(function (d) { byDate[d.date] = d.quantity; });
-      gridEl.querySelectorAll('.avail-cal-day[data-date]').forEach(function (cell) {
-        var dateStr = cell.getAttribute('data-date');
-        var qty = byDate.hasOwnProperty(dateStr) ? byDate[dateStr] : null;
-        cell.classList.remove('is-loading');
-        var dayNum = dateStr.slice(-2).replace(/^0/, '');
-        if (qty === null || qty === undefined) {
-          cell.classList.add('is-unknown');
-          cell.innerHTML = dayNum;
-        } else if (qty > 0) {
-          cell.classList.add('is-available');
-          cell.innerHTML = dayNum + '<span class="avail-cal-dot"></span>';
-        } else {
-          cell.classList.add('is-unavailable');
-          cell.innerHTML = dayNum + '<span class="avail-cal-dot"></span>';
-        }
-      });
-    }
+      var submitBtn = form.querySelector('button[type="submit"]');
+      var originalLabel = submitBtn ? submitBtn.textContent : '';
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Consultando...'; }
+      resultEl.className = 'avail-result-msg';
+      resultEl.innerHTML = '';
 
-    function render() {
-      var equipamento = widget.getAttribute('data-avail-equip');
-      if (!equipamento) return;
-      buildSkeleton();
-      statusEl.textContent = '';
-      statusEl.classList.remove('is-error');
-
-      var monthParam = state.year + '-' + pad2(state.month);
-      var params = new URLSearchParams({ equipamento: equipamento, month: monthParam });
+      var params = new URLSearchParams({ equipamento: equipamento, start_date: startDate, end_date: endDate });
 
       fetch('/api/disponibilidade?' + params.toString())
         .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
         .then(function (res) {
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalLabel; }
+
           if (!res.ok) {
-            statusEl.textContent = res.data.error || 'Não foi possível consultar agora.';
-            statusEl.classList.add('is-error');
-            gridEl.querySelectorAll('.is-loading').forEach(function (c) { c.classList.remove('is-loading'); c.classList.add('is-unknown'); });
+            showResult('is-bad', '<span class="avail-result-text"><span>' + (res.data.error || 'Não foi possível consultar agora.') + '</span></span>');
             return;
           }
-          applyResults(res.data.days || []);
+
+          var label = res.data.label || 'equipamento';
+          var waText = encodeURIComponent(
+            'Olá! Vim pelo site e gostaria de saber sobre a disponibilidade de ' + label +
+            ' entre ' + startDate + ' e ' + endDate + '.'
+          );
+          var waUrl = 'https://wa.me/' + WA_NUMBER + '?text=' + waText;
+
+          if (res.data.available) {
+            showResult(
+              'is-ok',
+              '<span class="avail-result-text"><span class="avail-result-icon">\u2713</span><span>Dispon\u00edvel para o per\u00edodo escolhido!</span></span>' +
+              '<a href="' + waUrl + '" target="_blank" rel="noopener" class="btn avail-result-cta">Finalize sua reserva</a>'
+            );
+          } else {
+            showResult(
+              'is-bad',
+              '<span class="avail-result-text"><span class="avail-result-icon">\u2715</span><span>Indispon\u00edvel nesse per\u00edodo.</span></span>' +
+              '<a href="' + waUrl + '" target="_blank" rel="noopener" class="btn avail-result-cta">Ver alternativas</a>'
+            );
+          }
         })
         .catch(function () {
-          statusEl.textContent = 'Não foi possível consultar agora. Tente novamente ou fale conosco no WhatsApp.';
-          statusEl.classList.add('is-error');
-          gridEl.querySelectorAll('.is-loading').forEach(function (c) { c.classList.remove('is-loading'); c.classList.add('is-unknown'); });
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalLabel; }
+          showResult('is-bad', '<span class="avail-result-text"><span>N\u00e3o foi poss\u00edvel consultar agora. Tente novamente ou fale conosco no WhatsApp.</span></span>');
         });
-    }
-
-    if (prevBtn) prevBtn.addEventListener('click', function () {
-      state.month -= 1;
-      if (state.month < 1) { state.month = 12; state.year -= 1; }
-      render();
     });
-    if (nextBtn) nextBtn.addEventListener('click', function () {
-      state.month += 1;
-      if (state.month > 12) { state.month = 1; state.year += 1; }
-      render();
-    });
-
-    widget.__renderAvailability = render;
-    render();
   }
 
-  document.querySelectorAll('[data-availability-calendar]').forEach(initAvailabilityCalendar);
-
-  document.querySelectorAll('[data-avail-equip-select]').forEach(function (select) {
-    select.addEventListener('change', function () {
-      var widget = document.querySelector('[data-availability-calendar]');
-      if (!widget) return;
-      widget.setAttribute('data-avail-equip', select.value);
-      if (widget.__renderAvailability) widget.__renderAvailability();
-    });
-  });
+  document.querySelectorAll('[data-availability-quick]').forEach(initAvailabilityQuick);
 });
