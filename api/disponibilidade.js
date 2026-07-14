@@ -1,4 +1,4 @@
-// /api/disponibilidade.js — DEBUG BUILD (rental list test)
+// /api/disponibilidade.js — DEBUG BUILD (rental detail test)
 
 let cachedToken = null;
 let cachedTokenExpiresAt = 0;
@@ -29,9 +29,9 @@ async function getAccessToken(force) {
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   try {
-    const token = await getAccessToken(true);
-    const rawQs = req.query.qs || 'per_page=5';
-    const url = `https://api.estoquenow.com.br/v1/rental?${rawQs}`;
+    const token = await getAccessToken();
+    const rid = req.query.rid || '5673444';
+    const url = `https://api.estoquenow.com.br/v1/rental/${encodeURIComponent(rid)}`;
     const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     const raw = await resp.json();
     return res.status(200).json({ url, status: resp.status, raw });
