@@ -104,12 +104,11 @@ module.exports = async (req, res) => {
         const raw = await resp.json();
         return res.status(200).json({ debug: 2, mode: 'rental-detail', status: resp.status, raw });
       }
-      const sDate = req.query.sdate || dates[0];
-      const eDate = req.query.edate || dates[dates.length - 1];
-      const url = `https://api.estoquenow.com.br/v1/rental?start_date=${sDate}&end_date=${eDate}&period_type=delivery_date&status=2,3,6,4,7&per_page=50`;
+      const rawQs = req.query.qs || '';
+      const url = `https://api.estoquenow.com.br/v1/rental?${rawQs}`;
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       const raw = await resp.json();
-      return res.status(200).json({ debug: 2, mode: 'rental-list', status: resp.status, raw });
+      return res.status(200).json({ debug: 2, mode: 'rental-list', url, status: resp.status, raw });
     }
 
     if (req.query && req.query.debug === '1') {
