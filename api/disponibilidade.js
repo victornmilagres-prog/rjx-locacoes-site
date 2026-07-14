@@ -158,7 +158,6 @@ module.exports = async (req, res) => {
       });
     });
 
-    // The item must be free every single day of the requested range.
     let minQuantity = totalQty;
     let cursor = startDate;
     let guard = 0;
