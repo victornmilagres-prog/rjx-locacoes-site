@@ -15,9 +15,9 @@ const ALLOWED_ITEMS = {
 let cachedToken = null;
 let cachedTokenExpiresAt = 0;
 
-async function getAccessToken(debugCapture) {
+async function getAccessToken() {
   const now = Date.now();
-  if (cachedToken && now < cachedTokenExpiresAt && !debugCapture) {
+  if (cachedToken && now < cachedTokenExpiresAt) {
     return cachedToken;
   }
   const resp = await fetch('https://api.estoquenow.com.br/v1/oauth2/token', {
@@ -31,12 +31,14 @@ async function getAccessToken(debugCapture) {
   if (!resp.ok) {
     const bodyText = await resp.text().catch(() => '');
     console.error('EstoqueNOW token error', resp.status, bodyText);
-    throw new Error('Falha na autenticação com o EstoqueNOW: ' + resp.status + ' ' + bodyText);
+    throw new Error('Falha na autenticação com o EstoqueNOW');
   }
   const data = await resp.json();
-  if (debugCapture) debugCapture.tokenResponse = data;
-  cachedToken = data.access_token;
-  cachedTokenExpiresAt = now + Math.max((data.expires_in || 1500) - 60, 60) * 1000;
+  // EstoqueNOW returns the JWT under "token" (not "access_token"), and "expires"
+  // as an absolute date string (not "expires_in" seconds).
+  cachedToken = data.token;
+  const expiresAt = data.expires ? Date.parse(data.expires.replace(' ', 'T') + 'Z') : NaN;
+  cachedTokenExpiresAt = !isNaN(expiresAt) ? expiresAt - 60000 : now + 25 * 60 * 1000;
   return cachedToken;
 }
 
@@ -63,9 +65,9 @@ function extractQuantity(raw) {
 async function fetchDay(token, cod, dateStr) {
   const url = `https://api.estoquenow.com.br/v1/inventory/availability?cod=${encodeURIComponent(cod)}&start_date=${dateStr}&end_date=${dateStr}`;
   const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!resp.ok) return { date: dateStr, quantity: null, _status: resp.status };
+  if (!resp.ok) return { date: dateStr, quantity: null };
   const data = await resp.json();
-  return { date: dateStr, quantity: extractQuantity(data), _raw: data };
+  return { date: dateStr, quantity: extractQuantity(data) };
 }
 
 module.exports = async (req, res) => {
@@ -89,12 +91,13 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const debugInfo = {};
-    const token = await getAccessToken(req.query && req.query.debug === '1' ? debugInfo : null);
+    const token = await getAccessToken();
 
     if (req.query && req.query.debug === '1') {
-      const single = await fetchDay(token, item.cod, dates[0]);
-      return res.status(200).json({ debug: true, tokenResponse: debugInfo.tokenResponse, tokenUsed: token, sample: single });
+      const url = `https://api.estoquenow.com.br/v1/inventory/availability?cod=${encodeURIComponent(item.cod)}&start_date=${dates[0]}&end_date=${dates[0]}`;
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const raw = await resp.json();
+      return res.status(200).json({ debug: true, status: resp.status, raw });
     }
 
     const BATCH_SIZE = 8;
