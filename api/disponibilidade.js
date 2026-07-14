@@ -15,9 +15,9 @@ const ALLOWED_ITEMS = {
 let cachedToken = null;
 let cachedTokenExpiresAt = 0;
 
-async function getAccessToken() {
+async function getAccessToken(debugCapture) {
   const now = Date.now();
-  if (cachedToken && now < cachedTokenExpiresAt) {
+  if (cachedToken && now < cachedTokenExpiresAt && !debugCapture) {
     return cachedToken;
   }
   const resp = await fetch('https://api.estoquenow.com.br/v1/oauth2/token', {
@@ -34,6 +34,7 @@ async function getAccessToken() {
     throw new Error('Falha na autenticação com o EstoqueNOW: ' + resp.status + ' ' + bodyText);
   }
   const data = await resp.json();
+  if (debugCapture) debugCapture.tokenResponse = data;
   cachedToken = data.access_token;
   cachedTokenExpiresAt = now + Math.max((data.expires_in || 1500) - 60, 60) * 1000;
   return cachedToken;
@@ -88,11 +89,12 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const token = await getAccessToken();
+    const debugInfo = {};
+    const token = await getAccessToken(req.query && req.query.debug === '1' ? debugInfo : null);
 
     if (req.query && req.query.debug === '1') {
       const single = await fetchDay(token, item.cod, dates[0]);
-      return res.status(200).json({ debug: true, sample: single });
+      return res.status(200).json({ debug: true, tokenResponse: debugInfo.tokenResponse, tokenUsed: token, sample: single });
     }
 
     const BATCH_SIZE = 8;
