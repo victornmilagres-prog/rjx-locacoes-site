@@ -96,13 +96,6 @@ module.exports = async (req, res) => {
   try {
     const token = await getAccessToken();
 
-    if (req.query && req.query.debug === '1') {
-      const url = `https://api.estoquenow.com.br/v1/inventory/availability/item/${encodeURIComponent(item.id)}?start_date=${dates[0]}&end_date=${dates[0]}`;
-      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      const raw = await resp.json();
-      return res.status(200).json({ debug: true, status: resp.status, raw });
-    }
-
     const BATCH_SIZE = 8;
     const days = [];
     for (let i = 0; i < dates.length; i += BATCH_SIZE) {
