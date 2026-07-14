@@ -1,9 +1,6 @@
 // /api/disponibilidade.js
 // Vercel Serverless Function — proxies availability queries to the EstoqueNOW API,
 // keeping the client_id/client_secret safely on the server. Never exposed to the browser.
-//
-// Returns day-by-day availability for a given month, so the frontend can render an
-// actual calendar (like the "ver calendário" view inside EstoqueNOW itself).
 
 const ALLOWED_ITEMS = {
   criolipolise: { id: '2515213', cod: '000044', label: 'Criolipólise · Criodermis 2.0' },
@@ -34,8 +31,6 @@ async function getAccessToken() {
     throw new Error('Falha na autenticação com o EstoqueNOW');
   }
   const data = await resp.json();
-  // EstoqueNOW returns the JWT under "token" (not "access_token"), and "expires"
-  // as an absolute date string (not "expires_in" seconds).
   cachedToken = data.token;
   const expiresAt = data.expires ? Date.parse(data.expires.replace(' ', 'T') + 'Z') : NaN;
   cachedTokenExpiresAt = !isNaN(expiresAt) ? expiresAt - 60000 : now + 25 * 60 * 1000;
@@ -52,25 +47,6 @@ function daysInMonth(year, month) {
 
 function pad(n) {
   return String(n).padStart(2, '0');
-}
-
-function extractQuantity(raw) {
-  const candidates = ['qtd_available', 'quantity', 'qty', 'quantidade', 'available_quantity', 'estoque', 'stock'];
-  for (const key of candidates) {
-    if (raw && raw[key] !== undefined && raw[key] !== null) {
-      const n = Number(raw[key]);
-      if (!isNaN(n)) return n;
-    }
-  }
-  return null;
-}
-
-async function fetchDay(token, id, dateStr) {
-  const url = `https://api.estoquenow.com.br/v1/inventory/availability/item/${encodeURIComponent(id)}?start_date=${dateStr}&end_date=${dateStr}`;
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!resp.ok) return { date: dateStr, quantity: null };
-  const data = await resp.json();
-  return { date: dateStr, quantity: extractQuantity(data) };
 }
 
 module.exports = async (req, res) => {
@@ -96,39 +72,16 @@ module.exports = async (req, res) => {
   try {
     const token = await getAccessToken();
 
-    if (req.query && req.query.debug === '2') {
-      const rentalId = req.query.rid;
-      if (rentalId) {
-        const url = `https://api.estoquenow.com.br/v1/rental/${encodeURIComponent(rentalId)}`;
-        const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-        const raw = await resp.json();
-        return res.status(200).json({ debug: 2, mode: 'rental-detail', status: resp.status, raw });
-      }
-      const rawQs = req.query.qs || '';
-      const url = `https://api.estoquenow.com.br/v1/rental?${rawQs}`;
-      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      const raw = await resp.json();
-      return res.status(200).json({ debug: 2, mode: 'rental-list', url, status: resp.status, raw });
-    }
-
-    if (req.query && req.query.debug === '1') {
+    if (req.query && req.query.debug === '3') {
       const sDate = req.query.sdate || dates[0];
       const eDate = req.query.edate || dates[0];
-      const url = `https://api.estoquenow.com.br/v1/inventory/availability/item/${encodeURIComponent(item.id)}?start_date=${sDate}&end_date=${eDate}`;
+      const url = `https://api.estoquenow.com.br/v1/inventory/availability?id=${encodeURIComponent(item.id)}&start_date=${sDate}&end_date=${eDate}`;
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       const raw = await resp.json();
-      return res.status(200).json({ debug: true, sDate, eDate, status: resp.status, raw });
+      return res.status(200).json({ debug: 3, sDate, eDate, url, status: resp.status, raw });
     }
 
-    const BATCH_SIZE = 8;
-    const days = [];
-    for (let i = 0; i < dates.length; i += BATCH_SIZE) {
-      const batch = dates.slice(i, i + BATCH_SIZE);
-      const results = await Promise.all(batch.map((d) => fetchDay(token, item.id, d)));
-      days.push(...results);
-    }
-
-    return res.status(200).json({ label: item.label, month, days });
+    return res.status(200).json({ label: item.label, month, days: [] });
   } catch (err) {
     console.error('disponibilidade handler error:', err && err.message, err && err.stack);
     return res.status(500).json({
