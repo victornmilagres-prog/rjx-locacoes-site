@@ -235,45 +235,7 @@ section{ padding:100px 0; }
 .notice-box p{ font-size:14.5px; color:var(--ink-soft); line-height:1.6; font-family:var(--body); }
 .notice-box strong{ color:var(--ink); }
 
-/* ---------- availability calendar widget ---------- */
-.availability-widget{ background:var(--paper); border:1px solid var(--line); padding:32px; }
-.availability-widget .field{ margin-bottom:16px; }
-
-.avail-cal-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-.avail-cal-header .avail-cal-title{ font-family:var(--display); font-size:19px; font-weight:600; color:var(--ink); text-transform:capitalize; }
-.avail-cal-nav{ display:flex; gap:8px; }
-.avail-cal-nav button{
-  width:32px; height:32px; border-radius:50%; border:1.5px solid var(--line); background:var(--paper);
-  color:var(--ink); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;
-}
-.avail-cal-nav button:hover{ border-color:var(--wine); color:var(--wine); }
-
-.avail-cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
-.avail-cal-dow{ text-align:center; font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--gray-soft); text-transform:uppercase; padding-bottom:4px; }
-.avail-cal-day{
-  aspect-ratio:1; border-radius:var(--radius); display:flex; flex-direction:column; align-items:center; justify-content:center;
-  font-size:13px; font-weight:700; gap:2px; border:1px solid transparent;
-}
-.avail-cal-day.is-empty{ visibility:hidden; }
-.avail-cal-day.is-loading{ background:var(--paper-soft); color:var(--gray-soft); font-weight:400; }
-.avail-cal-day.is-available{ background:#eaf3ea; color:#1e5c2e; border-color:#cfe4cf; }
-.avail-cal-day.is-unavailable{ background:#fbeceb; color:#9b3a35; border-color:#f1d4d2; }
-.avail-cal-day.is-unknown{ background:var(--paper-soft); color:var(--gray); }
-.avail-cal-day.is-past{ opacity:.35; }
-.avail-cal-day .avail-cal-dot{ width:5px; height:5px; border-radius:50%; background:currentColor; }
-
-.avail-cal-legend{ display:flex; gap:18px; margin-top:16px; flex-wrap:wrap; }
-.avail-cal-legend span{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--gray); }
-.avail-cal-legend .avail-cal-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
-.avail-cal-legend .dot-available{ background:#3a8a4a; }
-.avail-cal-legend .dot-unavailable{ background:#c1443c; }
-
-.avail-status-msg{ margin-top:14px; padding:12px 14px; border-radius:var(--radius); font-size:13.5px; background:var(--paper-soft); color:var(--gray); display:none; }
-.avail-status-msg:not(:empty){ display:block; }
-.avail-status-msg.is-error{ background:#fbeceb; color:#8a2420; }
-
-.avail-note{ font-size:13px; color:var(--gray-soft); margin-top:10px; }
-
+/* ---------- availability quick-check widget ---------- */
 .avail-live-badge{
   display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700;
   letter-spacing:.04em; text-transform:uppercase; color:var(--wine); margin-bottom:14px;
@@ -287,8 +249,41 @@ section{ padding:100px 0; }
   70%{ box-shadow:0 0 0 8px rgba(122,18,32,0); }
   100%{ box-shadow:0 0 0 0 rgba(122,18,32,0); }
 }
+
+/* card variant — used on the Equipamentos listing page (has equipment selector) */
+.avail-quick-card{ background:var(--paper); border:1px solid var(--line); padding:36px; }
+.avail-quick-card .field{ margin-bottom:20px; }
+.avail-quick-title{ font-family:var(--display); font-size:22px; font-weight:600; margin:10px 0 20px; color:var(--ink); }
+
+/* compact linear variant — used on individual equipment pages */
+.avail-quick-inline{ background:var(--paper); border:1px solid var(--line); padding:22px 26px; }
+.avail-quick-row{ display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; }
+.avail-quick-row .field-inline{ flex:1; min-width:150px; margin-bottom:0; }
+.avail-quick-row .field-inline label{ display:block; font-size:12.5px; font-weight:700; margin-bottom:6px; color:var(--ink-soft); font-family:var(--body); }
+.avail-quick-row .field-inline input{
+  width:100%; padding:11px 13px; border:1.5px solid var(--line); border-radius:var(--radius);
+  font-family:var(--body); font-size:14.5px; background:var(--paper); color:var(--ink);
+}
+.avail-quick-row .field-inline input:focus{ outline:none; border-color:var(--wine); }
+.avail-quick-row .btn{ padding:12px 24px; white-space:nowrap; }
+
+/* result message — shared by both variants */
+.avail-result-msg{ margin-top:16px; padding:14px 14px 14px 18px; border-radius:var(--radius); font-size:15px; font-weight:600; display:none; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+.avail-result-msg.is-ok, .avail-result-msg.is-bad{ display:flex; }
+.avail-result-msg .avail-result-text{ display:flex; align-items:center; gap:10px; }
+.avail-result-msg .avail-result-icon{ width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex:none; }
+.avail-result-msg.is-ok{ background:#eaf3ea; color:#1e5c2e; }
+.avail-result-msg.is-ok .avail-result-icon{ background:#3a8a4a; color:#fff; }
+.avail-result-msg.is-bad{ background:#fbeceb; color:#9b3a35; }
+.avail-result-msg.is-bad .avail-result-icon{ background:#c1443c; color:#fff; }
+.avail-result-msg .avail-result-cta{ flex:none; padding:10px 18px; font-size:13.5px; white-space:nowrap; }
+.avail-result-msg.is-ok .avail-result-cta{ background:#2f7a3d; color:#fff; }
+.avail-result-msg.is-ok .avail-result-cta:hover{ background:#256330; }
+.avail-result-msg.is-bad .avail-result-cta{ background:#9b3a35; color:#fff; }
+.avail-result-msg.is-bad .avail-result-cta:hover{ background:#7f2e2a; }
+
 .avail-disclaimer{
-  display:flex; gap:10px; align-items:flex-start; margin-top:18px; padding-top:16px;
+  display:flex; gap:10px; align-items:flex-start; margin-top:16px; padding-top:14px;
   border-top:1px solid var(--line); font-size:12.5px; color:var(--gray-soft); line-height:1.6;
 }
 .avail-disclaimer svg{ flex:none; width:15px; height:15px; margin-top:1px; }
