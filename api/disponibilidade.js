@@ -75,7 +75,11 @@ module.exports = async (req, res) => {
     if (req.query && req.query.debug === '3') {
       const sDate = req.query.sdate || dates[0];
       const eDate = req.query.edate || dates[0];
-      const url = `https://api.estoquenow.com.br/v1/inventory/availability?id=${encodeURIComponent(item.id)}&start_date=${sDate}&end_date=${eDate}`;
+      const sTime = req.query.stime;
+      const eTime = req.query.etime;
+      let url = `https://api.estoquenow.com.br/v1/inventory/availability?id=${encodeURIComponent(item.id)}&start_date=${sDate}&end_date=${eDate}`;
+      if (sTime) url += `&start_time=${encodeURIComponent(sTime)}`;
+      if (eTime) url += `&end_time=${encodeURIComponent(eTime)}`;
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       const raw = await resp.json();
       return res.status(200).json({ debug: 3, sDate, eDate, url, status: resp.status, raw });
