@@ -102,28 +102,27 @@
 </section>
 
 <section class="section-soft">
-  <div class="container text-center" style="max-width:520px;">
+  <div class="container" style="max-width:640px;">
     <span class="eyebrow">Disponibilidade em tempo real</span>
     <h2 class="mt-16" style="font-size:26px;">Esse equipamento está livre quando você precisa?</h2>
-    <div class="availability-widget mt-24" style="text-align:left;" data-availability-calendar data-avail-equip="lavieen">
+    <div class="avail-quick-inline mt-24" data-availability-quick data-avail-equip="lavieen">
       <span class="avail-live-badge"><span class="avail-live-dot"></span>Disponibilidade em tempo real</span>
-      <div class="avail-cal-header">
-        <span class="avail-cal-title" data-avail-cal-title></span>
-        <div class="avail-cal-nav">
-          <button type="button" data-avail-prev aria-label="Mês anterior">‹</button>
-          <button type="button" data-avail-next aria-label="Próximo mês">›</button>
+      <form class="avail-quick-row" data-avail-form>
+        <div class="field-inline">
+          <label>Data de início</label>
+          <input type="date" data-avail-start required>
         </div>
-      </div>
-      <div class="avail-cal-grid" data-avail-cal-grid></div>
-      <div class="avail-cal-legend">
-        <span><i class="avail-cal-dot dot-available"></i> Disponível</span>
-        <span><i class="avail-cal-dot dot-unavailable"></i> Indisponível</span>
-      </div>
-      <div class="avail-status-msg" data-avail-status></div>
-      <div class="avail-disclaimer">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-        <span>Disponibilidade consultada agora mesmo, direto do nosso sistema de gestão. Como outras clínicas também reservam em tempo real, ela pode mudar a qualquer momento — confirme pelo WhatsApp antes de fechar.</span>
-      </div>
+        <div class="field-inline">
+          <label>Data de término</label>
+          <input type="date" data-avail-end required>
+        </div>
+        <button type="submit" class="btn btn-primary">Consultar disponibilidade</button>
+      </form>
+      <div class="avail-result-msg" data-avail-result></div>
+    </div>
+    <div class="avail-disclaimer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      <span>Disponibilidade consultada agora mesmo, direto do nosso sistema de gestão. Como outras clínicas também reservam em tempo real, ela pode mudar a qualquer momento — confirme pelo WhatsApp antes de fechar.</span>
     </div>
   </div>
 </section>
