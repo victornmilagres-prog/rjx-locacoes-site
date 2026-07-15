@@ -260,11 +260,11 @@ section{ padding:100px 0; }
 .avail-quick-row{ display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; }
 .avail-quick-row .field-inline{ flex:1; min-width:150px; margin-bottom:0; }
 .avail-quick-row .field-inline label{ display:block; font-size:12.5px; font-weight:700; margin-bottom:6px; color:var(--ink-soft); font-family:var(--body); }
-.avail-quick-row .field-inline input{
+.avail-quick-row .field-inline input, .avail-quick-row .field-inline select{
   width:100%; padding:11px 13px; border:1.5px solid var(--line); border-radius:var(--radius);
   font-family:var(--body); font-size:14.5px; background:var(--paper); color:var(--ink);
 }
-.avail-quick-row .field-inline input:focus{ outline:none; border-color:var(--wine); }
+.avail-quick-row .field-inline input:focus, .avail-quick-row .field-inline select:focus{ outline:none; border-color:var(--wine); }
 .avail-quick-row .btn{ padding:12px 24px; white-space:nowrap; }
 
 /* result message — shared by both variants */
@@ -310,7 +310,7 @@ section{ padding:100px 0; }
 .afe-badge-inline.on-dark span{ color:var(--paper); }
 
 /* ---------- how it works ---------- */
-.how-it-works{ display:grid; grid-template-columns:repeat(3,1fr); gap:32px; position:relative; }
+.how-it-works{ display:grid; grid-template-columns:repeat(4,1fr); gap:28px; position:relative; }
 .how-step{ text-align:center; padding:0 12px; }
 .how-step-num{
   width:48px; height:48px; border-radius:50%; background:var(--wine); color:var(--paper);
