@@ -296,6 +296,12 @@ section{ padding:100px 0; }
 .afe-strip-text span{ font-size:13px; color:var(--gray); }
 .afe-strip-divider{ width:1px; height:30px; background:var(--line); }
 .afe-strip-number{ font-size:12.5px; color:var(--gray-soft); font-family:var(--body); }
+.afe-strip-link{
+  font-size:13px; font-weight:700; color:var(--wine); font-family:var(--body);
+  white-space:nowrap; padding:8px 14px; border:1.5px solid var(--wine); border-radius:100px;
+  transition:background .2s ease, color .2s ease;
+}
+.afe-strip-link:hover{ background:var(--wine); color:var(--paper); }
 
 .afe-badge-inline{ display:inline-flex; align-items:center; gap:10px; background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:8px 16px 8px 8px; }
 .afe-badge-inline .afe-seal{ width:32px; height:32px; }
