@@ -70,7 +70,7 @@
     <div class="stat"><b>500+</b><span>Clínicas parceiras</span></div>
     <div class="stat"><b>04</b><span>Tecnologias em catálogo</span></div>
     <div class="stat"><b>100%</b><span>Manutenção especializada</span></div>
-    <div class="stat"><b>RJ</b><span>Niterói · São Gonçalo · Capital</span></div>
+    <div class="stat"><b style="font-size:26px;">Rio de Janeiro</b><span>Niterói e Região Metropolitana</span></div>
   </div>
 </section>
 
@@ -79,7 +79,7 @@
   <div class="container">
     <div class="section-head text-center" style="margin-left:auto; margin-right:auto;">
       <span class="eyebrow" style="justify-content:center;">Como funciona</span>
-      <h2>Da escolha à entrega, em 3 passos</h2>
+      <h2>Da escolha à entrega, em 4 passos</h2>
     </div>
     <div class="how-it-works">
       <div class="how-step">
@@ -94,8 +94,13 @@
       </div>
       <div class="how-step">
         <div class="how-step-num">3</div>
+        <h3>Faça o cadastro</h3>
+        <p>Confirme pelo WhatsApp ou pelo botão "Seja Cliente" para dar início à locação.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">4</div>
         <h3>Agende a entrega</h3>
-        <p>Confirme pelo WhatsApp e receba o equipamento revisado, pronto para uso.</p>
+        <p>Receba o equipamento revisado, pronto para uso, no dia combinado.</p>
       </div>
     </div>
   </div>
@@ -202,6 +207,33 @@
       <h2>Equipamentos disponíveis para locação</h2>
       <p>Tecnologias reconhecidas no mercado de estética, prontas para elevar o padrão de atendimento da sua clínica.</p>
     </div>
+
+    <div class="avail-quick-inline mt-32" style="max-width:980px; margin:32px auto 48px;" data-availability-quick>
+      <span class="avail-live-badge"><span class="avail-live-dot"></span>Disponibilidade em tempo real</span>
+      <form class="avail-quick-row" data-avail-form>
+        <div class="field-inline">
+          <label for="home-avail-equip-select">Equipamento</label>
+          <select id="home-avail-equip-select" data-avail-equip-select required>
+            <option value="">Selecione...</option>
+            <option value="criolipolise">Criolipólise · Criodermis 2.0</option>
+            <option value="endolaser">Endolaser · Pioon</option>
+            <option value="lavieen">Lavieen</option>
+            <option value="ultraformer">Ultraformer MPT</option>
+          </select>
+        </div>
+        <div class="field-inline">
+          <label>Data de início</label>
+          <input type="date" data-avail-start required>
+        </div>
+        <div class="field-inline">
+          <label>Data de término</label>
+          <input type="date" data-avail-end required>
+        </div>
+        <button type="submit" class="btn btn-primary">Consultar disponibilidade</button>
+      </form>
+      <div class="avail-result-msg" data-avail-result></div>
+    </div>
+
     <div class="eq-grid">
 
       <a href="equipamentos/criolipolise.html" class="eq-card">
@@ -244,20 +276,6 @@
         </div>
       </a>
 
-    </div>
-  </div>
-</section>
-
-<!-- QUICK AVAILABILITY TEASER -->
-<section>
-  <div class="container">
-    <div class="avail-teaser">
-      <div class="avail-teaser-text">
-        <span class="avail-live-badge"><span class="avail-live-dot"></span>Disponibilidade em tempo real</span>
-        <h2 class="mt-16" style="font-size:28px;">Já sabe qual equipamento quer? Consulte a disponibilidade agora.</h2>
-        <p class="mt-16" style="color:var(--gray); font-size:16px;">Escolha as datas e veja na hora, direto do nosso sistema, se o equipamento está livre.</p>
-      </div>
-      <a href="equipamentos.html" class="btn btn-primary">Consultar disponibilidade</a>
     </div>
   </div>
 </section>
