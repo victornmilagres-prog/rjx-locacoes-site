@@ -175,7 +175,7 @@ section{ padding:100px 0; }
 .cta-band .btn-outline{ border-color:rgba(250,247,242,.6); }
 
 /* ---------- Visão / Missão / Valores ---------- */
-.vvm-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:28px; }
+.vvm-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:28px; }
 .vvm-card{ background:var(--paper); border:1px solid var(--line); padding:38px 34px; }
 .vvm-card .vvm-icon{
   width:42px; height:42px; border-radius:50%; background:var(--wine); color:var(--paper);
@@ -288,6 +288,39 @@ section{ padding:100px 0; }
 }
 .avail-disclaimer svg{ flex:none; width:15px; height:15px; margin-top:1px; }
 
+/* ---------- AFE / ANVISA authorization badge ---------- */
+.afe-strip{ background:var(--paper-soft); border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:18px 0; }
+.afe-strip .container{ display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; text-align:left; }
+.afe-seal{ flex:none; width:46px; height:46px; }
+.afe-strip-text b{ font-size:14.5px; color:var(--ink); font-family:var(--body); font-weight:700; display:block; }
+.afe-strip-text span{ font-size:13px; color:var(--gray); }
+.afe-strip-divider{ width:1px; height:30px; background:var(--line); }
+.afe-strip-number{ font-size:12.5px; color:var(--gray-soft); font-family:var(--body); }
+
+.afe-badge-inline{ display:inline-flex; align-items:center; gap:10px; background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:8px 16px 8px 8px; }
+.afe-badge-inline .afe-seal{ width:32px; height:32px; }
+.afe-badge-inline span{ font-size:13px; font-weight:700; color:var(--ink); font-family:var(--body); }
+.afe-badge-inline.on-dark{ background:rgba(250,247,242,.08); border-color:rgba(250,247,242,.25); }
+.afe-badge-inline.on-dark span{ color:var(--paper); }
+
+/* ---------- how it works ---------- */
+.how-it-works{ display:grid; grid-template-columns:repeat(3,1fr); gap:32px; position:relative; }
+.how-step{ text-align:center; padding:0 12px; }
+.how-step-num{
+  width:48px; height:48px; border-radius:50%; background:var(--wine); color:var(--paper);
+  display:flex; align-items:center; justify-content:center; font-family:var(--display); font-size:20px; font-weight:600;
+  margin:0 auto 18px;
+}
+.how-step h3{ font-size:19px; margin-bottom:8px; font-weight:600; }
+.how-step p{ color:var(--gray); font-size:14.5px; }
+
+/* ---------- availability teaser ---------- */
+.avail-teaser{
+  background:var(--paper-soft); border:1px solid var(--line); border-radius:var(--radius);
+  padding:40px 44px; display:flex; align-items:center; justify-content:space-between; gap:32px; flex-wrap:wrap;
+}
+.avail-teaser-text{ flex:1; min-width:280px; }
+
 /* ---------- utility ---------- */
 .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:56px; align-items:center; }
 .mt-8{ margin-top:8px;} .mt-16{ margin-top:16px;} .mt-24{ margin-top:24px;} .mt-32{ margin-top:32px;}
@@ -310,6 +343,7 @@ section{ padding:100px 0; }
   .footer-grid{ grid-template-columns:1fr 1fr; }
   .grid-2{ grid-template-columns:1fr; gap:32px; }
   .vvm-grid{ grid-template-columns:1fr; }
+  .how-it-works{ grid-template-columns:1fr; gap:36px; }
   .nav-links, .nav-cta .btn-outline-dark{ display:none; }
   .nav-toggle{ display:block; }
   section{ padding:64px 0; }
