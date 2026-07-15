@@ -18,6 +18,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // Generic "send to WhatsApp" form handler.
+  // Add data-wa-form to a <form> and data-wa-field="Label" to each input/select/textarea
+  // you want included in the message. Optional data-wa-number on the form overrides
+  // the default RJX WhatsApp number.
   var WA_NUMBER_DEFAULT = '5521976078440';
 
   document.querySelectorAll('form[data-wa-form]').forEach(function (form) {
@@ -39,10 +43,13 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
+  // Generic "send by e-mail" form handler.
+  // Add data-mailto-form to a <form> and data-mailto-field="Label" to each input/select/textarea
+  // to include. data-mailto-to sets the recipient, data-mailto-subject sets the subject line.
   document.querySelectorAll('form[data-mailto-form]').forEach(function (form) {
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var to = form.getAttribute('data-mailto-to') || 'comercial.rjxlocacoes@gmail.com';
+      var to = form.getAttribute('data-mailto-to') || 'comercial@rjxlocacoes.com.br';
       var subject = form.getAttribute('data-mailto-subject') || 'Contato pelo site';
       var lines = [];
 
