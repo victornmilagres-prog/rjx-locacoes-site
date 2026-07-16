@@ -235,6 +235,20 @@ section{ padding:100px 0; }
 .notice-box p{ font-size:14.5px; color:var(--ink-soft); line-height:1.6; font-family:var(--body); }
 .notice-box strong{ color:var(--ink); }
 
+/* ---------- FAQ accordion ---------- */
+.faq-list{ border-top:1px solid var(--line); }
+.faq-item{ border-bottom:1px solid var(--line); padding:20px 0; }
+.faq-item summary{
+  cursor:pointer; font-weight:700; font-size:16px; color:var(--ink); font-family:var(--body);
+  list-style:none; display:flex; align-items:center; justify-content:space-between; gap:16px;
+}
+.faq-item summary::-webkit-details-marker{ display:none; }
+.faq-item summary::after{
+  content:"+"; flex:none; font-family:var(--display); font-size:22px; color:var(--wine); line-height:1;
+}
+.faq-item[open] summary::after{ content:"–"; }
+.faq-item p{ color:var(--gray); font-size:15px; margin-top:14px; line-height:1.6; }
+
 /* ---------- availability quick-check widget ---------- */
 .avail-live-badge{
   display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700;
