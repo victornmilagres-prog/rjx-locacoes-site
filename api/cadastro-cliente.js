@@ -73,7 +73,7 @@ async function sendCommercialEmail(payload) {
     <h2>Novo cadastro pelo site — Seja Cliente</h2>
     <p><b>Clínica:</b> ${payload.clinica || '-'}</p>
     <p><b>Responsável:</b> ${payload.responsavel || '-'}</p>
-    <p><b>CNPJ:</b> ${payload.cnpj || '-'}</p>
+    <p><b>CPF/CNPJ:</b> ${payload.cnpj || '-'}</p>
     <p><b>WhatsApp:</b> ${payload.whatsapp || '-'}</p>
     <p><b>E-mail:</b> ${payload.email || '-'}</p>
     <p><b>Equipamento de interesse:</b> ${payload.interesse || '-'}</p>
@@ -131,6 +131,9 @@ module.exports = async (req, res) => {
   if (email && !isValidEmail(email)) {
     return res.status(400).json({ error: 'E-mail inválido.' });
   }
+  if (!cnpj) {
+    return res.status(400).json({ error: 'Informe o CPF ou CNPJ.' });
+  }
 
   const observacoesParts = [];
   if (interesse) observacoesParts.push(`Equipamento de interesse: ${interesse}`);
@@ -167,7 +170,7 @@ module.exports = async (req, res) => {
       estoqueNowResult = { created: true, id: data && data.object && data.object.id };
     } else {
       console.warn('EstoqueNOW recusou o cadastro:', resp.status, data && data.message);
-      estoqueNowResult = { created: false, status: resp.status, message: data && data.message, debug: data };
+      estoqueNowResult = { created: false, status: resp.status, message: (data && (data.message || (data.error && data.error.error_message))) };
     }
   } catch (err) {
     console.error('cadastro-cliente handler error (EstoqueNOW):', err && err.message);
