@@ -167,7 +167,7 @@ module.exports = async (req, res) => {
       estoqueNowResult = { created: true, id: data && data.object && data.object.id };
     } else {
       console.warn('EstoqueNOW recusou o cadastro:', resp.status, data && data.message);
-      estoqueNowResult = { created: false, status: resp.status, message: data && data.message };
+      estoqueNowResult = { created: false, status: resp.status, message: data && data.message, debug: data };
     }
   } catch (err) {
     console.error('cadastro-cliente handler error (EstoqueNOW):', err && err.message);
