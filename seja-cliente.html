@@ -7,6 +7,7 @@
 <meta name="description" content="Torne-se uma clínica parceira da Rjx Locações e tenha acesso a equipamentos estéticos de última geração, com manutenção inclusa e condições especiais.">
 <link rel="icon" href="assets/logo-black.png">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/cliente-cadastro.css">
 </head>
 <body>
 
@@ -50,40 +51,40 @@
 <li>Atendimento direto via WhatsApp, sem intermediários</li>
 </ul>
 <p class="mt-24" style="color:var(--gray); font-size:15px;">
-Preencha o formulário ao lado — ao enviar, uma mensagem já sai pronta no seu WhatsApp para nossa equipe,
-com todos os dados preenchidos.
+Preencha o formulário ao lado — seus dados são registrados automaticamente no nosso sistema
+e nossa equipe comercial é notificada na hora.
 </p>
 </div>
 
 <div class="form-card shard-tl">
-<form data-wa-form data-wa-intro="Olá! Gostaria de me cadastrar como clínica parceira da Rjx Locações.">
+<form data-cliente-form>
 <div class="form-row">
 <div class="field">
 <label for="clinica">Nome da clínica</label>
-<input type="text" id="clinica" data-wa-field="Clínica" required>
+<input type="text" id="clinica" data-cliente-field="clinica" required>
 </div>
 <div class="field">
 <label for="responsavel">Seu nome</label>
-<input type="text" id="responsavel" data-wa-field="Responsável" required>
+<input type="text" id="responsavel" data-cliente-field="responsavel" required>
 </div>
 </div>
 <div class="form-row">
 <div class="field">
 <label for="cnpj">CNPJ</label>
-<input type="text" id="cnpj" data-wa-field="CNPJ" placeholder="00.000.000/0000-00">
+<input type="text" id="cnpj" data-cliente-field="cnpj" placeholder="00.000.000/0000-00">
 </div>
 <div class="field">
 <label for="whatsapp">WhatsApp</label>
-<input type="tel" id="whatsapp" data-wa-field="WhatsApp" placeholder="(21) 90000-0000" required>
+<input type="tel" id="whatsapp" data-cliente-field="whatsapp" placeholder="(21) 90000-0000" required>
 </div>
 </div>
 <div class="field">
 <label for="email">E-mail</label>
-<input type="email" id="email" data-wa-field="E-mail">
+<input type="email" id="email" data-cliente-field="email">
 </div>
 <div class="field">
 <label for="interesse">Equipamento(s) de interesse</label>
-<select id="interesse" data-wa-field="Interesse">
+<select id="interesse" data-cliente-field="interesse">
 <option value="">Ainda não sei / quero indicação</option>
 <option>Criolipólise · Criodermis 2.0</option>
 <option>Endolaser · Pioon 1470</option>
@@ -94,9 +95,13 @@ com todos os dados preenchidos.
 </div>
 <div class="field">
 <label for="msg">Mensagem (opcional)</label>
-<textarea id="msg" data-wa-field="Mensagem" placeholder="Conte um pouco sobre sua clínica e o que procura"></textarea>
+<textarea id="msg" data-cliente-field="mensagem" placeholder="Conte um pouco sobre sua clínica e o que procura"></textarea>
 </div>
-<button type="submit" class="btn btn-primary btn-block">Enviar cadastro pelo WhatsApp</button>
+<button type="submit" class="btn btn-primary btn-block">Enviar cadastro</button>
+<div class="cliente-error" data-cliente-error></div>
+<p style="font-size:12.5px; color:var(--gray-soft); text-align:center; margin-top:14px; font-family:var(--body);">
+Ao enviar, seus dados são registrados no nosso sistema e nossa equipe comercial é notificada automaticamente.
+</p>
 </form>
 </div>
 </div>
