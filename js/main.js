@@ -65,6 +65,79 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
+  // "Cadastro automático de cliente" form handler.
+  // Add data-cliente-form to a <form> and data-cliente-field="chave" to each field
+  // (chaves aceitas: clinica, responsavel, cnpj, whatsapp, email, interesse, mensagem).
+  // Envia os dados para /api/cadastro-cliente (Vercel Serverless Function), que
+  // registra o cliente no EstoqueNOW e notifica o comercial por e-mail — sem
+  // nenhuma consulta ou leitura de dados de clientes já existentes.
+  document.querySelectorAll('form[data-cliente-form]').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      var payload = {};
+      form.querySelectorAll('[data-cliente-field]').forEach(function (el) {
+        payload[el.getAttribute('data-cliente-field')] = el.value ? el.value.trim() : '';
+      });
+
+      var submitBtn = form.querySelector('button[type="submit"]');
+      var originalLabel = submitBtn ? submitBtn.textContent : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Enviando...';
+      }
+
+      fetch('/api/cadastro-cliente', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+        .then(function (r) {
+          return r.json().then(function (data) {
+            return { ok: r.ok, data: data };
+          });
+        })
+        .then(function (res) {
+          if (!res.ok) {
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = originalLabel;
+            }
+            var errBox = form.querySelector('[data-cliente-error]');
+            var msg = (res.data && res.data.error) || 'Não foi possível enviar seu cadastro agora. Tente novamente ou fale conosco no WhatsApp.';
+            if (errBox) {
+              errBox.textContent = msg;
+              errBox.style.display = 'block';
+            } else {
+              alert(msg);
+            }
+            return;
+          }
+
+          var waText = encodeURIComponent('Olá! Acabei de me cadastrar pelo site e gostaria de falar com a equipe.');
+          var waUrl = 'https://wa.me/' + WA_NUMBER_DEFAULT + '?text=' + waText;
+          var card = form.closest('.form-card') || form.parentElement;
+          card.innerHTML =
+            '<div class="cliente-success">' +
+            '<div class="cliente-success-icon">\u2713</div>' +
+            '<h3>Cadastro recebido!</h3>' +
+            '<p>Seus dados já foram registrados no nosso sistema. Nossa equipe comercial foi notificada e vai entrar em contato em breve.</p>' +
+            '<a href="' + waUrl + '" target="_blank" rel="noopener" class="btn btn-primary">Falar agora no WhatsApp</a>' +
+            '<div class="cliente-attention">' +
+            '<strong>Ponto de atenção:</strong> atendemos exclusivamente profissionais da área da saúde. Para finalizar seu cadastro, vamos solicitar o envio da carteira do conselho ativa e do alvará sanitário válido.' +
+            '</div>' +
+            '</div>';
+        })
+        .catch(function () {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalLabel;
+          }
+          alert('Não foi possível enviar seu cadastro agora. Tente novamente ou fale conosco no WhatsApp.');
+        });
+    });
+  });
+
   // Availability quick-check widget — queries /api/disponibilidade (a Vercel
   // Serverless Function that safely proxies the EstoqueNOW API) for a specific
   // date range and shows a simple available/unavailable result with a WhatsApp CTA.
@@ -102,16 +175,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
       var submitBtn = form.querySelector('button[type="submit"]');
       var originalLabel = submitBtn ? submitBtn.textContent : '';
-      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Consultando...'; }
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Consultando...';
+      }
       resultEl.className = 'avail-result-msg';
       resultEl.innerHTML = '';
 
       var params = new URLSearchParams({ equipamento: equipamento, start_date: startDate, end_date: endDate });
 
       fetch('/api/disponibilidade?' + params.toString())
-        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+        .then(function (r) {
+          return r.json().then(function (data) {
+            return { ok: r.ok, data: data };
+          });
+        })
         .then(function (res) {
-          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalLabel; }
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalLabel;
+          }
 
           if (!res.ok) {
             showResult('is-bad', '<span class="avail-result-text"><span>' + (res.data.error || 'Não foi possível consultar agora.') + '</span></span>');
@@ -128,20 +211,23 @@ document.addEventListener('DOMContentLoaded', function () {
           if (res.data.available) {
             showResult(
               'is-ok',
-              '<span class="avail-result-text"><span class="avail-result-icon">\u2713</span><span>Dispon\u00edvel para o per\u00edodo escolhido!</span></span>' +
+              '<span class="avail-result-text"><span class="avail-result-icon">\u2713</span><span>Disponível para o período escolhido!</span></span>' +
               '<a href="' + waUrl + '" target="_blank" rel="noopener" class="btn avail-result-cta">Finalize sua reserva</a>'
             );
           } else {
             showResult(
               'is-bad',
-              '<span class="avail-result-text"><span class="avail-result-icon">\u2715</span><span>Indispon\u00edvel nesse per\u00edodo.</span></span>' +
+              '<span class="avail-result-text"><span class="avail-result-icon">\u2715</span><span>Indisponível nesse período.</span></span>' +
               '<a href="' + waUrl + '" target="_blank" rel="noopener" class="btn avail-result-cta">Ver alternativas</a>'
             );
           }
         })
         .catch(function () {
-          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalLabel; }
-          showResult('is-bad', '<span class="avail-result-text"><span>N\u00e3o foi poss\u00edvel consultar agora. Tente novamente ou fale conosco no WhatsApp.</span></span>');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalLabel;
+          }
+          showResult('is-bad', '<span class="avail-result-text"><span>Não foi possível consultar agora. Tente novamente ou fale conosco no WhatsApp.</span></span>');
         });
     });
   }
