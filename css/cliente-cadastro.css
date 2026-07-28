@@ -1,0 +1,20 @@
+/* ---------- "Seja Cliente" — confirmação de cadastro automático ---------- */
+.cliente-success{ text-align:center; padding:8px 4px; }
+.cliente-success-icon{
+  width:48px; height:48px; border-radius:50%; background:var(--wine); color:var(--paper);
+  display:flex; align-items:center; justify-content:center; font-family:var(--display);
+  font-size:22px; margin:0 auto 18px;
+}
+.cliente-success h3{ font-size:22px; margin-bottom:10px; font-weight:600; }
+.cliente-success p{ color:var(--gray); font-size:15px; margin-bottom:24px; font-family:var(--body); }
+.cliente-attention{
+  text-align:left; margin-top:22px; background:#fbf3ec; border:1px solid #e8c9a8;
+  border-radius:var(--radius); padding:16px 18px; font-size:13.5px; color:#7a4a15; line-height:1.6;
+  font-family:var(--body);
+}
+.cliente-attention strong{ color:#5c3610; }
+
+.cliente-error{
+  display:none; margin-top:14px; padding:12px 14px; border-radius:var(--radius);
+  background:#fbeceb; color:#9b3a35; font-size:14px; font-family:var(--body);
+}
