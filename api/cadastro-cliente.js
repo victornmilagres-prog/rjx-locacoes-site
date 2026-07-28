@@ -63,7 +63,7 @@ function isValidEmail(str) {
 // — apenas o e-mail automático é pulado (fail-safe, nunca quebra o cadastro do cliente).
 async function sendCommercialEmail(payload) {
   const apiKey = process.env.RESEND_API_KEY;
-  const to = process.env.COMMERCIAL_EMAIL || 'comercial@rjxlocacoes.com.br';
+  const to = process.env.COMMERCIAL_EMAIL || 'rjxlocacoes@gmail.com';
   if (!apiKey) {
     console.warn('RESEND_API_KEY não configurada — pulando envio de e-mail.');
     return { sent: false, reason: 'missing_api_key' };
@@ -73,7 +73,7 @@ async function sendCommercialEmail(payload) {
     <h2>Novo cadastro pelo site — Seja Cliente</h2>
     <p><b>Clínica:</b> ${payload.clinica || '-'}</p>
     <p><b>Responsável:</b> ${payload.responsavel || '-'}</p>
-    <p><b>CPF/CNPJ:</b> ${payload.cnpj || '-'}</p>
+    <p><b>CNPJ:</b> ${payload.cnpj || '-'}</p>
     <p><b>WhatsApp:</b> ${payload.whatsapp || '-'}</p>
     <p><b>E-mail:</b> ${payload.email || '-'}</p>
     <p><b>Equipamento de interesse:</b> ${payload.interesse || '-'}</p>
@@ -93,7 +93,7 @@ async function sendCommercialEmail(payload) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM || 'Rjx Locações <site@rjxlocacoes.com.br>',
+        from: process.env.RESEND_FROM || 'Rjx Locações <onboarding@resend.dev>',
         to: [to],
         subject: `Novo cadastro: ${payload.clinica || payload.responsavel || 'Cliente'}`,
         html,
@@ -169,6 +169,8 @@ module.exports = async (req, res) => {
     if (resp.ok) {
       estoqueNowResult = { created: true, id: data && data.object && data.object.id };
     } else {
+      // E-mail ou CPF/CNPJ já cadastrado (400) não deve travar a experiência do cliente —
+      // registramos e seguimos para notificar o comercial mesmo assim.
       console.warn('EstoqueNOW recusou o cadastro:', resp.status, data && data.message);
       estoqueNowResult = { created: false, status: resp.status, message: (data && (data.message || (data.error && data.error.error_message))) };
     }
