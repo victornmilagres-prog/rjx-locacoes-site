@@ -138,7 +138,73 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // Availability quick-check widget — queries /api/disponibilidade (a Vercel
+  // "Reclamação e Sugestão" form handler.
+// Add data-reclamacao-form to a <form> and data-reclamacao-field="chave" to each
+// field (chaves aceitas: nome, cpfcnpj, clinica, telefone, email, tipo, mensagem).
+// Envia os dados para /api/reclamacao-sugestao (Vercel Serverless Function), que
+// notifica o setor comercial por e-mail via Resend.
+document.querySelectorAll('form[data-reclamacao-form]').forEach(function (form) {
+form.addEventListener('submit', function (e) {
+e.preventDefault();
+
+var payload = {};
+form.querySelectorAll('[data-reclamacao-field]').forEach(function (el) {
+payload[el.getAttribute('data-reclamacao-field')] = el.value ? el.value.trim() : '';
+});
+
+var submitBtn = form.querySelector('button[type="submit"]');
+var originalLabel = submitBtn ? submitBtn.textContent : '';
+if (submitBtn) {
+submitBtn.disabled = true;
+submitBtn.textContent = 'Enviando...';
+}
+
+fetch('/api/reclamacao-sugestao', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(payload),
+})
+.then(function (r) {
+return r.json().then(function (data) {
+return { ok: r.ok, data: data };
+});
+})
+.then(function (res) {
+if (!res.ok) {
+if (submitBtn) {
+submitBtn.disabled = false;
+submitBtn.textContent = originalLabel;
+}
+var errBox = form.querySelector('[data-reclamacao-error]');
+var msg = (res.data && res.data.error) || 'Não foi possível enviar sua mensagem agora. Tente novamente ou fale conosco no WhatsApp.';
+if (errBox) {
+errBox.textContent = msg;
+errBox.style.display = 'block';
+} else {
+alert(msg);
+}
+return;
+}
+
+var card = form.closest('.form-card') || form.parentElement;
+card.innerHTML =
+'<div class="cliente-success">' +
+'<div class="cliente-success-icon">✓</div>' +
+'<h3>Mensagem recebida!</h3>' +
+'<p>Recebemos sua reclamação, sugestão ou elogio. Nossa equipe vai analisar com atenção e retornar o contato em breve.</p>' +
+'</div>';
+})
+.catch(function () {
+if (submitBtn) {
+submitBtn.disabled = false;
+submitBtn.textContent = originalLabel;
+}
+alert('Não foi possível enviar sua mensagem agora. Tente novamente ou fale conosco no WhatsApp.');
+});
+});
+});
+
+// Availability quick-check widget — queries /api/disponibilidade (a Vercel
   // Serverless Function that safely proxies the EstoqueNOW API) for a specific
   // date range and shows a simple available/unavailable result with a WhatsApp CTA.
   var WA_NUMBER = '5521976078440';
