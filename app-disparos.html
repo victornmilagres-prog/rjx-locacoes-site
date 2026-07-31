@@ -140,6 +140,18 @@ const BOOSTER = [
   {key:'booster45', label:'Booster 4,5mm'},
 ];
 const EQUIP_LABEL = {mpt1:'Ultraformer MPT 1', mpt2:'Ultraformer MPT 2', crio:'Criodermis 2.0'};
+const EQUIP_DETAILS = {
+  mpt1: {serie:'CSU246203', anvisa:'80380269016'},
+  mpt2: {serie:'CSU26B025', anvisa:'80380269016'},
+  crio: {serie:'00105CRN0659680323', anvisa:'81243810003'},
+};
+function formatDateBR(iso){
+  if(!iso) return '';
+  const parts = String(iso).split('-');
+  if(parts.length !== 3) return iso;
+  const [y,m,d] = parts;
+  return d + '/' + m + '/' + y;
+}
 
 /* ---------------- helpers ---------------- */
 function b64encode(obj){
@@ -260,6 +272,8 @@ function renderYasmin(){
       <h3>Dados da locação</h3>
       <label>Nome da doutora</label>
       <input type="text" id="f-doutora" placeholder="Dra. Fulana de Tal">
+      <label>CNPJ ou CPF</label>
+      <input type="text" id="f-cpf-cnpj" inputmode="numeric" placeholder="000.000.000-00 ou 00.000.000/0000-00">
       <label>Número da locação</label>
       <input type="text" id="f-numero" placeholder="Ex: 1042">
       <label>Data da locação</label>
@@ -284,6 +298,13 @@ function renderYasmin(){
         <label>Valor da manta negociado</label>
         <input type="text" id="f-valor-manta-yasmin" inputmode="decimal" placeholder="R$ 0,00">
         <p class="hint">Esse valor já entra no somatório automaticamente — o motorista não altera.</p>
+      </div>
+      <div id="wrap-duplicados-yasmin" style="display:none;">
+        <label>Algum cartucho vai duplicado?</label>
+        <p class="hint">Selecione os que vão em dobro nessa locação (ex: um quase no fim + reserva). No disparo, o motorista vai preencher dois desse cartucho.</p>
+        <div class="radio-row" id="f-duplicados" style="flex-wrap:wrap;">
+          ${[...LINEAR, ...BOOSTER].map(c=>`<div class="radio-pill" data-v="${c.key}" style="min-width:84px; flex:0 0 auto;">${c.label}</div>`).join('')}
+        </div>
       </div>
       <div class="toggle-row"><span>Tem frete?</span><div class="switch" id="sw-frete-yasmin"><div class="knob"></div></div></div>
       <div id="wrap-frete-yasmin" style="display:none;">
@@ -314,6 +335,7 @@ function renderYasmin(){
       ? 'Na Criodermis esse valor é sempre cobrado — não tem opção de gratuidade.'
       : 'No Ultraformer o motorista pode marcar como gratuita no fechamento, zerando esse valor.';
     document.getElementById('wrap-valor-manta-yasmin').style.display = equip === 'crio' ? 'block' : 'none';
+    document.getElementById('wrap-duplicados-yasmin').style.display = equip === 'crio' ? 'none' : 'block';
   }
   document.getElementById('f-equip').addEventListener('click', (e)=>{
     const pill = e.target.closest('.radio-pill'); if(!pill) return;
@@ -322,6 +344,10 @@ function renderYasmin(){
     updateHintValorLocacao();
   });
   updateHintValorLocacao();
+  document.getElementById('f-duplicados').addEventListener('click', (e)=>{
+    const pill = e.target.closest('.radio-pill'); if(!pill) return;
+    pill.classList.toggle('sel');
+  });
   const swFreteY = document.getElementById('sw-frete-yasmin');
   const wrapFreteY = document.getElementById('wrap-frete-yasmin');
   swFreteY.addEventListener('click', ()=>{
@@ -338,7 +364,7 @@ function renderYasmin(){
     box.innerHTML = list.map((l,i)=>`
       <div class="cartucho-row" style="align-items:flex-start; flex-direction:column; gap:6px;">
         <div style="display:flex; justify-content:space-between; width:100%;">
-          <div class="cartucho-nome">Nº ${l.numero} · ${EQUIP_LABEL[l.equipamento]||''}<small>${l.doutora||''} · ${l.data||''}</small></div>
+          <div class="cartucho-nome">Nº ${l.numero} · ${EQUIP_LABEL[l.equipamento]||''}<small>${l.doutora||''} · ${formatDateBR(l.data)}</small></div>
           <button class="btn-secondary mini" style="width:auto; padding:6px 10px; margin-top:0;" data-remove="${i}">✕</button>
         </div>
         <div class="link-box" style="width:100%; margin-bottom:0;">${l.url}</div>
@@ -376,12 +402,14 @@ function renderYasmin(){
 
   document.getElementById('btn-gerar').addEventListener('click', ()=>{
     const doutora = document.getElementById('f-doutora').value.trim();
+    const cpfCnpj = document.getElementById('f-cpf-cnpj').value.trim();
     const numero = document.getElementById('f-numero').value.trim();
     const data = document.getElementById('f-data').value;
     const motorista = document.getElementById('f-motorista').value.trim();
     const condicoes = document.getElementById('f-condicoes').value.trim();
     const valorLocacao = parseMoney(document.getElementById('f-valor-locacao').value);
     const valorManta = parseMoney(document.getElementById('f-valor-manta-yasmin').value);
+    const duplicados = [...document.querySelectorAll('#f-duplicados .radio-pill.sel')].map(p=>p.dataset.v);
     const frete = swFreteY.classList.contains('on');
     const valorFrete = frete ? parseMoney(document.getElementById('f-valor-frete').value) : 0;
     const errEl = document.getElementById('err-yasmin');
@@ -394,7 +422,7 @@ function renderYasmin(){
       return;
     }
     errEl.textContent = '';
-    const h = {doutora, numero, data, equipamento:equip, motorista, condicoes, valorLocacao, valorManta, frete, valorFrete};
+    const h = {doutora, cpfCnpj, numero, data, equipamento:equip, motorista, condicoes, valorLocacao, valorManta, duplicados, frete, valorFrete};
     const url = window.location.origin + window.location.pathname + '?d=' + b64encode(h);
     document.getElementById('link-card').style.display = 'block';
     document.getElementById('link-box').textContent = url;
@@ -413,6 +441,7 @@ function renderYasmin(){
     renderLinksAtivos();
     // limpa o formulário pra próxima locação, sem perder o link recém-gerado acima
     document.getElementById('f-doutora').value = '';
+    document.getElementById('f-cpf-cnpj').value = '';
     document.getElementById('f-numero').value = '';
     document.getElementById('f-motorista').value = '';
     document.getElementById('f-condicoes').value = '';
@@ -421,22 +450,38 @@ function renderYasmin(){
     document.getElementById('f-valor-frete').value = '';
     swFreteY.classList.remove('on');
     wrapFreteY.style.display = 'none';
+    document.querySelectorAll('#f-duplicados .radio-pill.sel').forEach(p=>p.classList.remove('sel'));
   });
 }
 
 /* ==================================================
    SCREEN — disparo/entrega inicial
    ================================================== */
+function expandCartuchos(list){
+  const dup = (header && header.duplicados) || [];
+  const out = [];
+  list.forEach(c=>{
+    if(dup.includes(c.key)){
+      out.push({key:c.key+'__1', label:c.label+' — Cartucho 1'});
+      out.push({key:c.key+'__2', label:c.label+' — Cartucho 2'});
+    } else {
+      out.push(c);
+    }
+  });
+  return out;
+}
 function renderInicial(){
   const isCrio = header.equipamento === 'crio';
+  const linearList = isCrio ? [] : expandCartuchos(LINEAR);
+  const boosterList = isCrio ? [] : expandCartuchos(BOOSTER);
   app.innerHTML = `
     <h2 class="section-title">${isCrio ? 'Entrega' : 'Disparo inicial'}</h2>
     <p class="section-sub">${header.doutora||''} · ${EQUIP_LABEL[header.equipamento]}</p>
     ${header.condicoes ? `<div class="pdf-cond">Condições: ${escapeHtml(header.condicoes)}</div>` : ''}
     <div class="card">
-      ${isCrio ? renderCrioEntregaFields() : renderCartuchoFields('linear-i', LINEAR, 'Cartuchos Linear') + '' }
+      ${isCrio ? renderCrioEntregaFields() : renderCartuchoFields('linear-i', linearList, 'Cartuchos Linear') + '' }
     </div>
-    ${isCrio ? '' : `<div class="card">${renderCartuchoFields('booster-i', BOOSTER, 'Cartuchos Booster')}</div>`}
+    ${isCrio ? '' : `<div class="card">${renderCartuchoFields('booster-i', boosterList, 'Cartuchos Booster')}</div>`}
     <div class="field-error" id="err-inicial" style="margin-bottom:10px;"></div>
     <button class="btn-primary" id="btn-confirmar-inicial">Confirmar ${isCrio ? 'entrega' : 'disparo inicial'}</button>
     <p class="note">${isCrio ? 'A manta é o item cobrado. A cinta não tem custo — só controla se tudo volta.' : 'Leia o número exato no visor do aparelho para cada cartucho.'}</p>
@@ -451,7 +496,7 @@ function renderInicial(){
     } else {
       const vals = {};
       let missing = false;
-      [...LINEAR, ...BOOSTER].forEach(c=>{
+      [...linearList, ...boosterList].forEach(c=>{
         const el = document.getElementById('inp-'+c.key);
         const v = el.value.trim();
         if(v === '') missing = true;
@@ -523,7 +568,8 @@ function renderSigEntrega(){
     <h2 class="section-title">Assinatura · Entrega</h2>
     <p class="section-sub">A doutora confirma os valores iniciais registrados.</p>
     <div class="card">
-      <div class="sig-label">Assinatura Dr(a) — Entrega</div>
+      <div class="sig-label">Assinatura — ${escapeHtml(header.doutora||'Dr(a)')} — Entrega</div>
+      ${header.cpfCnpj ? `<p class="hint" style="margin-top:-6px;">CPF/CNPJ: ${escapeHtml(header.cpfCnpj)}</p>` : ''}
       <canvas class="sig-canvas" id="sig1"></canvas>
       <div class="sig-actions">
         <button class="btn-secondary mini" id="sig1-clear">Limpar assinatura</button>
@@ -553,13 +599,15 @@ function renderSigEntrega(){
    ================================================== */
 function renderFinal(){
   const isCrio = header.equipamento === 'crio';
+  const linearList = isCrio ? [] : expandCartuchos(LINEAR);
+  const boosterList = isCrio ? [] : expandCartuchos(BOOSTER);
   app.innerHTML = `
     <h2 class="section-title">${isCrio ? 'Retorno' : 'Disparo final'}</h2>
     <p class="section-sub">${header.doutora||''} · ${EQUIP_LABEL[header.equipamento]}</p>
     <div class="card">
-      ${isCrio ? renderCrioRetornoFields() : renderCartuchoFieldsFinal(LINEAR, 'Cartuchos Linear', record.ultra.inicial) }
+      ${isCrio ? renderCrioRetornoFields() : renderCartuchoFieldsFinal(linearList, 'Cartuchos Linear', record.ultra.inicial) }
     </div>
-    ${isCrio ? '' : `<div class="card">${renderCartuchoFieldsFinal(BOOSTER, 'Cartuchos Booster', record.ultra.inicial)}</div>`}
+    ${isCrio ? '' : `<div class="card">${renderCartuchoFieldsFinal(boosterList, 'Cartuchos Booster', record.ultra.inicial)}</div>`}
     <div class="field-error" id="err-final" style="margin-bottom:10px;"></div>
     <button class="btn-primary" id="btn-confirmar-final">Calcular saldo</button>
     <p class="note">${isCrio ? 'Confirme quantas mantas e cintas estão voltando.' : 'O saldo é sempre inicial − final. O final tem que ser igual ou menor que o inicial.'}</p>
@@ -605,7 +653,8 @@ function renderFinal(){
           <div class="card" style="margin-top:10px;">
             <h3>Cobrança de cinta ausente</h3>
             <p class="hint">${qtd} cinta(s) × R$ 18,00 = <b>${fmtMoney(valorTotal)}</b> — esse valor entra somado na locação.</p>
-            <div class="sig-label">Assinatura da doutora — cinta ausente</div>
+            <div class="sig-label">Assinatura — ${escapeHtml(header.doutora||'Dr(a)')} — cinta ausente</div>
+            ${header.cpfCnpj ? `<p class="hint" style="margin-top:-6px;">CPF/CNPJ: ${escapeHtml(header.cpfCnpj)}</p>` : ''}
             <canvas class="sig-canvas" id="sig-cinta"></canvas>
             <div class="sig-actions"><button class="btn-secondary mini" id="sig-cinta-clear">Limpar assinatura</button></div>
             <div class="field-error" id="err-cinta"></div>
@@ -656,14 +705,14 @@ function renderFinal(){
     }
     function checkAll(){
       let anyInvalid = false, anyMissing = false;
-      [...LINEAR, ...BOOSTER].forEach(c=>{
+      [...linearList, ...boosterList].forEach(c=>{
         const r = checkRow(c);
         if(r === null) anyMissing = true;
         if(r === true) anyInvalid = true;
       });
       btn.disabled = anyInvalid || anyMissing;
     }
-    [...LINEAR, ...BOOSTER].forEach(c=>{
+    [...linearList, ...boosterList].forEach(c=>{
       document.getElementById('inp-'+c.key).addEventListener('input', checkAll);
     });
     checkAll();
@@ -681,7 +730,7 @@ function renderFinal(){
       const vals = {};
       let missing = false, invalid = false;
       const inicial = record.ultra.inicial;
-      [...LINEAR, ...BOOSTER].forEach(c=>{
+      [...linearList, ...boosterList].forEach(c=>{
         const el = document.getElementById('inp-'+c.key);
         const v = el.value.trim();
         if(v === '') missing = true;
@@ -725,8 +774,8 @@ function renderCrioRetornoFields(){
    ================================================== */
 function computeUltraSaldos(){
   const ini = record.ultra.inicial, fin = record.ultra.final;
-  const linear = LINEAR.map(c=>({...c, saldo: Math.max(0,(ini[c.key]||0)-(fin[c.key]||0))}));
-  const booster = BOOSTER.map(c=>({...c, saldo: Math.max(0,(ini[c.key]||0)-(fin[c.key]||0))}));
+  const linear = expandCartuchos(LINEAR).map(c=>({...c, saldo: Math.max(0,(ini[c.key]||0)-(fin[c.key]||0))}));
+  const booster = expandCartuchos(BOOSTER).map(c=>({...c, saldo: Math.max(0,(ini[c.key]||0)-(fin[c.key]||0))}));
   const totalLinear = linear.reduce((s,c)=>s+c.saldo,0);
   const totalBooster = booster.reduce((s,c)=>s+c.saldo,0);
   return {linear, booster, totalLinear, totalBooster, totalGeral: totalLinear+totalBooster};
@@ -876,7 +925,8 @@ function renderSigFechamento(){
     <h2 class="section-title">Assinaturas · Fechamento</h2>
     <p class="section-sub">Doutora confirma a retirada, motorista confirma os números.</p>
     <div class="card">
-      <div class="sig-label">Assinatura Dr(a) — Retirada</div>
+      <div class="sig-label">Assinatura — ${escapeHtml(header.doutora||'Dr(a)')} — Retirada</div>
+      ${header.cpfCnpj ? `<p class="hint" style="margin-top:-6px;">CPF/CNPJ: ${escapeHtml(header.cpfCnpj)}</p>` : ''}
       <canvas class="sig-canvas" id="sig2"></canvas>
       <div class="sig-actions"><button class="btn-secondary mini" id="sig2-clear">Limpar assinatura</button></div>
     </div>
@@ -951,7 +1001,7 @@ function gerarPDF(record, header){
   doc.text('CNPJ 51.797.671/0001-66 · AFE 8.34727-6', marginX, y + logoH + 5);
   doc.setFontSize(9); doc.setTextColor(23,19,15);
   doc.text('Locação nº ' + header.numero, 194, y+6, {align:'right'});
-  doc.text(header.data || '', 194, y+11, {align:'right'});
+  doc.text(formatDateBR(header.data) || '', 194, y+11, {align:'right'});
   y += Math.max(logoH + 9, 16);
   doc.setDrawColor(122,18,32); doc.setLineWidth(1); doc.line(marginX, y, 194, y);
   y += 8;
@@ -960,7 +1010,19 @@ function gerarPDF(record, header){
   doc.text(header.doutora || '', marginX, y);
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(90,85,78);
   doc.text(EQUIP_LABEL[header.equipamento] + (header.motorista ? ' · Motorista: '+header.motorista : ''), marginX, y+5);
-  y += 12;
+  y += 10;
+  if(header.cpfCnpj){
+    doc.setFontSize(8.5); doc.setTextColor(90,85,78);
+    doc.text('CPF/CNPJ: ' + header.cpfCnpj, marginX, y);
+    y += 5;
+  }
+  const eqDetails = EQUIP_DETAILS[header.equipamento];
+  if(eqDetails){
+    doc.setFontSize(8); doc.setTextColor(140,131,119);
+    doc.text('Nº de série: ' + eqDetails.serie + '  ·  Registro Anvisa: ' + eqDetails.anvisa, marginX, y);
+    y += 5;
+  }
+  y += 2;
 
   if(header.condicoes){
     doc.setFillColor(241,235,225);
@@ -1051,16 +1113,17 @@ function gerarPDF(record, header){
   y += 24;
 
   // signatures
-  const sigH = 22;
+  const sigH = 20;
+  const cpfLine = header.cpfCnpj ? ('CPF/CNPJ: ' + header.cpfCnpj) : '';
   const sigs = header.equipamento
     ? [
-        {label:'Dr(a) — Entrega', s: record.assinaturas.entrega},
-        {label:'Dr(a) — Retirada', s: record.assinaturas.retirada},
-        {label:'Logística' + (header.motorista? ' — '+header.motorista:''), s: record.assinaturas.logistica},
+        {name: header.doutora || 'Dr(a)', sub:'Entrega', cpf: cpfLine, s: record.assinaturas.entrega},
+        {name: header.doutora || 'Dr(a)', sub:'Retirada', cpf: cpfLine, s: record.assinaturas.retirada},
+        {name: header.motorista || 'Motorista', sub:'Logística', cpf:'', s: record.assinaturas.logistica},
       ]
     : [];
   if(isCrio && record.financeiro.cobrancaCinta){
-    sigs.push({label:'Dr(a) — Cinta ausente', s: record.financeiro.cobrancaCinta.assinatura});
+    sigs.push({name: header.doutora || 'Dr(a)', sub:'Cinta ausente', cpf: cpfLine, s: record.financeiro.cobrancaCinta.assinatura});
   }
   const sigGap = 7;
   const sigW = Math.min(55, (178 - (sigs.length-1)*sigGap) / sigs.length);
@@ -1070,13 +1133,17 @@ function gerarPDF(record, header){
       try{ doc.addImage(sig.s.img, 'PNG', sx, y, sigW, sigH); }catch(e){}
     }
     doc.setDrawColor(23,19,15); doc.setLineWidth(0.3); doc.line(sx, y+sigH+2, sx+sigW, y+sigH+2);
-    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(90,85,78);
-    doc.text(sig.label, sx, y+sigH+6);
+    let ty = y+sigH+6;
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(23,19,15);
+    doc.text(doc.splitTextToSize(sig.name, sigW), sx, ty); ty += 4;
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(90,85,78);
+    doc.text(sig.sub, sx, ty); ty += 3.5;
+    if(sig.cpf){ doc.text(sig.cpf, sx, ty); ty += 3.5; }
     if(sig.s){
-      doc.text(fmtDateTime(sig.s.ts), sx, y+sigH+10);
-      doc.text(fmtGeo(sig.s.geo), sx, y+sigH+14);
+      doc.text(fmtDateTime(sig.s.ts), sx, ty); ty += 3.5;
+      doc.text(fmtGeo(sig.s.geo), sx, ty);
     }
-    sx += sigW + 7;
+    sx += sigW + sigGap;
   });
 
   const filename = 'RJX_Locacao_' + header.numero + '_' + (header.equipamento||'') + '.pdf';
