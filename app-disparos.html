@@ -104,6 +104,27 @@
   .note{ font-size:11.5px; color:var(--gray); text-align:center; margin-top:10px; line-height:1.5; }
   .center-msg{ text-align:center; padding:40px 10px; }
   .center-msg .big{ font-family:var(--display); font-size:19px; margin-bottom:8px; }
+
+  .cartucho-block{ padding:11px 0; border-bottom:1px solid var(--line); }
+  .cartucho-block:last-child{ border-bottom:none; }
+  .cartucho-block .cartucho-row{ padding:0 0 8px; border-bottom:none; }
+  .meter.diverge{ box-shadow:inset 0 0 0 1.5px var(--gold), inset 0 2px 4px rgba(0,0,0,.4); }
+  .foto-block{ margin-top:2px; }
+  .foto-btn{ width:auto; display:inline-block; }
+  .foto-row{ display:flex; align-items:center; gap:10px; }
+  .foto-thumb{ width:52px; height:52px; object-fit:cover; border-radius:var(--radius); border:1.5px solid var(--line); flex-shrink:0; }
+  .foto-meta{ flex:1; min-width:0; }
+  .foto-status{ font-size:11.5px; font-weight:700; color:var(--gray); display:block; }
+  .foto-status.ok{ color:var(--ok); }
+  .foto-status.warn{ color:var(--gold); }
+  .foto-status.offline{ color:var(--alert); }
+  .foto-ts{ font-size:10px; color:var(--gray-soft); margin-top:2px; }
+  .foto-row .btn-secondary.mini{ width:auto; flex-shrink:0; margin-top:0; }
+  .foto-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .foto-grid-item{ text-align:center; }
+  .foto-grid-item img{ width:100%; height:90px; object-fit:cover; border-radius:var(--radius); border:1.5px solid var(--line); }
+  .foto-grid-item .cap{ font-size:10.5px; color:var(--gray); margin-top:4px; }
+  .foto-grid-item.missing{ display:flex; align-items:center; justify-content:center; height:90px; background:var(--paper-soft); border:1.5px dashed #c9b9a5; border-radius:var(--radius); color:var(--gray-soft); font-size:11px; }
 </style>
 </head>
 <body>
@@ -196,6 +217,139 @@ function getGeo(){
 }
 function fmtGeo(geo){ return geo ? (geo.lat+', '+geo.lon) : 'localização não disponível'; }
 
+/* ---------------- fotos: compressão + leitura por IA ---------------- */
+function compressImage(file, maxDim, quality){
+  maxDim = maxDim || 900; quality = quality || 0.55;
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let w = img.width, h = img.height;
+        if(w > h){ if(w > maxDim){ h = Math.round(h*maxDim/w); w = maxDim; } }
+        else { if(h > maxDim){ w = Math.round(w*maxDim/h); h = maxDim; } }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function lerDisparoIA(imgDataUrl){
+  try{
+    const controller = new AbortController();
+    const timer = setTimeout(()=>controller.abort(), 12000);
+    const resp = await fetch('/api/ler-disparo', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({image: imgDataUrl}),
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if(!resp.ok) return {ok:false};
+    const data = await resp.json();
+    if(typeof data.valor === 'number' && !isNaN(data.valor)) return {ok:true, valor: data.valor};
+    return {ok:false};
+  }catch(e){ return {ok:false}; }
+}
+
+/* ---------------- fotos: input de câmera compartilhado ---------------- */
+let hiddenFileInput = null;
+let activeCaptureCallback = null;
+function ensureHiddenFileInput(){
+  if(hiddenFileInput) return hiddenFileInput;
+  hiddenFileInput = document.createElement('input');
+  hiddenFileInput.type = 'file';
+  hiddenFileInput.accept = 'image/*';
+  hiddenFileInput.setAttribute('capture', 'environment');
+  hiddenFileInput.style.display = 'none';
+  document.body.appendChild(hiddenFileInput);
+  hiddenFileInput.addEventListener('change', ()=>{
+    const file = hiddenFileInput.files[0];
+    const cb = activeCaptureCallback; activeCaptureCallback = null;
+    if(file && cb) cb(file);
+  });
+  return hiddenFileInput;
+}
+function requestPhoto(callback){
+  const input = ensureHiddenFileInput();
+  activeCaptureCallback = callback;
+  input.value = '';
+  input.click();
+}
+
+/* ---------------- fotos: bloco genérico (botão / preview / retake) ----------------
+   opts: { ai:boolean, targetInputId:string, label:string, onChange:fn } */
+function paintFotoBlock(key, photos, opts){
+  const el = document.getElementById('foto-block-'+key);
+  if(!el) return;
+  const p = photos[key];
+  if(!p){
+    el.innerHTML = '<button type="button" class="btn-secondary mini foto-btn">📷 Tirar foto' + (opts.label ? ' — '+escapeHtml(opts.label) : '') + '</button>';
+    el.querySelector('.foto-btn').addEventListener('click', ()=> startCapture(key, photos, opts));
+    return;
+  }
+  let statusHtml = '';
+  if(opts.ai){
+    if(p.aiStatus === 'lendo') statusHtml = '<span class="foto-status">Lendo foto...</span>';
+    else if(p.aiStatus === 'ok') statusHtml = '<span class="foto-status ok">✓ Lido pela IA: '+p.aiValor+'</span>';
+    else if(p.aiStatus === 'divergente') statusHtml = '<span class="foto-status warn">⚠ IA leu '+p.aiValor+' — confira o valor</span>';
+    else statusHtml = '<span class="foto-status offline">Sem conexão — valor digitado manualmente</span>';
+  } else {
+    statusHtml = '<span class="foto-status ok">✓ Foto anexada</span>';
+  }
+  el.innerHTML =
+    '<div class="foto-row">' +
+      '<img class="foto-thumb" src="'+p.img+'">' +
+      '<div class="foto-meta">'+statusHtml+'<div class="foto-ts">'+fmtDateTime(p.ts)+' · '+fmtGeo(p.geo)+'</div></div>' +
+      '<button type="button" class="btn-secondary mini foto-retake">Tirar de novo</button>' +
+    '</div>';
+  el.querySelector('.foto-retake').addEventListener('click', ()=> startCapture(key, photos, opts));
+}
+function startCapture(key, photos, opts){
+  requestPhoto(async (file)=>{
+    const el = document.getElementById('foto-block-'+key);
+    if(el) el.innerHTML = '<span class="foto-status">Processando foto...</span>';
+    let dataUrl, geo;
+    try{
+      [dataUrl, geo] = await Promise.all([compressImage(file), getGeo()]);
+    }catch(e){
+      if(el) el.innerHTML = '<span class="foto-status offline">Não foi possível processar a foto — tente novamente.</span><button type="button" class="btn-secondary mini foto-retry" style="margin-top:6px;">Tentar de novo</button>';
+      const retry = el && el.querySelector('.foto-retry');
+      if(retry) retry.addEventListener('click', ()=> startCapture(key, photos, opts));
+      return;
+    }
+    const photo = {img: dataUrl, ts: new Date().toISOString(), geo, aiStatus: opts.ai ? 'lendo' : null};
+    photos[key] = photo;
+    paintFotoBlock(key, photos, opts);
+    if(opts.ai){
+      const result = await lerDisparoIA(dataUrl);
+      if(result.ok){
+        const inputEl = document.getElementById(opts.targetInputId);
+        if(inputEl){
+          const prevVal = inputEl.value.trim();
+          const divergente = prevVal !== '' && parseInt0(prevVal) !== result.valor;
+          inputEl.value = result.valor;
+          const meterEl = inputEl.closest('.meter');
+          if(meterEl) meterEl.classList.toggle('diverge', divergente);
+          photo.aiStatus = divergente ? 'divergente' : 'ok';
+          photo.aiValor = result.valor;
+          inputEl.dispatchEvent(new Event('input', {bubbles:true}));
+        }
+      } else {
+        photo.aiStatus = 'offline';
+      }
+      paintFotoBlock(key, photos, opts);
+    }
+    if(opts.onChange) opts.onChange();
+  });
+}
+
 /* ---------------- storage ---------------- */
 function storageKey(numero, equipamento){ return 'rjx_loc_' + numero + '_' + equipamento; }
 function loadRecord(numero, equipamento){
@@ -223,9 +377,13 @@ if(header && header.numero){
       ultra: { inicial:{}, final:{} },
       crio: { entregues:{}, retornando:{} },
       financeiro: {},
-      assinaturas: {}
+      assinaturas: {},
+      fotos: { ultra:{ inicial:{}, final:{} }, crio:{ entrega:{}, retorno:{} } }
     };
     saveRecord(header.numero, header.equipamento, record);
+  }
+  if(record && !record.fotos){
+    record.fotos = { ultra:{ inicial:{}, final:{} }, crio:{ entrega:{}, retorno:{} } };
   }
 }
 
@@ -239,6 +397,7 @@ function render(){
   if(!header){ renderYasmin(); return; }
   if(!record){ record = loadRecord(header.numero, header.equipamento); }
   if(!record){ renderYasmin(); return; }
+  if(!record.fotos){ record.fotos = { ultra:{ inicial:{}, final:{} }, crio:{ entrega:{}, retorno:{} } }; }
 
   setHeaderText(EQUIP_LABEL[header.equipamento] || 'Locação', 'Nº ' + header.numero + ' · ' + (header.doutora||''));
 
@@ -248,6 +407,7 @@ function render(){
     case 'final': renderFinal(); break;
     case 'condicoes': renderCondicoes(); break;
     case 'sig_fechamento': renderSigFechamento(); break;
+    case 'revisao': renderRevisao(); break;
     case 'concluido': renderConcluido(); break;
     default: renderInicial();
   }
@@ -474,36 +634,55 @@ function renderInicial(){
   const isCrio = header.equipamento === 'crio';
   const linearList = isCrio ? [] : expandCartuchos(LINEAR);
   const boosterList = isCrio ? [] : expandCartuchos(BOOSTER);
+  const photos = {};
+  if(isCrio){
+    Object.assign(photos, record.fotos.crio.entrega);
+  } else {
+    Object.assign(photos, record.fotos.ultra.inicial);
+  }
   app.innerHTML = `
     <h2 class="section-title">${isCrio ? 'Entrega' : 'Disparo inicial'}</h2>
     <p class="section-sub">${header.doutora||''} · ${EQUIP_LABEL[header.equipamento]}</p>
     ${header.condicoes ? `<div class="pdf-cond">Condições: ${escapeHtml(header.condicoes)}</div>` : ''}
     <div class="card">
-      ${isCrio ? renderCrioEntregaFields() : renderCartuchoFields('linear-i', linearList, 'Cartuchos Linear') + '' }
+      ${isCrio ? renderCrioEntregaFields() : renderCartuchoFields(linearList, 'Cartuchos Linear') }
     </div>
-    ${isCrio ? '' : `<div class="card">${renderCartuchoFields('booster-i', boosterList, 'Cartuchos Booster')}</div>`}
+    ${isCrio ? '' : `<div class="card">${renderCartuchoFields(boosterList, 'Cartuchos Booster')}</div>`}
     <div class="field-error" id="err-inicial" style="margin-bottom:10px;"></div>
     <button class="btn-primary" id="btn-confirmar-inicial">Confirmar ${isCrio ? 'entrega' : 'disparo inicial'}</button>
-    <p class="note">${isCrio ? 'A manta é o item cobrado. A cinta não tem custo — só controla se tudo volta.' : 'Leia o número exato no visor do aparelho para cada cartucho.'}</p>
+    <p class="note">${isCrio ? 'A manta é o item cobrado. A cinta não tem custo — só controla se tudo volta. Anexe foto das mantas e das fitas espalhadas na mesa.' : 'Tire a foto do visor de cada cartucho — a IA lê o número sozinha quando tiver internet.'}</p>
   `;
+  if(isCrio){
+    paintFotoBlock('mantasE', photos, {ai:false, label:'mantas entregues'});
+    paintFotoBlock('cintasE', photos, {ai:false, label:'cintas entregues'});
+  } else {
+    [...linearList, ...boosterList].forEach(c=>{
+      paintFotoBlock(c.key, photos, {ai:true, targetInputId:'inp-'+c.key});
+    });
+  }
   document.getElementById('btn-confirmar-inicial').addEventListener('click', ()=>{
     const errEl = document.getElementById('err-inicial');
     if(isCrio){
       const mantas = parseInt0(document.getElementById('crio-mantas-e').value);
       const cintas = parseInt0(document.getElementById('crio-cintas-e').value);
       if(mantas <= 0){ errEl.textContent = 'Informe a quantidade de mantas entregues.'; return; }
+      if(!photos.mantasE || !photos.cintasE){ errEl.textContent = 'Anexe a foto das mantas e das cintas antes de continuar.'; return; }
       record.crio.entregues = {mantas, cintas};
+      record.fotos.crio.entrega = photos;
     } else {
       const vals = {};
-      let missing = false;
+      let missing = false, missingFoto = false;
       [...linearList, ...boosterList].forEach(c=>{
         const el = document.getElementById('inp-'+c.key);
         const v = el.value.trim();
         if(v === '') missing = true;
+        if(!photos[c.key]) missingFoto = true;
         vals[c.key] = parseInt0(v);
       });
       if(missing){ errEl.textContent = 'Preencha o disparo inicial de todos os cartuchos.'; return; }
+      if(missingFoto){ errEl.textContent = 'Falta anexar a foto do visor de algum cartucho.'; return; }
       record.ultra.inicial = vals;
+      record.fotos.ultra.inicial = photos;
     }
     errEl.textContent = '';
     record.status = 'sig_entrega';
@@ -511,11 +690,14 @@ function renderInicial(){
     render();
   });
 }
-function renderCartuchoFields(prefix, list, title){
+function renderCartuchoFields(list, title){
   return `<h3>${title}</h3>` + list.map(c=>`
-    <div class="cartucho-row">
-      <div class="cartucho-nome">${c.label}</div>
-      <div class="meter"><input type="number" inputmode="numeric" id="inp-${c.key}" placeholder="0"><span class="unit">Disparos</span></div>
+    <div class="cartucho-block">
+      <div class="cartucho-row">
+        <div class="cartucho-nome">${c.label}</div>
+        <div class="meter"><input type="number" inputmode="numeric" id="inp-${c.key}" placeholder="0"><span class="unit">Disparos</span></div>
+      </div>
+      <div class="foto-block" id="foto-block-${c.key}"></div>
     </div>`).join('');
 }
 function renderCrioEntregaFields(){
@@ -523,8 +705,10 @@ function renderCrioEntregaFields(){
     <h3>Itens entregues</h3>
     <label>Mantas entregues</label>
     <div class="meter" style="display:inline-flex;"><input type="number" inputmode="numeric" id="crio-mantas-e" placeholder="0"><span class="unit">un.</span></div>
+    <div class="foto-block" id="foto-block-mantasE"></div>
     <label>Cintas entregues</label>
     <div class="meter" style="display:inline-flex;"><input type="number" inputmode="numeric" id="crio-cintas-e" placeholder="0"><span class="unit">un.</span></div>
+    <div class="foto-block" id="foto-block-cintasE"></div>
   `;
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -601,17 +785,33 @@ function renderFinal(){
   const isCrio = header.equipamento === 'crio';
   const linearList = isCrio ? [] : expandCartuchos(LINEAR);
   const boosterList = isCrio ? [] : expandCartuchos(BOOSTER);
+  const photos = {};
+  if(isCrio){
+    Object.assign(photos, record.fotos.crio.retorno);
+  } else {
+    Object.assign(photos, record.fotos.ultra.final);
+  }
   app.innerHTML = `
     <h2 class="section-title">${isCrio ? 'Retorno' : 'Disparo final'}</h2>
     <p class="section-sub">${header.doutora||''} · ${EQUIP_LABEL[header.equipamento]}</p>
+    <button class="btn-secondary mini" id="btn-relatorio-entrega" style="width:100%; margin-bottom:14px;">📄 Gerar relatório de entrega (PDF p/ doutora)</button>
     <div class="card">
       ${isCrio ? renderCrioRetornoFields() : renderCartuchoFieldsFinal(linearList, 'Cartuchos Linear', record.ultra.inicial) }
     </div>
     ${isCrio ? '' : `<div class="card">${renderCartuchoFieldsFinal(boosterList, 'Cartuchos Booster', record.ultra.inicial)}</div>`}
     <div class="field-error" id="err-final" style="margin-bottom:10px;"></div>
     <button class="btn-primary" id="btn-confirmar-final">Calcular saldo</button>
-    <p class="note">${isCrio ? 'Confirme quantas mantas e cintas estão voltando.' : 'O saldo é sempre inicial − final. O final tem que ser igual ou menor que o inicial.'}</p>
+    <p class="note">${isCrio ? 'Confirme quantas mantas e cintas estão voltando. Anexe foto das mantas e das fitas retornando.' : 'O saldo é sempre inicial − final. O final tem que ser igual ou menor que o inicial. Tire a foto do visor de cada cartucho.'}</p>
   `;
+  document.getElementById('btn-relatorio-entrega').addEventListener('click', ()=> gerarPDFEntrega(record, header));
+  if(isCrio){
+    paintFotoBlock('mantasR', photos, {ai:false, label:'mantas retornando'});
+    paintFotoBlock('cintasR', photos, {ai:false, label:'cintas retornando'});
+  } else {
+    [...linearList, ...boosterList].forEach(c=>{
+      paintFotoBlock(c.key, photos, {ai:true, targetInputId:'inp-'+c.key});
+    });
+  }
   if(isCrio){
     const entregues = record.crio.entregues || {mantas:0,cintas:0};
     const cintasInput = document.getElementById('crio-cintas-r');
@@ -725,22 +925,27 @@ function renderFinal(){
       const entregues = record.crio.entregues || {mantas:0,cintas:0};
       const cobrancaOk = record.crio.cobrancaCinta && record.crio.cobrancaCinta.qtd === Math.max(0, entregues.cintas - cintas);
       if(cintas < entregues.cintas && !cobrancaOk){ errEl.textContent = 'Confira com a doutora — falta cinta pra fechar a conta.'; return; }
+      if(!photos.mantasR || !photos.cintasR){ errEl.textContent = 'Anexe a foto das mantas e das cintas retornando antes de continuar.'; return; }
       record.crio.retornando = {mantas, cintas};
+      record.fotos.crio.retorno = photos;
     } else {
       const vals = {};
-      let missing = false, invalid = false;
+      let missing = false, invalid = false, missingFoto = false;
       const inicial = record.ultra.inicial;
       [...linearList, ...boosterList].forEach(c=>{
         const el = document.getElementById('inp-'+c.key);
         const v = el.value.trim();
         if(v === '') missing = true;
+        if(!photos[c.key]) missingFoto = true;
         const fin = parseInt0(v);
         if(fin > (inicial[c.key]||0)) invalid = true;
         vals[c.key] = fin;
       });
       if(missing){ errEl.textContent = 'Preencha o disparo final de todos os cartuchos.'; return; }
+      if(missingFoto){ errEl.textContent = 'Falta anexar a foto do visor de algum cartucho.'; return; }
       if(invalid){ errEl.textContent = 'Tem cartucho com final maior que inicial — confira antes de continuar.'; return; }
       record.ultra.final = vals;
+      record.fotos.ultra.final = photos;
     }
     errEl.textContent = '';
     record.status = 'condicoes';
@@ -750,19 +955,24 @@ function renderFinal(){
 }
 function renderCartuchoFieldsFinal(list, title, iniciais){
   return `<h3>${title}</h3>` + list.map(c=>`
-    <div class="cartucho-row">
-      <div class="cartucho-nome">${c.label}<small>Inicial: ${iniciais[c.key]||0}</small></div>
-      <div class="meter"><input type="number" inputmode="numeric" id="inp-${c.key}" placeholder="0"><span class="unit">Disparos</span></div>
-    </div>
-    <div class="row-error" id="rowerr-${c.key}">⚠ Final não pode ser maior que o inicial (${iniciais[c.key]||0})</div>`).join('');
+    <div class="cartucho-block">
+      <div class="cartucho-row">
+        <div class="cartucho-nome">${c.label}<small>Inicial: ${iniciais[c.key]||0}</small></div>
+        <div class="meter"><input type="number" inputmode="numeric" id="inp-${c.key}" placeholder="0"><span class="unit">Disparos</span></div>
+      </div>
+      <div class="row-error" id="rowerr-${c.key}">⚠ Final não pode ser maior que o inicial (${iniciais[c.key]||0})</div>
+      <div class="foto-block" id="foto-block-${c.key}"></div>
+    </div>`).join('');
 }
 function renderCrioRetornoFields(){
   return `
     <h3>Itens retornando</h3>
     <label>Mantas retornando</label>
     <div class="meter" style="display:inline-flex;"><input type="number" inputmode="numeric" id="crio-mantas-r" placeholder="0"><span class="unit">un.</span></div>
+    <div class="foto-block" id="foto-block-mantasR"></div>
     <label>Cintas retornando</label>
     <div class="meter" style="display:inline-flex;"><input type="number" inputmode="numeric" id="crio-cintas-r" placeholder="0"><span class="unit">un.</span></div>
+    <div class="foto-block" id="foto-block-cintasR"></div>
     <div class="alert-box" id="crio-alert" style="display:none;"></div>
     <div class="ok-box" id="crio-ok" style="display:none;">✓ Todas as cintas conferem</div>
     <div id="crio-cinta-decisao"></div>
@@ -957,14 +1167,66 @@ function renderSigFechamento(){
     const geo = await getGeo();
     record.assinaturas.retirada = {img: pad2.dataUrl(), ts: new Date().toISOString(), geo};
     record.assinaturas.logistica = {img: pad3.dataUrl(), ts: new Date().toISOString(), geo};
-    record.status = 'concluido';
+    record.status = 'revisao';
     saveRecord(header.numero, header.equipamento, record);
     render();
   });
 }
 
 /* ==================================================
-   SCREEN — concluído / PDF
+   SCREEN — revisão de fotos antes do PDF final
+   ================================================== */
+function fotoGridItem(cap, photo){
+  if(!photo){
+    return `<div class="foto-grid-item missing">Sem foto</div><div class="cap">${escapeHtml(cap)}</div>`;
+  }
+  return `<div class="foto-grid-item"><img src="${photo.img}"></div><div class="cap">${escapeHtml(cap)} · ${fmtDateTime(photo.ts)}</div>`;
+}
+function renderRevisao(){
+  const isCrio = header.equipamento === 'crio';
+  let gridHtml = '';
+  if(isCrio){
+    const fe = record.fotos.crio.entrega, fr = record.fotos.crio.retorno;
+    gridHtml = '<div class="foto-grid">'
+      + fotoGridItem('Mantas — entrega', fe.mantasE)
+      + fotoGridItem('Cintas — entrega', fe.cintasE)
+      + fotoGridItem('Mantas — retorno', fr.mantasR)
+      + fotoGridItem('Cintas — retorno', fr.cintasR)
+      + '</div>';
+  } else {
+    const linearList = expandCartuchos(LINEAR), boosterList = expandCartuchos(BOOSTER);
+    const fi = record.fotos.ultra.inicial, ff = record.fotos.ultra.final;
+    gridHtml = '<div class="foto-grid">' + [...linearList, ...boosterList].map(c=>
+      fotoGridItem(c.label+' — inicial', fi[c.key]) + fotoGridItem(c.label+' — final', ff[c.key])
+    ).join('') + '</div>';
+  }
+  app.innerHTML = `
+    <h2 class="section-title">Revisão de fotos</h2>
+    <p class="section-sub">Confira se todas as fotos foram tiradas antes de gerar o PDF final.</p>
+    ${gridHtml}
+    <button class="btn-primary" id="btn-gerar-final">Gerar PDF e concluir locação</button>
+    <button class="btn-secondary" id="btn-revisao-voltar">Voltar</button>
+    <p class="note">Depois de gerar o PDF, os dados desta locação são apagados automaticamente deste aparelho.</p>
+  `;
+  document.getElementById('btn-revisao-voltar').addEventListener('click', ()=>{
+    record.status = 'sig_fechamento';
+    saveRecord(header.numero, header.equipamento, record);
+    render();
+  });
+  document.getElementById('btn-gerar-final').addEventListener('click', ()=>{
+    gerarPDF(record, header);
+    clearRecord(header.numero, header.equipamento);
+    app.innerHTML = `
+      <div class="center-msg">
+        <div class="big">Locação fechada ✓</div>
+        <p class="section-sub">PDF baixado. Os dados desta locação já foram apagados deste aparelho.</p>
+      </div>
+    `;
+  });
+}
+
+/* ==================================================
+   SCREEN — concluído / PDF (fallback para registros antigos)
    ================================================== */
 function renderConcluido(){
   app.innerHTML = `
@@ -983,6 +1245,101 @@ function renderConcluido(){
       window.location.href = window.location.pathname;
     }
   });
+}
+
+/* ==================================================
+   PDF — relatório de entrega (só a etapa de entrega, pra doutora)
+   ================================================== */
+function gerarPDFEntrega(record, header){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const isCrio = header.equipamento === 'crio';
+  const marginX = 16;
+  let y = 10;
+
+  const logoW = 34, logoH = logoW * (501/900);
+  try{ doc.addImage(LOGO_PDF_DATAURL, 'PNG', marginX, y, logoW, logoH); }catch(e){}
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(90,85,78);
+  doc.text('CNPJ 51.797.671/0001-66 · AFE 8.34727-6', marginX, y + logoH + 5);
+  doc.setFontSize(9); doc.setTextColor(23,19,15);
+  doc.text('Relatório de entrega — Locação nº ' + header.numero, 194, y+6, {align:'right'});
+  doc.text(formatDateBR(header.data) || '', 194, y+11, {align:'right'});
+  y += Math.max(logoH + 9, 16);
+  doc.setDrawColor(122,18,32); doc.setLineWidth(1); doc.line(marginX, y, 194, y);
+  y += 8;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(23,19,15);
+  doc.text(header.doutora || '', marginX, y);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(90,85,78);
+  doc.text(EQUIP_LABEL[header.equipamento] + (header.motorista ? ' · Motorista: '+header.motorista : ''), marginX, y+5);
+  y += 12;
+
+  if(isCrio){
+    const ent = record.crio.entregues || {mantas:0,cintas:0};
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(122,18,32);
+    doc.text('ITENS ENTREGUES', marginX, y); y += 7;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(54,47,41);
+    doc.text('Mantas: ' + ent.mantas, marginX, y); y += 5.5;
+    doc.text('Cintas: ' + ent.cintas, marginX, y); y += 8;
+  } else {
+    const ini = record.ultra.inicial || {};
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(122,18,32);
+    doc.text('DISPARO INICIAL', marginX, y); y += 7;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(54,47,41);
+    [...expandCartuchos(LINEAR), ...expandCartuchos(BOOSTER)].forEach(c=>{
+      doc.text(c.label + ': ' + (ini[c.key]||0), marginX, y); y += 5;
+    });
+    y += 4;
+  }
+
+  // fotos da entrega
+  const fotoItems = [];
+  if(isCrio){
+    const fe = record.fotos.crio.entrega || {};
+    fotoItems.push({label:'Mantas — entrega', photo: fe.mantasE});
+    fotoItems.push({label:'Cintas — entrega', photo: fe.cintasE});
+  } else {
+    const fi = record.fotos.ultra.inicial || {};
+    [...expandCartuchos(LINEAR), ...expandCartuchos(BOOSTER)].forEach(c=>{
+      fotoItems.push({label: c.label+' — inicial', photo: fi[c.key]});
+    });
+  }
+  const comFoto = fotoItems.filter(it=>it.photo);
+  if(comFoto.length){
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(122,18,32);
+    doc.text('FOTOS DA ENTREGA', marginX, y); y += 6;
+    const photoH = 30, gap = 6, perRow = 4, cellW = (178 - gap*(perRow-1)) / perRow;
+    comFoto.forEach((item, idx)=>{
+      const col = idx % perRow;
+      const x = marginX + col*(cellW+gap);
+      if(col === 0 && (y + photoH + 12 > 285)){ doc.addPage(); y = 14; }
+      const rowY = y;
+      try{ doc.addImage(item.photo.img, 'JPEG', x, rowY, cellW, photoH); }catch(e){}
+      doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(90,85,78);
+      doc.text(doc.splitTextToSize(item.label, cellW), x, rowY+photoH+3);
+      doc.text(fmtDateTime(item.photo.ts), x, rowY+photoH+6.5);
+      doc.text(fmtGeo(item.photo.geo), x, rowY+photoH+9.5);
+      if(col === perRow-1 || idx === comFoto.length-1){ y = rowY + photoH + 13; }
+    });
+  }
+
+  // assinatura de entrega
+  const sigE = record.assinaturas.entrega;
+  if(sigE){
+    if(y + 40 > 285){ doc.addPage(); y = 14; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(122,18,32);
+    doc.text('ASSINATURA — ENTREGA', marginX, y); y += 6;
+    try{ doc.addImage(sigE.img, 'PNG', marginX, y, 55, 20); }catch(e){}
+    doc.setDrawColor(23,19,15); doc.setLineWidth(0.3); doc.line(marginX, y+22, marginX+55, y+22);
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(23,19,15);
+    doc.text(header.doutora || 'Dr(a)', marginX, y+26);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(90,85,78);
+    doc.text(fmtDateTime(sigE.ts), marginX, y+30);
+    doc.text(fmtGeo(sigE.geo), marginX, y+33.5);
+  }
+
+  const filename = 'RJX_Relatorio_Entrega_' + header.numero + '_' + (header.equipamento||'') + '.pdf';
+  doc.save(filename);
 }
 
 /* ==================================================
@@ -1112,7 +1469,54 @@ function gerarPDF(record, header){
   doc.text(fmtMoney(totalGeral), 189, y+9.5, {align:'right'});
   y += 24;
 
+  // fotos (antes/depois) — anexadas no contrato, tamanho reduzido
+  function addFotoSection(items){
+    const photoW = 40, photoH = 30, gap = 6, perRow = 4;
+    const usableW = 178;
+    const cellW = (usableW - gap*(perRow-1)) / perRow;
+    items.forEach((item, idx)=>{
+      if(!item.photo) return;
+      const col = idx % perRow;
+      if(col === 0 && idx !== 0){ /* handled by row break below */ }
+      const rowIdx = Math.floor(idx / perRow);
+      const x = marginX + col*(cellW+gap);
+      if(col === 0){
+        if(y + photoH + 12 > 285){ doc.addPage(); y = 14; }
+      }
+      const rowY = y;
+      try{ doc.addImage(item.photo.img, 'JPEG', x, rowY, cellW, photoH); }catch(e){}
+      doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(90,85,78);
+      doc.text(doc.splitTextToSize(item.label, cellW), x, rowY+photoH+3);
+      doc.text(fmtDateTime(item.photo.ts), x, rowY+photoH+6.5);
+      doc.text(fmtGeo(item.photo.geo), x, rowY+photoH+9.5);
+      if(col === perRow-1 || idx === items.length-1){ y = rowY + photoH + 13; }
+    });
+  }
+  const fotoItems = [];
+  if(isCrio){
+    const fe = record.fotos.crio.entrega || {}, fr = record.fotos.crio.retorno || {};
+    fotoItems.push({label:'Mantas — entrega', photo: fe.mantasE});
+    fotoItems.push({label:'Cintas — entrega', photo: fe.cintasE});
+    fotoItems.push({label:'Mantas — retorno', photo: fr.mantasR});
+    fotoItems.push({label:'Cintas — retorno', photo: fr.cintasR});
+  } else {
+    const fi = record.fotos.ultra.inicial || {}, ff = record.fotos.ultra.final || {};
+    [...expandCartuchos(LINEAR), ...expandCartuchos(BOOSTER)].forEach(c=>{
+      fotoItems.push({label: c.label+' — inicial', photo: fi[c.key]});
+      fotoItems.push({label: c.label+' — final', photo: ff[c.key]});
+    });
+  }
+  const fotoItemsComFoto = fotoItems.filter(it=>it.photo);
+  if(fotoItemsComFoto.length){
+    if(y + 14 > 285){ doc.addPage(); y = 14; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(122,18,32);
+    doc.text('FOTOS DAS TELAS / ITENS', marginX, y); y += 6;
+    addFotoSection(fotoItemsComFoto);
+    y += 4;
+  }
+
   // signatures
+  if(y + 45 > 290){ doc.addPage(); y = 14; }
   const sigH = 20;
   const cpfLine = header.cpfCnpj ? ('CPF/CNPJ: ' + header.cpfCnpj) : '';
   const sigs = header.equipamento
