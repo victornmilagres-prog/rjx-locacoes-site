@@ -280,6 +280,11 @@ function renderYasmin(){
       <label id="lbl-valor-locacao">Valor da locação</label>
       <input type="text" id="f-valor-locacao" inputmode="decimal" placeholder="R$ 0,00">
       <p class="hint" id="hint-valor-locacao">Ultraformer: o motorista pode marcar como gratuita no fechamento, zerando esse valor. Criodermis: esse valor sempre é cobrado.</p>
+      <div id="wrap-valor-manta-yasmin" style="display:none;">
+        <label>Valor da manta negociado</label>
+        <input type="text" id="f-valor-manta-yasmin" inputmode="decimal" placeholder="R$ 0,00">
+        <p class="hint">Esse valor já entra no somatório automaticamente — o motorista não altera.</p>
+      </div>
       <div class="toggle-row"><span>Tem frete?</span><div class="switch" id="sw-frete-yasmin"><div class="knob"></div></div></div>
       <div id="wrap-frete-yasmin" style="display:none;">
         <label>Valor do frete</label>
@@ -308,6 +313,7 @@ function renderYasmin(){
     hint.textContent = equip === 'crio'
       ? 'Na Criodermis esse valor é sempre cobrado — não tem opção de gratuidade.'
       : 'No Ultraformer o motorista pode marcar como gratuita no fechamento, zerando esse valor.';
+    document.getElementById('wrap-valor-manta-yasmin').style.display = equip === 'crio' ? 'block' : 'none';
   }
   document.getElementById('f-equip').addEventListener('click', (e)=>{
     const pill = e.target.closest('.radio-pill'); if(!pill) return;
@@ -375,6 +381,7 @@ function renderYasmin(){
     const motorista = document.getElementById('f-motorista').value.trim();
     const condicoes = document.getElementById('f-condicoes').value.trim();
     const valorLocacao = parseMoney(document.getElementById('f-valor-locacao').value);
+    const valorManta = parseMoney(document.getElementById('f-valor-manta-yasmin').value);
     const frete = swFreteY.classList.contains('on');
     const valorFrete = frete ? parseMoney(document.getElementById('f-valor-frete').value) : 0;
     const errEl = document.getElementById('err-yasmin');
@@ -382,8 +389,12 @@ function renderYasmin(){
       errEl.textContent = 'Preencha nome da doutora, número da locação e data.';
       return;
     }
+    if(equip === 'crio' && !valorManta){
+      errEl.textContent = 'Preencha o valor da manta negociado.';
+      return;
+    }
     errEl.textContent = '';
-    const h = {doutora, numero, data, equipamento:equip, motorista, condicoes, valorLocacao, frete, valorFrete};
+    const h = {doutora, numero, data, equipamento:equip, motorista, condicoes, valorLocacao, valorManta, frete, valorFrete};
     const url = window.location.origin + window.location.pathname + '?d=' + b64encode(h);
     document.getElementById('link-card').style.display = 'block';
     document.getElementById('link-box').textContent = url;
@@ -406,6 +417,7 @@ function renderYasmin(){
     document.getElementById('f-motorista').value = '';
     document.getElementById('f-condicoes').value = '';
     document.getElementById('f-valor-locacao').value = '';
+    document.getElementById('f-valor-manta-yasmin').value = '';
     document.getElementById('f-valor-frete').value = '';
     swFreteY.classList.remove('on');
     wrapFreteY.style.display = 'none';
@@ -465,9 +477,9 @@ function renderCrioEntregaFields(){
   return `
     <h3>Itens entregues</h3>
     <label>Mantas entregues</label>
-    <div class="meter" style="display:inline-flex;"><input type="number" id="crio-mantas-e" placeholder="0"><span class="unit">un.</span></div>
+    <div class="meter" style="display:inline-flex;"><input type="number" inputmode="numeric" id="crio-mantas-e" placeholder="0"><span class="unit">un.</span></div>
     <label>Cintas entregues</label>
-    <div class="meter" style="display:inline-flex;"><input type="number" id="crio-cintas-e" placeholder="0"><span class="unit">un.</span></div>
+    <div class="meter" style="display:inline-flex;"><input type="number" inputmode="numeric" id="crio-cintas-e" placeholder="0"><span class="unit">un.</span></div>
   `;
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -559,16 +571,74 @@ function renderFinal(){
     const alertEl = document.getElementById('crio-alert');
     const okEl = document.getElementById('crio-ok');
     const btn = document.getElementById('btn-confirmar-final');
-    function checkCintas(){
+    let pad = null;
+    let cobrancaResolvida = !!record.crio.cobrancaCinta;
+    function faltam(){ return Math.max(0, entregues.cintas - parseInt0(cintasInput.value)); }
+    function renderDecisao(){
+      const painel = document.getElementById('crio-cinta-decisao');
+      if(!painel) return;
+      const qtd = faltam();
+      if(qtd <= 0){
+        painel.innerHTML = '';
+        cobrancaResolvida = !!record.crio.cobrancaCinta && record.crio.cobrancaCinta.qtd === 0;
+        return;
+      }
+      if(cobrancaResolvida && record.crio.cobrancaCinta && record.crio.cobrancaCinta.qtd === qtd){
+        painel.innerHTML = `<div class="ok-box">✓ Cobrança de ${qtd} cinta(s) já registrada e assinada — R$ ${(qtd*18).toFixed(2).replace('.',',')}, incluída na locação.</div>`;
+        return;
+      }
+      cobrancaResolvida = false;
+      painel.innerHTML = `
+        <div class="alert-box" style="margin-top:10px;">⚠ Faltam ${qtd} cinta(s). Confira com a Dra antes de continuar.</div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-secondary mini" id="btn-ajustar-cinta" style="flex:1;">Ajustar quantidade</button>
+          <button class="btn-secondary mini alt" id="btn-cobrar-cinta" style="flex:1;">Cobrar cinta ausente</button>
+        </div>
+      `;
+      document.getElementById('btn-ajustar-cinta').addEventListener('click', ()=>{
+        cintasInput.focus();
+        painel.innerHTML = '';
+      });
+      document.getElementById('btn-cobrar-cinta').addEventListener('click', ()=>{
+        const valorTotal = qtd * 18;
+        painel.innerHTML = `
+          <div class="card" style="margin-top:10px;">
+            <h3>Cobrança de cinta ausente</h3>
+            <p class="hint">${qtd} cinta(s) × R$ 18,00 = <b>${fmtMoney(valorTotal)}</b> — esse valor entra somado na locação.</p>
+            <div class="sig-label">Assinatura da doutora — cinta ausente</div>
+            <canvas class="sig-canvas" id="sig-cinta"></canvas>
+            <div class="sig-actions"><button class="btn-secondary mini" id="sig-cinta-clear">Limpar assinatura</button></div>
+            <div class="field-error" id="err-cinta"></div>
+            <button class="btn-primary" style="margin-top:10px;" id="btn-confirmar-cobranca">Confirmar cobrança</button>
+          </div>
+        `;
+        pad = makeSignaturePad('sig-cinta');
+        document.getElementById('sig-cinta-clear').addEventListener('click', ()=>pad.clear());
+        document.getElementById('btn-confirmar-cobranca').addEventListener('click', async ()=>{
+          const errEl = document.getElementById('err-cinta');
+          if(pad.isEmpty()){ errEl.textContent = 'Peça para a doutora assinar antes de confirmar.'; return; }
+          errEl.textContent = '';
+          const cbtn = document.getElementById('btn-confirmar-cobranca'); cbtn.disabled = true; cbtn.textContent = 'Salvando...';
+          const geo = await getGeo();
+          record.crio.cobrancaCinta = {qtd, valorUnit:18, total:valorTotal, assinatura:{img: pad.dataUrl(), ts: new Date().toISOString(), geo}};
+          saveRecord(header.numero, header.equipamento, record);
+          cobrancaResolvida = true;
+          renderDecisao();
+          checkAll();
+        });
+      });
+    }
+    function checkAll(){
       const cintasR = parseInt0(cintasInput.value);
-      const ok = cintasR >= entregues.cintas;
-      alertEl.style.display = (cintasInput.value !== '' && !ok) ? 'flex' : 'none';
-      okEl.style.display = (cintasInput.value !== '' && ok) ? 'flex' : 'none';
+      const ok = cintasR >= entregues.cintas || cobrancaResolvida;
+      alertEl.style.display = 'none';
+      okEl.style.display = (cintasInput.value !== '' && cintasR >= entregues.cintas) ? 'flex' : 'none';
+      renderDecisao();
       btn.disabled = !ok || mantasInput.value === '' || cintasInput.value === '';
     }
-    cintasInput.addEventListener('input', checkCintas);
-    mantasInput.addEventListener('input', checkCintas);
-    checkCintas();
+    cintasInput.addEventListener('input', checkAll);
+    mantasInput.addEventListener('input', checkAll);
+    checkAll();
   } else {
     const btn = document.getElementById('btn-confirmar-final');
     const inicial = record.ultra.inicial;
@@ -604,7 +674,8 @@ function renderFinal(){
       const mantas = parseInt0(document.getElementById('crio-mantas-r').value);
       const cintas = parseInt0(document.getElementById('crio-cintas-r').value);
       const entregues = record.crio.entregues || {mantas:0,cintas:0};
-      if(cintas < entregues.cintas){ errEl.textContent = 'Confira com a doutora — falta cinta pra fechar a conta.'; return; }
+      const cobrancaOk = record.crio.cobrancaCinta && record.crio.cobrancaCinta.qtd === Math.max(0, entregues.cintas - cintas);
+      if(cintas < entregues.cintas && !cobrancaOk){ errEl.textContent = 'Confira com a doutora — falta cinta pra fechar a conta.'; return; }
       record.crio.retornando = {mantas, cintas};
     } else {
       const vals = {};
@@ -640,11 +711,12 @@ function renderCrioRetornoFields(){
   return `
     <h3>Itens retornando</h3>
     <label>Mantas retornando</label>
-    <div class="meter" style="display:inline-flex;"><input type="number" id="crio-mantas-r" placeholder="0"><span class="unit">un.</span></div>
+    <div class="meter" style="display:inline-flex;"><input type="number" inputmode="numeric" id="crio-mantas-r" placeholder="0"><span class="unit">un.</span></div>
     <label>Cintas retornando</label>
-    <div class="meter" style="display:inline-flex;"><input type="number" id="crio-cintas-r" placeholder="0"><span class="unit">un.</span></div>
-    <div class="alert-box" id="crio-alert" style="display:none; margin-top:12px;">⚠ Faltam cintas. Confira com a doutora antes de continuar — o fechamento fica bloqueado até bater a conta.</div>
+    <div class="meter" style="display:inline-flex;"><input type="number" inputmode="numeric" id="crio-cintas-r" placeholder="0"><span class="unit">un.</span></div>
+    <div class="alert-box" id="crio-alert" style="display:none;"></div>
     <div class="ok-box" id="crio-ok" style="display:none;">✓ Todas as cintas conferem</div>
+    <div id="crio-cinta-decisao"></div>
   `;
 }
 
@@ -670,11 +742,14 @@ function renderCondicoes(){
   if(isCrio){
     const entregues = record.crio.entregues, retornando = record.crio.retornando;
     const utilizadas = Math.max(0, entregues.mantas - retornando.mantas);
-    calc = {utilizadas};
+    const cobranca = record.crio.cobrancaCinta || null;
+    calc = {utilizadas, cobranca};
     saldoHtml = `
       <div class="diff-row"><span>Mantas entregues</span><span class="saldo">${entregues.mantas}</span></div>
       <div class="diff-row"><span>Mantas retornando</span><span class="saldo">${retornando.mantas}</span></div>
       <div class="diff-row" style="border-top:1.5px solid var(--ink); margin-top:4px; padding-top:8px;"><b>Mantas utilizadas</b><span class="saldo" style="font-size:15px;">${utilizadas}</span></div>
+      <div class="diff-row" style="margin-top:8px;"><span>Cintas entregues / retornando</span><span class="saldo">${entregues.cintas} / ${retornando.cintas}</span></div>
+      ${cobranca ? `<div class="diff-row"><span>Cinta ausente (${cobranca.qtd} × ${fmtMoney(cobranca.valorUnit)})</span><span class="saldo">${fmtMoney(cobranca.total)}</span></div>` : ''}
     `;
   } else {
     calc = computeUltraSaldos();
@@ -695,8 +770,14 @@ function renderCondicoes(){
     <div class="card">
       <h3>Condições financeiras</h3>
       ${isCrio ? `
-        <label>Valor por manta</label>
-        <input type="text" id="f-valor-manta" inputmode="decimal" placeholder="R$ 0,00" value="${fPrev.valorManta ? fmtMoney(fPrev.valorManta).replace('R$','').trim() : ''}">
+        <div class="diff-row">
+          <span>Valor da manta (fixado pela Yasmin)</span>
+          <span class="saldo">${fmtMoney(header.valorManta || 0)}</span>
+        </div>
+        <div class="diff-row" style="border-top:1px solid var(--line); padding-top:9px;">
+          <span><b>Total manta</b> (${calc.utilizadas} × ${fmtMoney(header.valorManta || 0)})</span>
+          <span class="saldo">${fmtMoney(calc.utilizadas * (header.valorManta || 0))}</span>
+        </div>
       ` : `
         <label>Valor do disparo negociado</label>
         <input type="text" id="f-valor-disparo" inputmode="decimal" placeholder="R$ 0,00" value="${fPrev.valorDisparo ? fmtMoney(fPrev.valorDisparo).replace('R$','').trim() : ''}">
@@ -715,6 +796,13 @@ function renderCondicoes(){
       </div>
     </div>
     <div class="total-box"><span class="label">Total geral a pagar</span><span class="valor" id="total-geral">R$ 0,00</span></div>
+    ${isCrio && calc.cobranca ? `
+      <div class="card" style="margin-top:14px;">
+        <h3>Assinatura — cinta ausente</h3>
+        <img src="${calc.cobranca.assinatura.img}" style="width:100%; max-width:220px; display:block; background:var(--paper-soft); border:1px solid var(--line); border-radius:var(--radius);">
+        <div class="sig-meta"><span>${fmtDateTime(calc.cobranca.assinatura.ts)}</span><span>${fmtGeo(calc.cobranca.assinatura.geo)}</span></div>
+      </div>
+    ` : ''}
     <div class="field-error" id="err-cond" style="margin-top:10px;"></div>
     <button class="btn-primary" style="margin-top:14px;" id="btn-confirmar-cond">Confirmar fechamento</button>
     <p class="note" id="calc-explain"></p>
@@ -733,12 +821,14 @@ function renderCondicoes(){
     let total = 0, explain = '';
     const btnCond = document.getElementById('btn-confirmar-cond');
     if(isCrio){
-      const valorManta = parseMoney(document.getElementById('f-valor-manta').value);
+      const valorManta = header.valorManta || 0;
+      const cobrancaTotal = calc.cobranca ? calc.cobranca.total : 0;
       const subtotal = calc.utilizadas * valorManta;
-      total = subtotal + valorLocacaoYasmin + valorFrete;
+      total = subtotal + valorLocacaoYasmin + valorFrete + cobrancaTotal;
       explain = `${calc.utilizadas} mantas × ${fmtMoney(valorManta)} = ${fmtMoney(subtotal)}`
         + ` + locação ${fmtMoney(valorLocacaoYasmin)}`
-        + (freteAtivo ? ` + frete ${fmtMoney(valorFrete)}` : '');
+        + (freteAtivo ? ` + frete ${fmtMoney(valorFrete)}` : '')
+        + (cobrancaTotal ? ` + cinta ausente ${fmtMoney(cobrancaTotal)}` : '');
       if(btnCond) btnCond.disabled = !valorManta;
     } else {
       const valorDisparo = parseMoney(document.getElementById('f-valor-disparo').value);
@@ -761,9 +851,9 @@ function renderCondicoes(){
   document.getElementById('btn-confirmar-cond').addEventListener('click', ()=>{
     const errEl = document.getElementById('err-cond');
     if(isCrio){
-      const valorManta = parseMoney(document.getElementById('f-valor-manta').value);
-      if(!valorManta){ errEl.textContent = 'Informe o valor por manta.'; return; }
-      record.financeiro = {valorManta, valorLocacao: valorLocacaoYasmin, frete: freteAtivo, valorFrete, utilizadas: calc.utilizadas, total: recalc()};
+      const valorManta = header.valorManta || 0;
+      if(!valorManta){ errEl.textContent = 'A Yasmin não definiu o valor da manta para essa locação.'; return; }
+      record.financeiro = {valorManta, valorLocacao: valorLocacaoYasmin, frete: freteAtivo, valorFrete, utilizadas: calc.utilizadas, cobrancaCinta: calc.cobranca, total: recalc()};
     } else {
       const valorDisparo = parseMoney(document.getElementById('f-valor-disparo').value);
       const gratuita = swGratuita.classList.contains('on');
@@ -910,9 +1000,13 @@ function gerarPDF(record, header){
     resumoLinhas = [
       ['Mantas utilizadas', String(f.utilizadas)],
       ['Valor por manta', fmtMoney(f.valorManta)],
+      ['Total manta', fmtMoney(f.utilizadas * f.valorManta)],
       ['Locação', fmtMoney(f.valorLocacao)],
       ['Frete', f.frete ? fmtMoney(f.valorFrete) : '—'],
     ];
+    if(f.cobrancaCinta){
+      resumoLinhas.push(['Cinta ausente (' + f.cobrancaCinta.qtd + ' × R$18)', fmtMoney(f.cobrancaCinta.total)]);
+    }
     totalGeral = f.total;
   } else {
     const calc = computeUltraSaldos();
@@ -957,7 +1051,7 @@ function gerarPDF(record, header){
   y += 24;
 
   // signatures
-  const sigW = 55, sigH = 22;
+  const sigH = 22;
   const sigs = header.equipamento
     ? [
         {label:'Dr(a) — Entrega', s: record.assinaturas.entrega},
@@ -965,6 +1059,11 @@ function gerarPDF(record, header){
         {label:'Logística' + (header.motorista? ' — '+header.motorista:''), s: record.assinaturas.logistica},
       ]
     : [];
+  if(isCrio && record.financeiro.cobrancaCinta){
+    sigs.push({label:'Dr(a) — Cinta ausente', s: record.financeiro.cobrancaCinta.assinatura});
+  }
+  const sigGap = 7;
+  const sigW = Math.min(55, (178 - (sigs.length-1)*sigGap) / sigs.length);
   let sx = marginX;
   sigs.forEach(sig=>{
     if(sig.s && sig.s.img){
