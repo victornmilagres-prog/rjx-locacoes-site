@@ -111,7 +111,10 @@
   .meter.diverge{ box-shadow:inset 0 0 0 1.5px var(--gold), inset 0 2px 4px rgba(0,0,0,.4); }
   .foto-block{ margin-top:2px; }
   .foto-btn{ width:auto; display:inline-block; }
-  .foto-row{ display:flex; align-items:center; gap:10px; }
+  .foto-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .foto-actions .btn-secondary.mini{ width:auto; margin-top:0; }
+  .foto-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .foto-row .foto-retake-wrap{ display:flex; gap:8px; flex-shrink:0; }
   .foto-thumb{ width:52px; height:52px; object-fit:cover; border-radius:var(--radius); border:1.5px solid var(--line); flex-shrink:0; }
   .foto-meta{ flex:1; min-width:0; }
   .foto-status{ font-size:11.5px; font-weight:700; color:var(--gray); display:block; }
@@ -157,7 +160,7 @@ const LINEAR = [
 ];
 const BOOSTER = [
   {key:'booster15', label:'Booster 1,5mm'},
-  {key:'booster2',  label:'Booster 2,0mm'},
+  {key:'booster2',  label:'Booster 3,0mm'},
   {key:'booster45', label:'Booster 4,5mm'},
 ];
 const EQUIP_LABEL = {mpt1:'Ultraformer MPT 1', mpt2:'Ultraformer MPT 2', crio:'Criodermis 2.0'};
@@ -260,8 +263,23 @@ async function lerDisparoIA(imgDataUrl){
 
 /* ---------------- fotos: input de câmera compartilhado ---------------- */
 let hiddenFileInput = null;
+let hiddenFileInputGaleria = null;
 let activeCaptureCallback = null;
-function ensureHiddenFileInput(){
+function ensureHiddenFileInput(daGaleria){
+  if(daGaleria){
+    if(hiddenFileInputGaleria) return hiddenFileInputGaleria;
+    hiddenFileInputGaleria = document.createElement('input');
+    hiddenFileInputGaleria.type = 'file';
+    hiddenFileInputGaleria.accept = 'image/*';
+    hiddenFileInputGaleria.style.display = 'none';
+    document.body.appendChild(hiddenFileInputGaleria);
+    hiddenFileInputGaleria.addEventListener('change', ()=>{
+      const file = hiddenFileInputGaleria.files[0];
+      const cb = activeCaptureCallback; activeCaptureCallback = null;
+      if(file && cb) cb(file);
+    });
+    return hiddenFileInputGaleria;
+  }
   if(hiddenFileInput) return hiddenFileInput;
   hiddenFileInput = document.createElement('input');
   hiddenFileInput.type = 'file';
@@ -276,8 +294,8 @@ function ensureHiddenFileInput(){
   });
   return hiddenFileInput;
 }
-function requestPhoto(callback){
-  const input = ensureHiddenFileInput();
+function requestPhoto(callback, daGaleria){
+  const input = ensureHiddenFileInput(daGaleria);
   activeCaptureCallback = callback;
   input.value = '';
   input.click();
@@ -290,8 +308,13 @@ function paintFotoBlock(key, photos, opts){
   if(!el) return;
   const p = photos[key];
   if(!p){
-    el.innerHTML = '<button type="button" class="btn-secondary mini foto-btn">📷 Tirar foto' + (opts.label ? ' — '+escapeHtml(opts.label) : '') + '</button>';
-    el.querySelector('.foto-btn').addEventListener('click', ()=> startCapture(key, photos, opts));
+    el.innerHTML =
+      '<div class="foto-actions">' +
+        '<button type="button" class="btn-secondary mini foto-btn">📷 Tirar foto' + (opts.label ? ' — '+escapeHtml(opts.label) : '') + '</button>' +
+        '<button type="button" class="btn-secondary mini foto-btn-galeria">🖼️ Escolher da galeria</button>' +
+      '</div>';
+    el.querySelector('.foto-btn').addEventListener('click', ()=> startCapture(key, photos, opts, false));
+    el.querySelector('.foto-btn-galeria').addEventListener('click', ()=> startCapture(key, photos, opts, true));
     return;
   }
   let statusHtml = '';
@@ -307,11 +330,15 @@ function paintFotoBlock(key, photos, opts){
     '<div class="foto-row">' +
       '<img class="foto-thumb" src="'+p.img+'">' +
       '<div class="foto-meta">'+statusHtml+'<div class="foto-ts">'+fmtDateTime(p.ts)+' · '+fmtGeo(p.geo)+'</div></div>' +
-      '<button type="button" class="btn-secondary mini foto-retake">Tirar de novo</button>' +
+      '<div class="foto-retake-wrap">' +
+        '<button type="button" class="btn-secondary mini foto-retake">Tirar de novo</button>' +
+        '<button type="button" class="btn-secondary mini foto-retake-galeria">Da galeria</button>' +
+      '</div>' +
     '</div>';
-  el.querySelector('.foto-retake').addEventListener('click', ()=> startCapture(key, photos, opts));
+  el.querySelector('.foto-retake').addEventListener('click', ()=> startCapture(key, photos, opts, false));
+  el.querySelector('.foto-retake-galeria').addEventListener('click', ()=> startCapture(key, photos, opts, true));
 }
-function startCapture(key, photos, opts){
+function startCapture(key, photos, opts, daGaleria){
   requestPhoto(async (file)=>{
     const el = document.getElementById('foto-block-'+key);
     if(el) el.innerHTML = '<span class="foto-status">Processando foto...</span>';
@@ -321,7 +348,7 @@ function startCapture(key, photos, opts){
     }catch(e){
       if(el) el.innerHTML = '<span class="foto-status offline">Não foi possível processar a foto — tente novamente.</span><button type="button" class="btn-secondary mini foto-retry" style="margin-top:6px;">Tentar de novo</button>';
       const retry = el && el.querySelector('.foto-retry');
-      if(retry) retry.addEventListener('click', ()=> startCapture(key, photos, opts));
+      if(retry) retry.addEventListener('click', ()=> startCapture(key, photos, opts, daGaleria));
       return;
     }
     const photo = {img: dataUrl, ts: new Date().toISOString(), geo, aiStatus: opts.ai ? 'lendo' : null};
@@ -347,7 +374,7 @@ function startCapture(key, photos, opts){
       paintFotoBlock(key, photos, opts);
     }
     if(opts.onChange) opts.onChange();
-  });
+  }, daGaleria);
 }
 
 /* ---------------- storage ---------------- */
@@ -458,6 +485,7 @@ function renderYasmin(){
         <label>Valor da manta negociado</label>
         <input type="text" id="f-valor-manta-yasmin" inputmode="decimal" placeholder="R$ 0,00">
         <p class="hint">Esse valor já entra no somatório automaticamente — o motorista não altera.</p>
+        <div class="toggle-row" style="margin-top:8px;"><span>Não enviar mantas nesta locação (só cinta)</span><div class="switch" id="sw-sem-manta"><div class="knob"></div></div></div>
       </div>
       <div id="wrap-duplicados-yasmin" style="display:none;">
         <label>Algum cartucho vai duplicado?</label>
@@ -510,6 +538,15 @@ function renderYasmin(){
   });
   const swFreteY = document.getElementById('sw-frete-yasmin');
   const wrapFreteY = document.getElementById('wrap-frete-yasmin');
+  const swSemManta = document.getElementById('sw-sem-manta');
+  const inpValorMantaY = document.getElementById('f-valor-manta-yasmin');
+  swSemManta.addEventListener('click', ()=>{
+    swSemManta.classList.toggle('on');
+    const semMantaNow = swSemManta.classList.contains('on');
+    inpValorMantaY.disabled = semMantaNow;
+    inpValorMantaY.placeholder = semMantaNow ? 'Não enviar mantas' : 'R$ 0,00';
+    if(semMantaNow) inpValorMantaY.value = '';
+  });
   swFreteY.addEventListener('click', ()=>{
     swFreteY.classList.toggle('on');
     wrapFreteY.style.display = swFreteY.classList.contains('on') ? 'block' : 'none';
@@ -568,7 +605,8 @@ function renderYasmin(){
     const motorista = document.getElementById('f-motorista').value.trim();
     const condicoes = document.getElementById('f-condicoes').value.trim();
     const valorLocacao = parseMoney(document.getElementById('f-valor-locacao').value);
-    const valorManta = parseMoney(document.getElementById('f-valor-manta-yasmin').value);
+    const semManta = swSemManta.classList.contains('on');
+    const valorManta = semManta ? 0 : parseMoney(document.getElementById('f-valor-manta-yasmin').value);
     const duplicados = [...document.querySelectorAll('#f-duplicados .radio-pill.sel')].map(p=>p.dataset.v);
     const frete = swFreteY.classList.contains('on');
     const valorFrete = frete ? parseMoney(document.getElementById('f-valor-frete').value) : 0;
@@ -577,12 +615,12 @@ function renderYasmin(){
       errEl.textContent = 'Preencha nome da doutora, número da locação e data.';
       return;
     }
-    if(equip === 'crio' && !valorManta){
+    if(equip === 'crio' && !semManta && !valorManta){
       errEl.textContent = 'Preencha o valor da manta negociado.';
       return;
     }
     errEl.textContent = '';
-    const h = {doutora, cpfCnpj, numero, data, equipamento:equip, motorista, condicoes, valorLocacao, valorManta, duplicados, frete, valorFrete};
+    const h = {doutora, cpfCnpj, numero, data, equipamento:equip, motorista, condicoes, valorLocacao, valorManta, semManta, duplicados, frete, valorFrete};
     const url = window.location.origin + window.location.pathname + '?d=' + b64encode(h);
     document.getElementById('link-card').style.display = 'block';
     document.getElementById('link-box').textContent = url;
@@ -607,6 +645,9 @@ function renderYasmin(){
     document.getElementById('f-condicoes').value = '';
     document.getElementById('f-valor-locacao').value = '';
     document.getElementById('f-valor-manta-yasmin').value = '';
+    swSemManta.classList.remove('on');
+    inpValorMantaY.disabled = false;
+    inpValorMantaY.placeholder = 'R$ 0,00';
     document.getElementById('f-valor-frete').value = '';
     swFreteY.classList.remove('on');
     wrapFreteY.style.display = 'none';
@@ -653,7 +694,7 @@ function renderInicial(){
     <p class="note">${isCrio ? 'A manta é o item cobrado. A cinta não tem custo — só controla se tudo volta. Anexe foto das mantas e das fitas espalhadas na mesa.' : 'Tire a foto do visor de cada cartucho — a IA lê o número sozinha quando tiver internet.'}</p>
   `;
   if(isCrio){
-    paintFotoBlock('mantasE', photos, {ai:false, label:'mantas entregues'});
+    if(!header.semManta) paintFotoBlock('mantasE', photos, {ai:false, label:'mantas entregues'});
     paintFotoBlock('cintasE', photos, {ai:false, label:'cintas entregues'});
   } else {
     [...linearList, ...boosterList].forEach(c=>{
@@ -663,10 +704,10 @@ function renderInicial(){
   document.getElementById('btn-confirmar-inicial').addEventListener('click', ()=>{
     const errEl = document.getElementById('err-inicial');
     if(isCrio){
-      const mantas = parseInt0(document.getElementById('crio-mantas-e').value);
+      const mantas = header.semManta ? 0 : parseInt0(document.getElementById('crio-mantas-e').value);
       const cintas = parseInt0(document.getElementById('crio-cintas-e').value);
-      if(mantas <= 0){ errEl.textContent = 'Informe a quantidade de mantas entregues.'; return; }
-      if(!photos.mantasE || !photos.cintasE){ errEl.textContent = 'Anexe a foto das mantas e das cintas antes de continuar.'; return; }
+      if(!header.semManta && mantas <= 0){ errEl.textContent = 'Informe a quantidade de mantas entregues.'; return; }
+      if(!photos.cintasE || (!header.semManta && !photos.mantasE)){ errEl.textContent = 'Anexe a foto das mantas e das cintas antes de continuar.'; return; }
       record.crio.entregues = {mantas, cintas};
       record.fotos.crio.entrega = photos;
     } else {
@@ -703,9 +744,11 @@ function renderCartuchoFields(list, title){
 function renderCrioEntregaFields(){
   return `
     <h3>Itens entregues</h3>
+    ${header.semManta ? '' : `
     <label>Mantas entregues</label>
     <div class="meter" style="display:inline-flex;"><input type="number" inputmode="numeric" id="crio-mantas-e" placeholder="0"><span class="unit">un.</span></div>
     <div class="foto-block" id="foto-block-mantasE"></div>
+    `}
     <label>Cintas entregues</label>
     <div class="meter" style="display:inline-flex;"><input type="number" inputmode="numeric" id="crio-cintas-e" placeholder="0"><span class="unit">un.</span></div>
     <div class="foto-block" id="foto-block-cintasE"></div>
@@ -805,7 +848,7 @@ function renderFinal(){
   `;
   document.getElementById('btn-relatorio-entrega').addEventListener('click', ()=> gerarPDFEntrega(record, header));
   if(isCrio){
-    paintFotoBlock('mantasR', photos, {ai:false, label:'mantas retornando'});
+    if(!header.semManta) paintFotoBlock('mantasR', photos, {ai:false, label:'mantas retornando'});
     paintFotoBlock('cintasR', photos, {ai:false, label:'cintas retornando'});
   } else {
     [...linearList, ...boosterList].forEach(c=>{
@@ -920,12 +963,12 @@ function renderFinal(){
   document.getElementById('btn-confirmar-final').addEventListener('click', ()=>{
     const errEl = document.getElementById('err-final');
     if(isCrio){
-      const mantas = parseInt0(document.getElementById('crio-mantas-r').value);
+      const mantas = header.semManta ? 0 : parseInt0(document.getElementById('crio-mantas-r').value);
       const cintas = parseInt0(document.getElementById('crio-cintas-r').value);
       const entregues = record.crio.entregues || {mantas:0,cintas:0};
       const cobrancaOk = record.crio.cobrancaCinta && record.crio.cobrancaCinta.qtd === Math.max(0, entregues.cintas - cintas);
       if(cintas < entregues.cintas && !cobrancaOk){ errEl.textContent = 'Confira com a doutora — falta cinta pra fechar a conta.'; return; }
-      if(!photos.mantasR || !photos.cintasR){ errEl.textContent = 'Anexe a foto das mantas e das cintas retornando antes de continuar.'; return; }
+      if(!photos.cintasR || (!header.semManta && !photos.mantasR)){ errEl.textContent = 'Anexe a foto das mantas e das cintas retornando antes de continuar.'; return; }
       record.crio.retornando = {mantas, cintas};
       record.fotos.crio.retorno = photos;
     } else {
@@ -967,9 +1010,11 @@ function renderCartuchoFieldsFinal(list, title, iniciais){
 function renderCrioRetornoFields(){
   return `
     <h3>Itens retornando</h3>
+    ${header.semManta ? '' : `
     <label>Mantas retornando</label>
     <div class="meter" style="display:inline-flex;"><input type="number" inputmode="numeric" id="crio-mantas-r" placeholder="0"><span class="unit">un.</span></div>
     <div class="foto-block" id="foto-block-mantasR"></div>
+    `}
     <label>Cintas retornando</label>
     <div class="meter" style="display:inline-flex;"><input type="number" inputmode="numeric" id="crio-cintas-r" placeholder="0"><span class="unit">un.</span></div>
     <div class="foto-block" id="foto-block-cintasR"></div>
@@ -1082,13 +1127,13 @@ function renderCondicoes(){
     if(isCrio){
       const valorManta = header.valorManta || 0;
       const cobrancaTotal = calc.cobranca ? calc.cobranca.total : 0;
-      const subtotal = calc.utilizadas * valorManta;
+      const subtotal = header.semManta ? 0 : calc.utilizadas * valorManta;
       total = subtotal + valorLocacaoYasmin + valorFrete + cobrancaTotal;
-      explain = `${calc.utilizadas} mantas × ${fmtMoney(valorManta)} = ${fmtMoney(subtotal)}`
+      explain = (header.semManta ? 'Sem cobrança de manta' : `${calc.utilizadas} mantas × ${fmtMoney(valorManta)} = ${fmtMoney(subtotal)}`)
         + ` + locação ${fmtMoney(valorLocacaoYasmin)}`
         + (freteAtivo ? ` + frete ${fmtMoney(valorFrete)}` : '')
         + (cobrancaTotal ? ` + cinta ausente ${fmtMoney(cobrancaTotal)}` : '');
-      if(btnCond) btnCond.disabled = !valorManta;
+      if(btnCond) btnCond.disabled = header.semManta ? false : !valorManta;
     } else {
       const valorDisparo = parseMoney(document.getElementById('f-valor-disparo').value);
       const gratuita = swGratuita.classList.contains('on');
@@ -1111,8 +1156,8 @@ function renderCondicoes(){
     const errEl = document.getElementById('err-cond');
     if(isCrio){
       const valorManta = header.valorManta || 0;
-      if(!valorManta){ errEl.textContent = 'A Yasmin não definiu o valor da manta para essa locação.'; return; }
-      record.financeiro = {valorManta, valorLocacao: valorLocacaoYasmin, frete: freteAtivo, valorFrete, utilizadas: calc.utilizadas, cobrancaCinta: calc.cobranca, total: recalc()};
+      if(!header.semManta && !valorManta){ errEl.textContent = 'A Yasmin não definiu o valor da manta para essa locação.'; return; }
+      record.financeiro = {valorManta: header.semManta ? 0 : valorManta, valorLocacao: valorLocacaoYasmin, frete: freteAtivo, valorFrete, utilizadas: calc.utilizadas, cobrancaCinta: calc.cobranca, total: recalc()};
     } else {
       const valorDisparo = parseMoney(document.getElementById('f-valor-disparo').value);
       const gratuita = swGratuita.classList.contains('on');
@@ -1188,9 +1233,9 @@ function renderRevisao(){
   if(isCrio){
     const fe = record.fotos.crio.entrega, fr = record.fotos.crio.retorno;
     gridHtml = '<div class="foto-grid">'
-      + fotoGridItem('Mantas — entrega', fe.mantasE)
+      + (header.semManta ? '' : fotoGridItem('Mantas — entrega', fe.mantasE))
       + fotoGridItem('Cintas — entrega', fe.cintasE)
-      + fotoGridItem('Mantas — retorno', fr.mantasR)
+      + (header.semManta ? '' : fotoGridItem('Mantas — retorno', fr.mantasR))
       + fotoGridItem('Cintas — retorno', fr.cintasR)
       + '</div>';
   } else {
@@ -1279,7 +1324,7 @@ function gerarPDFEntrega(record, header){
     doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(122,18,32);
     doc.text('ITENS ENTREGUES', marginX, y); y += 7;
     doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(54,47,41);
-    doc.text('Mantas: ' + ent.mantas, marginX, y); y += 5.5;
+    if(!header.semManta){ doc.text('Mantas: ' + ent.mantas, marginX, y); y += 5.5; }
     doc.text('Cintas: ' + ent.cintas, marginX, y); y += 8;
   } else {
     const ini = record.ultra.inicial || {};
@@ -1296,7 +1341,7 @@ function gerarPDFEntrega(record, header){
   const fotoItems = [];
   if(isCrio){
     const fe = record.fotos.crio.entrega || {};
-    fotoItems.push({label:'Mantas — entrega', photo: fe.mantasE});
+    if(!header.semManta) fotoItems.push({label:'Mantas — entrega', photo: fe.mantasE});
     fotoItems.push({label:'Cintas — entrega', photo: fe.cintasE});
   } else {
     const fi = record.fotos.ultra.inicial || {};
@@ -1412,17 +1457,22 @@ function gerarPDF(record, header){
     doc.text('CRIODERMIS 2.0', marginX, y); y += 6;
     const widths = [70,40,40,40];
     tableHeader(['Item','Entregue','Retornou','Utilizado'], widths);
-    tableRow(['Mantas', ent.mantas, ret.mantas, ent.mantas-ret.mantas], widths);
+    if(!header.semManta) tableRow(['Mantas', ent.mantas, ret.mantas, ent.mantas-ret.mantas], widths);
     tableRow(['Cintas (sem custo)', ent.cintas, ret.cintas, '—'], widths);
     y += 4;
     const f = record.financeiro;
-    resumoLinhas = [
-      ['Mantas utilizadas', String(f.utilizadas)],
-      ['Valor por manta', fmtMoney(f.valorManta)],
-      ['Total manta', fmtMoney(f.utilizadas * f.valorManta)],
+    resumoLinhas = [];
+    if(!header.semManta){
+      resumoLinhas.push(
+        ['Mantas utilizadas', String(f.utilizadas)],
+        ['Valor por manta', fmtMoney(f.valorManta)],
+        ['Total manta', fmtMoney(f.utilizadas * f.valorManta)],
+      );
+    }
+    resumoLinhas.push(
       ['Locação', fmtMoney(f.valorLocacao)],
       ['Frete', f.frete ? fmtMoney(f.valorFrete) : '—'],
-    ];
+    );
     if(f.cobrancaCinta){
       resumoLinhas.push(['Cinta ausente (' + f.cobrancaCinta.qtd + ' × R$18)', fmtMoney(f.cobrancaCinta.total)]);
     }
@@ -1495,9 +1545,9 @@ function gerarPDF(record, header){
   const fotoItems = [];
   if(isCrio){
     const fe = record.fotos.crio.entrega || {}, fr = record.fotos.crio.retorno || {};
-    fotoItems.push({label:'Mantas — entrega', photo: fe.mantasE});
+    if(!header.semManta) fotoItems.push({label:'Mantas — entrega', photo: fe.mantasE});
     fotoItems.push({label:'Cintas — entrega', photo: fe.cintasE});
-    fotoItems.push({label:'Mantas — retorno', photo: fr.mantasR});
+    if(!header.semManta) fotoItems.push({label:'Mantas — retorno', photo: fr.mantasR});
     fotoItems.push({label:'Cintas — retorno', photo: fr.cintasR});
   } else {
     const fi = record.fotos.ultra.inicial || {}, ff = record.fotos.ultra.final || {};
