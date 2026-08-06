@@ -110,6 +110,10 @@
   .cartucho-block .cartucho-row{ padding:0 0 8px; border-bottom:none; }
   .meter.diverge{ box-shadow:inset 0 0 0 1.5px var(--gold), inset 0 2px 4px rgba(0,0,0,.4); }
   .foto-block{ margin-top:2px; }
+  .banner-condicoes{ background:var(--paper-soft); border-left:3px solid var(--wine); border-radius:var(--radius); padding:9px 11px; margin-bottom:14px; }
+  .banner-label{ font-size:11px; font-weight:700; color:var(--wine); text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px; }
+  .banner-text{ font-size:13px; color:var(--ink-soft); line-height:1.5; }
+  .banner-row{ display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); padding:2px 0; }
   .foto-btn{ width:auto; display:inline-block; }
   .foto-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .foto-actions .btn-secondary.mini{ width:auto; margin-top:0; }
@@ -671,6 +675,27 @@ function expandCartuchos(list){
   });
   return out;
 }
+function condicoesBanner(){
+  const isCrio = header.equipamento === 'crio';
+  const rows = [];
+  if(header.valorLocacao) rows.push(['Valor da locação', fmtMoney(header.valorLocacao)]);
+  if(isCrio){
+    if(header.semManta) rows.push(['Manta', 'Sem cobrança de manta']);
+    else if(header.valorManta) rows.push(['Valor da manta', fmtMoney(header.valorManta)]);
+  }
+  const hasText = !!header.condicoes;
+  const hasRows = rows.length > 0;
+  if(!hasText && !hasRows) return '';
+  let html = '<div class="banner-condicoes">';
+  if(hasText) html += '<div class="banner-label">Condições da locação</div><div class="banner-text">' + escapeHtml(header.condicoes) + '</div>';
+  if(hasRows){
+    html += '<div' + (hasText ? ' style="border-top:0.5px solid var(--line);padding-top:5px;margin-top:5px;"' : '') + '>';
+    rows.forEach(rrow=>{ html += '<div class="banner-row"><span>'+rrow[0]+'</span><span>'+escapeHtml(String(rrow[1]))+'</span></div>'; });
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
 function renderInicial(){
   const isCrio = header.equipamento === 'crio';
   const linearList = isCrio ? [] : expandCartuchos(LINEAR);
@@ -684,7 +709,7 @@ function renderInicial(){
   app.innerHTML = `
     <h2 class="section-title">${isCrio ? 'Entrega' : 'Disparo inicial'}</h2>
     <p class="section-sub">${header.doutora||''} · ${EQUIP_LABEL[header.equipamento]}</p>
-    ${header.condicoes ? `<div class="pdf-cond">Condições: ${escapeHtml(header.condicoes)}</div>` : ''}
+    ${condicoesBanner()}
     <div class="card">
       ${isCrio ? renderCrioEntregaFields() : renderCartuchoFields(linearList, 'Cartuchos Linear') }
     </div>
@@ -837,6 +862,7 @@ function renderFinal(){
   app.innerHTML = `
     <h2 class="section-title">${isCrio ? 'Retorno' : 'Disparo final'}</h2>
     <p class="section-sub">${header.doutora||''} · ${EQUIP_LABEL[header.equipamento]}</p>
+    ${condicoesBanner()}
     <button class="btn-secondary mini" id="btn-relatorio-entrega" style="width:100%; margin-bottom:14px;">📄 Gerar relatório de entrega (PDF p/ doutora)</button>
     <div class="card">
       ${isCrio ? renderCrioRetornoFields() : renderCartuchoFieldsFinal(linearList, 'Cartuchos Linear', record.ultra.inicial) }
@@ -1070,6 +1096,7 @@ function renderCondicoes(){
   app.innerHTML = `
     <h2 class="section-title">${isCrio ? 'Fechamento' : 'Saldo utilizado'}</h2>
     <p class="section-sub">Confira o cálculo e preencha o valor cobrado.</p>
+    ${condicoesBanner()}
     <div class="card">${saldoHtml}</div>
     <div class="card">
       <h3>Condições financeiras</h3>
