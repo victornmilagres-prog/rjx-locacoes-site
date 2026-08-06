@@ -485,7 +485,12 @@ function renderYasmin(){
       <label id="lbl-valor-locacao">Valor da locação</label>
       <input type="text" id="f-valor-locacao" inputmode="decimal" placeholder="R$ 0,00">
       <p class="hint" id="hint-valor-locacao">Ultraformer: o motorista pode marcar como gratuita no fechamento, zerando esse valor. Criodermis: esse valor sempre é cobrado.</p>
-      <div id="wrap-valor-manta-yasmin" style="display:none;">
+      <div id="wrap-valor-lavieen-yasmin">
+<label>Valor locação combo Lavieen</label>
+<input type="text" id="f-valor-lavieen" inputmode="decimal" placeholder="Deixe em branco se não for combo">
+<p class="hint">Preencha só quando for combo Ultraformer + Lavieen. Esse valor não pode ser zerado pelo motorista.</p>
+</div>
+<div id="wrap-valor-manta-yasmin" style="display:none;">
         <label>Valor da manta negociado</label>
         <input type="text" id="f-valor-manta-yasmin" inputmode="decimal" placeholder="R$ 0,00">
         <p class="hint">Esse valor já entra no somatório automaticamente — o motorista não altera.</p>
@@ -523,10 +528,13 @@ function renderYasmin(){
   let equip = 'mpt1';
   function updateHintValorLocacao(){
     const hint = document.getElementById('hint-valor-locacao');
+    const lbl = document.getElementById('lbl-valor-locacao');
+    lbl.textContent = equip === 'crio' ? 'Valor da locação' : 'Valor locação Ultraformer';
     hint.textContent = equip === 'crio'
       ? 'Na Criodermis esse valor é sempre cobrado — não tem opção de gratuidade.'
       : 'No Ultraformer o motorista pode marcar como gratuita no fechamento, zerando esse valor.';
     document.getElementById('wrap-valor-manta-yasmin').style.display = equip === 'crio' ? 'block' : 'none';
+    document.getElementById('wrap-valor-lavieen-yasmin').style.display = equip === 'crio' ? 'none' : 'block';
     document.getElementById('wrap-duplicados-yasmin').style.display = equip === 'crio' ? 'none' : 'block';
   }
   document.getElementById('f-equip').addEventListener('click', (e)=>{
@@ -611,6 +619,7 @@ function renderYasmin(){
     const valorLocacao = parseMoney(document.getElementById('f-valor-locacao').value);
     const semManta = swSemManta.classList.contains('on');
     const valorManta = semManta ? 0 : parseMoney(document.getElementById('f-valor-manta-yasmin').value);
+const valorLavieen = equip === 'crio' ? 0 : parseMoney(document.getElementById('f-valor-lavieen').value);
     const duplicados = [...document.querySelectorAll('#f-duplicados .radio-pill.sel')].map(p=>p.dataset.v);
     const frete = swFreteY.classList.contains('on');
     const valorFrete = frete ? parseMoney(document.getElementById('f-valor-frete').value) : 0;
@@ -624,7 +633,7 @@ function renderYasmin(){
       return;
     }
     errEl.textContent = '';
-    const h = {doutora, cpfCnpj, numero, data, equipamento:equip, motorista, condicoes, valorLocacao, valorManta, semManta, duplicados, frete, valorFrete};
+    const h = {doutora, cpfCnpj, numero, data, equipamento:equip, motorista, condicoes, valorLocacao, valorLavieen, valorManta, semManta, duplicados, frete, valorFrete};
     const url = window.location.origin + window.location.pathname + '?d=' + b64encode(h);
     document.getElementById('link-card').style.display = 'block';
     document.getElementById('link-box').textContent = url;
@@ -678,10 +687,12 @@ function expandCartuchos(list){
 function condicoesBanner(){
   const isCrio = header.equipamento === 'crio';
   const rows = [];
-  if(header.valorLocacao) rows.push(['Valor da locação', fmtMoney(header.valorLocacao)]);
+  if(header.valorLocacao) rows.push([isCrio ? 'Valor da locação' : 'Locação Ultraformer', fmtMoney(header.valorLocacao)]);
   if(isCrio){
     if(header.semManta) rows.push(['Manta', 'Sem cobrança de manta']);
     else if(header.valorManta) rows.push(['Valor da manta', fmtMoney(header.valorManta)]);
+  } else if(header.valorLavieen){
+    rows.push(['Combo Lavieen', fmtMoney(header.valorLavieen)]);
   }
   const hasText = !!header.condicoes;
   const hasRows = rows.length > 0;
@@ -1065,6 +1076,7 @@ function computeUltraSaldos(){
 function renderCondicoes(){
   const isCrio = header.equipamento === 'crio';
   const valorLocacaoYasmin = header.valorLocacao || 0;
+const valorLavieenYasmin = (!isCrio && header.valorLavieen) ? header.valorLavieen : 0;
   const freteAtivo = !!header.frete;
   const valorFrete = freteAtivo ? (header.valorFrete || 0) : 0;
   const fPrev = record.financeiro || {};
@@ -1120,6 +1132,12 @@ function renderCondicoes(){
       ${!isCrio ? `
         <div class="toggle-row"><span>Locação gratuita?</span><div class="switch${fPrev.gratuita ? ' on' : ''}" id="sw-gratuita"><div class="knob"></div></div></div>
         <p class="hint">Se marcar, o valor da locação acima entra como R$ 0,00 no total.</p>
+        ${valorLavieenYasmin ? `
+        <div class="diff-row" style="margin-top:10px;">
+        <span>Locação combo Lavieen (fixado pela Yasmin)</span>
+        <span class="saldo">${fmtMoney(valorLavieenYasmin)}</span>
+        </div>
+        ` : ''}
       ` : `<p class="hint">Na Criodermis a locação é sempre cobrada — sem opção de gratuidade.</p>`}
       <div class="diff-row" style="margin-top:10px;">
         <span>Frete ${freteAtivo ? '(fixado pela Yasmin)' : ''}</span>
@@ -1166,9 +1184,10 @@ function renderCondicoes(){
       const gratuita = swGratuita.classList.contains('on');
       const valorLocacaoAplicado = gratuita ? 0 : valorLocacaoYasmin;
       const subtotal = calc.totalGeral * valorDisparo;
-      total = subtotal + valorLocacaoAplicado + valorFrete;
+      total = subtotal + valorLocacaoAplicado + valorLavieenYasmin + valorFrete;
       explain = `${calc.totalGeral} Disparos × ${fmtMoney(valorDisparo)} = ${fmtMoney(subtotal)}`
         + (valorLocacaoAplicado ? ` + locação ${fmtMoney(valorLocacaoAplicado)}` : ' + locação gratuita')
+        + (valorLavieenYasmin ? ` + combo Lavieen ${fmtMoney(valorLavieenYasmin)}` : '')
         + (freteAtivo ? ` + frete ${fmtMoney(valorFrete)}` : '');
       if(btnCond) btnCond.disabled = !valorDisparo;
     }
@@ -1190,7 +1209,7 @@ function renderCondicoes(){
       const gratuita = swGratuita.classList.contains('on');
       const valorLocacaoAplicado = gratuita ? 0 : valorLocacaoYasmin;
       if(!valorDisparo){ errEl.textContent = 'Informe o valor do disparo negociado antes de continuar.'; return; }
-      record.financeiro = {valorDisparo, gratuita, valorLocacao: valorLocacaoAplicado, frete: freteAtivo, valorFrete, ...calc, total: recalc()};
+      record.financeiro = {valorDisparo, gratuita, valorLocacao: valorLocacaoAplicado, valorLavieen: valorLavieenYasmin, frete: freteAtivo, valorFrete, ...calc, total: recalc()};
     }
     errEl.textContent = '';
     record.status = 'sig_fechamento';
@@ -1524,6 +1543,7 @@ function gerarPDF(record, header){
       ['Total geral utilizado', calc.totalGeral+' Disparos'],
       ['Valor do disparo', fmtMoney(f.valorDisparo)],
       ['Locação', f.gratuita ? 'Gratuita' : fmtMoney(f.valorLocacao)],
+      ...(f.valorLavieen ? [['Locação combo Lavieen', fmtMoney(f.valorLavieen)]] : []),
       ['Frete', f.frete ? fmtMoney(f.valorFrete) : '—'],
     ];
     totalGeral = f.total;
