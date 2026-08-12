@@ -963,7 +963,8 @@ function renderFinal(){
       alertEl.style.display = 'none';
       okEl.style.display = (cintasInput.value !== '' && cintasR >= entregues.cintas) ? 'flex' : 'none';
       renderDecisao();
-      btn.disabled = !ok || mantasInput.value === '' || cintasInput.value === '';
+      const mantasOk = header.semManta || (mantasInput && mantasInput.value !== '');
+btn.disabled = !ok || !mantasOk || cintasInput.value === '';
     }
     cintasInput.addEventListener('input', checkAll);
     mantasInput.addEventListener('input', checkAll);
