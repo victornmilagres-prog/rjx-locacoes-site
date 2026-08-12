@@ -967,7 +967,7 @@ function renderFinal(){
 btn.disabled = !ok || !mantasOk || cintasInput.value === '';
     }
     cintasInput.addEventListener('input', checkAll);
-    mantasInput.addEventListener('input', checkAll);
+    if(mantasInput) mantasInput.addEventListener('input', checkAll);
     checkAll();
   } else {
     const btn = document.getElementById('btn-confirmar-final');
