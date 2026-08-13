@@ -2,100 +2,296 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Área do Colaborador | Rjx Locações</title>
-<meta name="description" content="Área restrita aos colaboradores da Rjx Locações. Em breve.">
-<meta name="robots" content="noindex, nofollow">
-<link rel="icon" href="assets/logo-black.png">
-<link rel="stylesheet" href="css/style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>RJX &middot; Intranet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --paper:#faf7f2; --paper-soft:#f1ebe1; --line:#e4dccd;
+  --ink:#17130f; --ink-soft:#362f29; --gray:#5c554e; --gray-soft:#8a8377;
+  --wine:#7a1220; --wine-dark:#591019; --wine-bright:#b81f2b; --gold:#a9813f;
+  --ok:#3f6b52; --ok-bg:#eaf1ec; --alert:#8a2e1f; --alert-bg:#f6e6e0;
+  --radius:3px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;background:#dedcc8;font-family:'Source Sans 3',-apple-system,sans-serif;color:var(--ink);min-height:100vh;}
+#app{min-height:100vh;}
+.topbar{background:var(--ink);color:#fff;padding:0 20px;display:flex;align-items:center;gap:16px;height:56px;}
+.topbar .logo{font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:19px;letter-spacing:.3px;}
+.topbar .logo span{color:var(--gold);font-weight:400;font-size:11px;letter-spacing:1.5px;margin-left:6px;text-transform:uppercase;}
+.topbar-user{margin-left:auto;font-size:13px;color:#cfc9bd;display:flex;align-items:center;gap:12px;}
+.btn-logout{background:transparent;border:1px solid #55504a;color:#fff;padding:6px 12px;border-radius:var(--radius);font-size:12.5px;cursor:pointer;}
+.btn-logout:hover{border-color:var(--wine-bright);}
+
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.login-box{width:100%;max-width:360px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:36px 32px;box-shadow:0 10px 30px rgba(0,0,0,.15);}
+.login-box .brand{text-align:center;margin-bottom:22px;}
+.login-box .brand .rjx{font-family:'Fraunces',Georgia,serif;font-size:28px;font-weight:600;}
+.login-box .brand .tag{font-size:11px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-top:2px;}
+.login-box p.hint{font-size:13px;color:var(--gray);margin:0 0 18px;text-align:center;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;}
+.field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;font-size:14px;font-family:inherit;}
+.btn{display:inline-block;padding:11px 18px;border-radius:var(--radius);font-size:14px;font-weight:700;cursor:pointer;border:1px solid var(--wine);text-align:center;background:var(--paper);color:var(--wine);}
+.btn-primary{background:var(--wine);color:#fff;border-color:var(--wine);}
+.btn-primary:disabled{opacity:.6;cursor:default;}
+.btn-outline{background:transparent;color:var(--wine);}
+.btn-block{width:100%;}
+.login-error{background:var(--alert-bg);color:var(--alert);border-radius:var(--radius);padding:9px 12px;font-size:13px;margin-bottom:14px;}
+.login-success{background:var(--ok-bg);color:var(--ok);border-radius:var(--radius);padding:9px 12px;font-size:13px;margin-bottom:14px;}
+
+.screen{max-width:1000px;margin:0 auto;padding:28px 20px 60px;}
+h1{font-family:'Fraunces',Georgia,serif;font-size:25px;margin:0 0 4px;font-weight:600;}
+.sub{color:var(--gray);font-size:14px;margin:0 0 22px;}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);}
+.form-card{padding:20px;margin-bottom:26px;}
+.form-card h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--wine);margin:0 0 16px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.list-title{font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--gray);margin-bottom:10px;font-weight:700;}
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);}
+td{padding:12px 14px;border-bottom:1px solid var(--line);font-size:14px;}
+tr:last-child td{border-bottom:none;}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
+.badge-comercial{background:#f1e6d6;color:#8a5a1f;}
+.badge-transportes{background:#dbe6f1;color:#28517d;}
+.badge-operacional{background:#e3ecd9;color:#4b6b2f;}
+.badge-financeiro{background:#e6dcf1;color:#5a3b8a;}
+.badge-gerencial{background:#f0dbe0;color:var(--wine);}
+.badge-ativo{background:var(--ok-bg);color:var(--ok);}
+.badge-inativo{background:var(--paper-soft);color:var(--gray-soft);}
+.row-actions a{font-size:12.5px;color:var(--wine);font-weight:700;text-decoration:none;}
+.placeholder-screen{max-width:600px;margin:60px auto;text-align:center;padding:0 20px;}
+.placeholder-screen h1{margin-bottom:10px;}
+@media (max-width: 600px){ .grid2{grid-template-columns:1fr;} }
+</style>
 </head>
 <body>
+<div id="app"></div>
+<script>
+const SUPABASE_URL = 'https://nvwsvzpedplefmxlaeqn.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_c7qXlRlBbV7RQj08ULjamA_Jwe5bsYG';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const app = document.getElementById('app');
+let currentUsuario = null;
 
-<header class="site-header">
-<div class="container">
-<a href="index.html" class="logo"><img src="assets/logo-black.png" alt="Rjx Locações"></a>
-<nav class="nav-links">
-<a href="index.html">Início</a>
-<a href="equipamentos.html">Equipamentos</a>
-<a href="seja-cliente.html">Seja Cliente</a>
-<a href="reclamacao-sugestao.html">Reclamações/Sugestões</a>
-<a href="contato.html">Contato</a>
-</nav>
-<div class="nav-cta">
-<a href="intranet.html" class="btn btn-ghost" style="border-color:var(--wine); color:var(--wine);">Área do Colaborador</a>
-<a href="area-cliente.html" class="btn btn-ghost">Área do Cliente</a>
-<a href="faca-sua-locacao.html" class="btn btn-primary">Faça sua Locação</a>
-</div>
-<button class="nav-toggle" aria-label="Abrir menu"><span></span><span></span><span></span></button>
-</div>
-</header>
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
-<section class="page-hero">
-<div class="container">
-<div class="breadcrumb"><a href="index.html">Início</a> / Área do Colaborador</div>
-<span class="eyebrow on-dark">Em construção</span>
-<h1 class="mt-16">Área do Colaborador</h1>
-<p>Estamos preparando a intranet da Rjx: um espaço com dashboards gerenciais, financeiro, comercial, operacional, transportes e cadastros — com controle de acesso por usuário.</p>
-</div>
-</section>
+function papelLabel(p){
+  return {gerencial:'Gerencial',comercial:'Comercial',transportes:'Transportes',operacional:'Operacional',financeiro:'Financeiro'}[p] || p;
+}
 
-<section class="text-center" style="max-width:640px;">
-<div class="container">
-<span class="eyebrow">Em breve</span>
-<h2 class="mt-16" style="font-size:30px;">Um painel para cada setor</h2>
-<ul class="check-list mt-24" style="text-align:left; display:inline-block;">
-<li>Gerencial — dashboards para tomada de decisão</li>
-<li>Financeiro</li>
-<li>Comercial</li>
-<li>Operacional</li>
-<li>Transportes</li>
-<li>Cadastros — controle de usuários e permissões</li>
-</ul>
-<p class="mt-32" style="color:var(--gray);">
-Esta área é de uso exclusivo dos colaboradores da Rjx Locações.
-</p>
-</div>
-</section>
+function screenLogin(errorMsg){
+  app.innerHTML =
+    '<div class="login-wrap"><div class="login-box">' +
+      '<div class="brand"><div class="rjx">RJX</div><div class="tag">&Aacute;rea do Colaborador</div></div>' +
+      (errorMsg ? '<div class="login-error">' + escapeHtml(errorMsg) + '</div>' : '') +
+      '<div class="field"><label>E-mail</label><input type="email" id="f-email" placeholder="seuemail@rjxlocacoes.com.br"></div>' +
+      '<div class="field"><label>Senha</label><input type="password" id="f-senha" placeholder="********"></div>' +
+      '<button class="btn btn-primary btn-block" id="btn-entrar">Entrar</button>' +
+    '</div></div>';
+  document.getElementById('btn-entrar').addEventListener('click', doLogin);
+  document.getElementById('f-senha').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+  document.getElementById('f-email').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+}
 
-<footer class="site-footer">
-<div class="container">
-<div class="footer-grid">
-<div>
-<div class="footer-logo"><img src="assets/logo-white.png" alt="Rjx Locações"></div>
-<p>Locação de equipamentos estéticos de alta tecnologia para clínicas de Niterói, Rio de Janeiro e Região Metropolitana.</p>
-</div>
-<div>
-<h4>Navegação</h4>
-<a href="index.html">Início</a><br>
-<a href="equipamentos.html">Equipamentos</a><br>
-<a href="seja-cliente.html">Seja Cliente</a><br>
-<a href="faca-sua-locacao.html">Faça sua Locação</a><br>
-<a href="reclamacao-sugestao.html">Reclamação/Sugestão</a>
-</div>
-<div>
-<h4>Equipamentos</h4>
-<a href="equipamentos/criolipolise.html">Criolipólise Criodermis 2.0</a><br>
-<a href="equipamentos/endolaser.html">Endolaser Pioon 1470</a><br>
-<a href="equipamentos/lavieen.html">Lavieen</a><br>
-<a href="equipamentos/ultraformer.html">Ultraformer MPT</a>
-</div>
-<div>
-<h4>Contato</h4>
-<p>Rua Mem de Sá, 19, Icaraí<br>sala 810 · Niterói/RJ · CEP 24220-260</p>
-<p><a href="tel:+5521976078440">(21) 97607-8440</a></p>
-<p><a href="mailto:comercial@rjxlocacoes.com.br">comercial@rjxlocacoes.com.br</a></p>
-</div>
-</div>
-<div class="footer-legal">
-<span>RJX Baiense Locações de Equipamentos LTDA · CNPJ 51.797.671/0001-66 · AFE 8.34727-6</span>
-<span><a href="politica-de-privacidade.html" style="color:#b3aa9d;">Política de Privacidade</a> · <a href="termos-de-uso.html" style="color:#b3aa9d;">Termos de Uso</a></span>
-<span>© 2026 Rjx Locações. Todos os direitos reservados.</span>
-</div>
-</div>
-</footer>
-<a class="wa-float" href="https://wa.me/5521976078440" target="_blank" rel="noopener" aria-label="WhatsApp">
-<svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.29-1.39a9.9 9.9 0 0 0 4.75 1.21h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.13-2.9-7-1.87-1.87-4.35-2.9-7-2.9zm0 18.06h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.26-4.38c0-4.53 3.69-8.22 8.24-8.22 2.2 0 4.27.86 5.82 2.42a8.15 8.15 0 0 1 2.41 5.81c0 4.54-3.69 8.23-8.22 8.23zm4.51-6.16c-.25-.12-1.47-.72-1.7-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.78.97-.15.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.15.16-.25.24-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.43-.14-.01-.31-.01-.48-.01-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.57.12.17 1.75 2.67 4.24 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.11-.23-.17-.48-.29z"/></svg>
-</a>
-<script src="js/main.js"></script>
+async function doLogin(){
+  const email = document.getElementById('f-email').value.trim();
+  const senha = document.getElementById('f-senha').value;
+  if(!email || !senha){ screenLogin('Preencha e-mail e senha.'); return; }
+  const btn = document.getElementById('btn-entrar');
+  btn.disabled = true; btn.textContent = 'Entrando...';
+  const result = await sb.auth.signInWithPassword({ email: email, password: senha });
+  if(result.error){ screenLogin('E-mail ou senha incorretos.'); return; }
+  await boot();
+}
+
+function screenSetPassword(){
+  app.innerHTML =
+    '<div class="login-wrap"><div class="login-box">' +
+      '<div class="brand"><div class="rjx">RJX</div><div class="tag">Defina sua senha</div></div>' +
+      '<p class="hint">Essa &eacute; a primeira vez que voc&ecirc; acessa. Crie uma senha para continuar.</p>' +
+      '<div class="field"><label>Nova senha</label><input type="password" id="f-nova-senha" placeholder="M&iacute;nimo 6 caracteres"></div>' +
+      '<div class="field"><label>Confirmar senha</label><input type="password" id="f-conf-senha" placeholder="Repita a senha"></div>' +
+      '<div id="set-pw-error" class="login-error" style="display:none;"></div>' +
+      '<button class="btn btn-primary btn-block" id="btn-definir">Definir senha e entrar</button>' +
+    '</div></div>';
+  document.getElementById('btn-definir').addEventListener('click', doSetPassword);
+}
+
+async function doSetPassword(){
+  const p1 = document.getElementById('f-nova-senha').value;
+  const p2 = document.getElementById('f-conf-senha').value;
+  const errEl = document.getElementById('set-pw-error');
+  if(p1.length < 6){ errEl.textContent='A senha precisa ter pelo menos 6 caracteres.'; errEl.style.display='block'; return; }
+  if(p1 !== p2){ errEl.textContent='As senhas n&atilde;o coincidem.'; errEl.style.display='block'; return; }
+  const btn = document.getElementById('btn-definir');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  const result = await sb.auth.updateUser({ password: p1 });
+  if(result.error){ errEl.textContent = 'Erro ao salvar: ' + result.error.message; errEl.style.display='block'; btn.disabled=false; btn.textContent='Definir senha e entrar'; return; }
+  history.replaceState(null, '', location.pathname);
+  await boot();
+}
+
+async function boot(){
+  const hash = window.location.hash || '';
+  const isRecoveryLink = hash.indexOf('type=invite') !== -1 || hash.indexOf('type=recovery') !== -1;
+
+  const sessionResult = await sb.auth.getSession();
+  const session = sessionResult.data.session;
+
+  if(!session){ screenLogin(); return; }
+
+  if(isRecoveryLink){ screenSetPassword(); return; }
+
+  const rowsResult = await sb.from('usuarios').select('*').eq('id', session.user.id);
+  if(rowsResult.error || !rowsResult.data || !rowsResult.data.length){
+    app.innerHTML = '<div class="login-wrap"><div class="login-box"><p>Seu usu&aacute;rio ainda n&atilde;o foi cadastrado na intranet. Fale com o Gerencial.</p><button class="btn btn-outline btn-block" id="btn-sair">Sair</button></div></div>';
+    document.getElementById('btn-sair').addEventListener('click', async function(){ await sb.auth.signOut(); screenLogin(); });
+    return;
+  }
+  currentUsuario = rowsResult.data[0];
+  if(!currentUsuario.ativo){
+    app.innerHTML = '<div class="login-wrap"><div class="login-box"><p>Sua conta est&aacute; desativada. Fale com o Gerencial.</p><button class="btn btn-outline btn-block" id="btn-sair">Sair</button></div></div>';
+    document.getElementById('btn-sair').addEventListener('click', async function(){ await sb.auth.signOut(); screenLogin(); });
+    return;
+  }
+  renderShell();
+}
+
+function renderShell(){
+  app.innerHTML =
+    '<div class="topbar">' +
+      '<div class="logo">RJX <span>Intranet</span></div>' +
+      '<div class="topbar-user">' + escapeHtml(currentUsuario.nome) + ' &middot; ' + papelLabel(currentUsuario.papel) + ' <button id="btn-logout" class="btn-logout">Sair</button></div>' +
+    '</div>' +
+    '<div id="main-area"></div>';
+  document.getElementById('btn-logout').addEventListener('click', async function(){ await sb.auth.signOut(); location.reload(); });
+
+  const mainArea = document.getElementById('main-area');
+  if(currentUsuario.papel === 'gerencial'){
+    renderGerencial(mainArea);
+  } else {
+    mainArea.innerHTML = '<div class="placeholder-screen"><h1>Bem-vindo, ' + escapeHtml(currentUsuario.nome.split(' ')[0]) + '</h1><p>O m&oacute;dulo <b>' + papelLabel(currentUsuario.papel) + '</b> ainda est&aacute; em constru&ccedil;&atilde;o.</p></div>';
+  }
+}
+
+async function renderGerencial(container){
+  container.innerHTML =
+    '<div class="screen">' +
+      '<h1>Usu&aacute;rios</h1>' +
+      '<p class="sub">Cadastro de colaboradores e defini&ccedil;&atilde;o de pap&eacute;is de acesso.</p>' +
+      '<div class="card form-card">' +
+        '<h3>Novo usu&aacute;rio</h3>' +
+        '<div class="grid2">' +
+          '<div class="field"><label>Nome completo</label><input id="nu-nome" placeholder="Ex: Carlos Eduardo"></div>' +
+          '<div class="field"><label>E-mail</label><input id="nu-email" type="email" placeholder="carlos@rjxlocacoes.com.br"></div>' +
+        '</div>' +
+        '<div class="field"><label>Papel</label>' +
+          '<select id="nu-papel">' +
+            '<option value="comercial">Comercial</option>' +
+            '<option value="transportes">Transportes</option>' +
+            '<option value="operacional">Operacional</option>' +
+            '<option value="financeiro">Financeiro</option>' +
+            '<option value="gerencial">Gerencial</option>' +
+          '</select>' +
+        '</div>' +
+        '<div id="nu-error" class="login-error" style="display:none;"></div>' +
+        '<div id="nu-success" class="login-success" style="display:none;"></div>' +
+        '<button class="btn btn-primary" id="btn-criar-usuario">Convidar usu&aacute;rio</button>' +
+      '</div>' +
+      '<h3 class="list-title">Usu&aacute;rios cadastrados</h3>' +
+      '<div class="card" id="tabela-usuarios"><p class="sub" style="padding:16px;">Carregando...</p></div>' +
+    '</div>';
+  document.getElementById('btn-criar-usuario').addEventListener('click', criarUsuario);
+  await carregarUsuarios();
+}
+
+async function apiCall(method, body){
+  const sessionResult = await sb.auth.getSession();
+  const session = sessionResult.data.session;
+  const resp = await fetch('/api/intranet-usuarios', {
+    method: method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + session.access_token
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await resp.json().catch(function(){ return {}; });
+  if(!resp.ok){ throw new Error(data.error || 'Erro na requisi&ccedil;&atilde;o.'.replace('&ccedil;','c').replace('&atilde;','a')); }
+  return data;
+}
+
+async function carregarUsuarios(){
+  const tabela = document.getElementById('tabela-usuarios');
+  try{
+    const data = await apiCall('GET');
+    const usuarios = data.usuarios || [];
+    if(!usuarios.length){
+      tabela.innerHTML = '<p class="sub" style="padding:16px;">Nenhum usu&aacute;rio cadastrado ainda.</p>';
+      return;
+    }
+    let rowsHtml = '';
+    usuarios.forEach(function(u){
+      rowsHtml += '<tr data-id="' + u.id + '">' +
+        '<td>' + escapeHtml(u.nome) + '</td>' +
+        '<td>' + escapeHtml(u.email) + '</td>' +
+        '<td><span class="badge badge-' + u.papel + '">' + papelLabel(u.papel) + '</span></td>' +
+        '<td><span class="badge ' + (u.ativo ? 'badge-ativo' : 'badge-inativo') + '">' + (u.ativo ? 'Ativo' : 'Inativo') + '</span></td>' +
+        '<td class="row-actions"><a href="#" class="act-toggle" data-id="' + u.id + '" data-ativo="' + u.ativo + '">' + (u.ativo ? 'Desativar' : 'Reativar') + '</a></td>' +
+      '</tr>';
+    });
+    tabela.innerHTML = '<table><thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Status</th><th></th></tr></thead><tbody>' + rowsHtml + '</tbody></table>';
+    tabela.querySelectorAll('.act-toggle').forEach(function(a){
+      a.addEventListener('click', async function(e){
+        e.preventDefault();
+        const id = a.dataset.id;
+        const ativoAtual = a.dataset.ativo === 'true';
+        a.textContent = '...';
+        try{
+          await apiCall('PATCH', { id: id, ativo: !ativoAtual });
+          await carregarUsuarios();
+        }catch(err){
+          alert('Erro: ' + err.message);
+        }
+      });
+    });
+  }catch(err){
+    tabela.innerHTML = '<p class="sub" style="padding:16px;">Erro ao carregar: ' + escapeHtml(err.message) + '</p>';
+  }
+}
+
+async function criarUsuario(){
+  const nome = document.getElementById('nu-nome').value.trim();
+  const email = document.getElementById('nu-email').value.trim();
+  const papel = document.getElementById('nu-papel').value;
+  const errEl = document.getElementById('nu-error');
+  const okEl = document.getElementById('nu-success');
+  errEl.style.display='none'; okEl.style.display='none';
+  if(!nome || !email){ errEl.textContent = 'Preencha nome e e-mail.'; errEl.style.display='block'; return; }
+  const btn = document.getElementById('btn-criar-usuario');
+  btn.disabled = true; btn.textContent = 'Convidando...';
+  try{
+    await apiCall('POST', { nome: nome, email: email, papel: papel });
+    okEl.textContent = 'Convite enviado para ' + email + '!';
+    okEl.style.display = 'block';
+    document.getElementById('nu-nome').value='';
+    document.getElementById('nu-email').value='';
+    await carregarUsuarios();
+  }catch(err){
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Convidar usuário';
+  }
+}
+
+boot();
+</script>
 </body>
 </html>
