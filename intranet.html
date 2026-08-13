@@ -6,6 +6,8 @@
 <title>RJX &middot; Intranet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="assets/logo-black.png">
+<link rel="stylesheet" href="css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
@@ -77,6 +79,10 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const app = document.getElementById('app');
 let currentUsuario = null;
 
+const SITE_HEADER = '<header class="site-header"><div class="container"><a href="index.html" class="logo"><img src="assets/logo-black.png" alt="Rjx Loca\u00e7\u00f5es"></a><nav class="nav-links"><a href="index.html">In\u00edcio</a><a href="equipamentos.html">Equipamentos</a><a href="seja-cliente.html">Seja Cliente</a><a href="reclamacao-sugestao.html">Reclama\u00e7\u00f5es/Sugest\u00f5es</a><a href="contato.html">Contato</a></nav><div class="nav-cta"><a href="intranet.html" class="btn btn-ghost active">\u00c1rea do Colaborador</a><a href="area-cliente.html" class="btn btn-ghost">\u00c1rea do Cliente</a><a href="faca-sua-locacao.html" class="btn btn-primary">Fa\u00e7a sua Loca\u00e7\u00e3o</a></div><button class="nav-toggle" aria-label="Abrir menu"><span></span><span></span><span></span></button></div></header>';
+
+const SITE_FOOTER = '<footer class="site-footer"><div class="container"><div class="footer-grid"><div><div class="footer-logo"><img src="assets/logo-white.png" alt="Rjx Loca\u00e7\u00f5es"></div><p>Loca\u00e7\u00e3o de equipamentos est\u00e9ticos de alta tecnologia para cl\u00ednicas de Niter\u00f3i, Rio de Janeiro e Regi\u00e3o Metropolitana.</p></div><div><h4>Navega\u00e7\u00e3o</h4><a href="index.html">In\u00edcio</a><br><a href="equipamentos.html">Equipamentos</a><br><a href="seja-cliente.html">Seja Cliente</a><br><a href="faca-sua-locacao.html">Fa\u00e7a sua Loca\u00e7\u00e3o</a><br><a href="reclamacao-sugestao.html">Reclama\u00e7\u00e3o/Sugest\u00e3o</a></div><div><h4>Equipamentos</h4><a href="equipamentos/criolipolise.html">Criolip\u00f3lise Criodermis 2.0</a><br><a href="equipamentos/endolaser.html">Endolaser Pioon 1470</a><br><a href="equipamentos/lavieen.html">Lavieen</a><br><a href="equipamentos/ultraformer.html">Ultraformer MPT</a></div><div><h4>Contato</h4><p>Rua Mem de S\u00e1, 19, Icara\u00ed<br>sala 810 \u00b7 Niter\u00f3i/RJ \u00b7 CEP 24220-260</p><p><a href="tel:+5521976078440">(21) 97607-8440</a></p><p><a href="mailto:comercial@rjxlocacoes.com.br">comercial@rjxlocacoes.com.br</a></p></div></div><div class="footer-legal"><span>RJX Baiense Loca\u00e7\u00f5es de Equipamentos LTDA \u00b7 CNPJ 51.797.671/0001-66 \u00b7 AFE 8.34727-6</span><span><a href="politica-de-privacidade.html" style="color:#b3aa9d;">Pol\u00edtica de Privacidade</a> \u00b7 <a href="termos-de-uso.html" style="color:#b3aa9d;">Termos de Uso</a></span><span>\u00a9 2026 Rjx Loca\u00e7\u00f5es. Todos os direitos reservados.</span></div></div></footer>';
+
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -86,14 +92,34 @@ function papelLabel(p){
 }
 
 function screenLogin(errorMsg){
-  app.innerHTML =
-    '<div class="login-wrap"><div class="login-box">' +
-      '<div class="brand"><div class="rjx">RJX</div><div class="tag">&Aacute;rea do Colaborador</div></div>' +
-      (errorMsg ? '<div class="login-error">' + escapeHtml(errorMsg) + '</div>' : '') +
-      '<div class="field"><label>E-mail</label><input type="email" id="f-email" placeholder="seuemail@rjxlocacoes.com.br"></div>' +
-      '<div class="field"><label>Senha</label><input type="password" id="f-senha" placeholder="********"></div>' +
-      '<button class="btn btn-primary btn-block" id="btn-entrar">Entrar</button>' +
-    '</div></div>';
+  app.innerHTML = SITE_HEADER +
+    '<section class="page-hero"><div class="container">' +
+      '<div class="breadcrumb"><a href="index.html">In\u00edcio</a> / \u00c1rea do Colaborador</div>' +
+      '<span class="eyebrow">Acesso restrito</span>' +
+      '<h1 class="mt-16">\u00c1rea do Colaborador</h1>' +
+      '<p>Entre com seu e-mail cadastrado para acessar as ferramentas do seu setor.</p>' +
+    '</div></section>' +
+    '<section><div class="container" style="max-width:400px;">' +
+      '<div class="form-card shard-tl">' +
+        (errorMsg ? '<p style="color:#8a2e1f;background:#f6e6e0;padding:10px 12px;border-radius:4px;font-size:13px;margin:0 0 16px;">' + escapeHtml(errorMsg) + '</p>' : '') +
+        '<div class="field"><label for="f-email">E-mail</label><input type="email" id="f-email" placeholder="seuemail@rjxlocacoes.com.br"></div>' +
+        '<div class="field"><label for="f-senha">Senha</label><input type="password" id="f-senha" placeholder="********"></div>' +
+        '<button class="btn btn-primary btn-block" id="btn-entrar">Entrar</button>' +
+        '<p style="text-align:center;font-size:12px;color:var(--gray-soft);margin-top:16px;">Esqueceu a senha? Fale com o Gerencial.</p>' +
+      '</div>' +
+    '</div></section>' +
+    '<section><div class="container" style="text-align:center;">' +
+      '<span class="eyebrow">O que tem aqui dentro</span>' +
+      '<h2 class="mt-16" style="font-size:26px;">M\u00f3dulos da Intranet</h2>' +
+      '<ul class="check-list mt-24" style="display:inline-block; text-align:left;">' +
+        '<li><b>Comercial</b></li>' +
+        '<li><b>Transportes</b></li>' +
+        '<li><b>Operacional</b> <span style="color:var(--gray-soft);font-size:12.5px;">(em breve)</span></li>' +
+        '<li><b>Financeiro</b> <span style="color:var(--gray-soft);font-size:12.5px;">(em breve)</span></li>' +
+        '<li><b>Gerencial</b></li>' +
+      '</ul>' +
+    '</div></section>' +
+    SITE_FOOTER;
   document.getElementById('btn-entrar').addEventListener('click', doLogin);
   document.getElementById('f-senha').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
   document.getElementById('f-email').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
@@ -111,15 +137,22 @@ async function doLogin(){
 }
 
 function screenSetPassword(){
-  app.innerHTML =
-    '<div class="login-wrap"><div class="login-box">' +
-      '<div class="brand"><div class="rjx">RJX</div><div class="tag">Defina sua senha</div></div>' +
-      '<p class="hint">Essa &eacute; a primeira vez que voc&ecirc; acessa. Crie uma senha para continuar.</p>' +
-      '<div class="field"><label>Nova senha</label><input type="password" id="f-nova-senha" placeholder="M&iacute;nimo 6 caracteres"></div>' +
-      '<div class="field"><label>Confirmar senha</label><input type="password" id="f-conf-senha" placeholder="Repita a senha"></div>' +
-      '<div id="set-pw-error" class="login-error" style="display:none;"></div>' +
-      '<button class="btn btn-primary btn-block" id="btn-definir">Definir senha e entrar</button>' +
-    '</div></div>';
+  app.innerHTML = SITE_HEADER +
+    '<section class="page-hero"><div class="container">' +
+      '<div class="breadcrumb"><a href="index.html">In\u00edcio</a> / \u00c1rea do Colaborador</div>' +
+      '<span class="eyebrow">Primeiro acesso</span>' +
+      '<h1 class="mt-16">Defina sua senha</h1>' +
+      '<p>Essa \u00e9 a primeira vez que voc\u00ea acessa. Crie uma senha para continuar.</p>' +
+    '</div></section>' +
+    '<section><div class="container" style="max-width:400px;">' +
+      '<div class="form-card shard-tl">' +
+        '<div id="set-pw-error" style="display:none;color:#8a2e1f;background:#f6e6e0;padding:10px 12px;border-radius:4px;font-size:13px;margin:0 0 16px;"></div>' +
+        '<div class="field"><label for="f-nova-senha">Nova senha</label><input type="password" id="f-nova-senha" placeholder="M\u00ednimo 6 caracteres"></div>' +
+        '<div class="field"><label for="f-conf-senha">Confirmar senha</label><input type="password" id="f-conf-senha" placeholder="Repita a senha"></div>' +
+        '<button class="btn btn-primary btn-block" id="btn-definir">Definir senha e entrar</button>' +
+      '</div>' +
+    '</div></section>' +
+    SITE_FOOTER;
   document.getElementById('btn-definir').addEventListener('click', doSetPassword);
 }
 
