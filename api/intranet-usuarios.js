@@ -1,33 +1,44 @@
 // Gestao de usuarios da Intranet RJX
 // Usa a service_role key no servidor - nunca expor no cliente.
 // TEMPORARIO: liberado para qualquer usuario ativo enquanto ajustamos o controle de acesso do papel Gerencial.
+// DEBUG TEMPORARIO: retorna detalhes do erro para diagnostico.
 
 module.exports = async (req, res) => {
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 async function getCallerPapel(token) {
-if (!token) return null;
+if (!token) return { papel: null, debug: 'no token' };
 const userResp = await fetch(SUPABASE_URL + '/auth/v1/user', {
 headers: { Authorization: 'Bearer ' + token, apikey: SERVICE_KEY }
 });
-if (!userResp.ok) return null;
+if (!userResp.ok) {
+const errText = await userResp.text();
+return { papel: null, debug: 'userResp not ok: status=' + userResp.status + ' body=' + errText.slice(0,200) + ' keyLen=' + (SERVICE_KEY ? SERVICE_KEY.length : 0) + ' urlSet=' + (!!SUPABASE_URL) };
+}
 const user = await userResp.json();
 const rowResp = await fetch(SUPABASE_URL + '/rest/v1/usuarios?id=eq.' + user.id + '&select=papel,ativo', {
 headers: { Authorization: 'Bearer ' + SERVICE_KEY, apikey: SERVICE_KEY }
 });
+if (!rowResp.ok) {
+const errText = await rowResp.text();
+return { papel: null, debug: 'rowResp not ok: status=' + rowResp.status + ' body=' + errText.slice(0,200) };
+}
 const rows = await rowResp.json();
-if (!Array.isArray(rows) || !rows.length) return null;
-return rows[0].ativo ? rows[0].papel : null;
+if (!Array.isArray(rows) || !rows.length) {
+return { papel: null, debug: 'no rows for user.id=' + user.id };
+}
+return { papel: rows[0].ativo ? rows[0].papel : null, debug: 'ok ativo=' + rows[0].ativo + ' papel=' + rows[0].papel };
 }
 
 try {
 const authHeader = req.headers.authorization || '';
 const token = authHeader.replace('Bearer ', '');
-const papel = await getCallerPapel(token);
-if (!papel) {
-return res.status(403).json({ error: 'Usuario nao encontrado ou inativo.' });
+const result = await getCallerPapel(token);
+if (!result.papel) {
+return res.status(403).json({ error: 'Usuario nao encontrado ou inativo.', debug: result.debug });
 }
+const papel = result.papel;
 
 if (req.method === 'GET') {
 const r = await fetch(SUPABASE_URL + '/rest/v1/usuarios?select=id,nome,email,papel,ativo,created_at&order=created_at.desc', {
