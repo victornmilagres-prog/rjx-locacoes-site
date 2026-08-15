@@ -137,7 +137,7 @@ function papelLabel(p){
   return {gerencial:'Gerencial',comercial:'Comercial',transportes:'Transportes',operacional:'Operacional',financeiro:'Financeiro'}[p] || p;
 }
 
-const EQUIPAMENTO_LABEL = { criodermis: 'Criodermis', ultraformer_mpt: 'Ultraformer MPT' };
+const EQUIP_LABEL = { mpt1: 'Ultraformer MPT 1', mpt2: 'Ultraformer MPT 2', crio: 'Criodermis 2.0' };
 const STATUS_LABEL = {
   aguardando_entrega: { text: 'Aguardando entrega', cls: 'status-wait' },
   entregue: { text: 'Insumos entregues', cls: 'status-info' },
@@ -392,11 +392,64 @@ async function criarUsuario(){
   }
 }
 
+/* ================= CATALOGO DE CARTUCHOS (Ultraformer) ================= */
+const LINEAR = [
+  {key:'linear15', label:'Linear 1,5mm'},
+  {key:'linear2',  label:'Linear 2,0mm'},
+  {key:'linear3',  label:'Linear 3,0mm'},
+  {key:'linear45', label:'Linear 4,5mm'},
+  {key:'linear6',  label:'Linear 6,0mm'}
+];
+const BOOSTER = [
+  {key:'booster15', label:'Booster 1,5mm'},
+  {key:'booster2',  label:'Booster 3,0mm'},
+  {key:'booster45', label:'Booster 4,5mm'}
+];
+
+/* ================= ASSINATURA (canvas) ================= */
+function initSignaturePad(canvasId){
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  function resize(){
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * 2;
+    canvas.height = rect.height * 2;
+    ctx.scale(2,2);
+    ctx.strokeStyle = '#17130f';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+  }
+  resize();
+  let drawing = false;
+  function pos(e){
+    const rect = canvas.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+  }
+  function start(e){ drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
+  function move(e){ if(!drawing) return; const p = pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); }
+  function end(){ drawing = false; }
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, {passive:false});
+  canvas.addEventListener('touchmove', move, {passive:false});
+  canvas.addEventListener('touchend', end);
+  return {
+    clear: function(){ ctx.clearRect(0,0,canvas.width,canvas.height); },
+    isEmpty: function(){
+      const blank = document.createElement('canvas');
+      blank.width = canvas.width; blank.height = canvas.height;
+      return canvas.toDataURL() === blank.toDataURL();
+    },
+    toDataURL: function(){ return canvas.toDataURL('image/png'); }
+  };
+}
+
 /* ================= COMERCIAL — Controle de Insumos ================= */
 async function getMotoristas(){
   if(motoristasCache) return motoristasCache;
-  const result = await sb.from('usuarios').select('id,nome').eq('papel','transportes').eq('ativo', true).order('nome');
-  motoristasCache = result.data || [];
+  const result = await sb.from('usuarios').select('id,nome').eq('papel','transportes').eq('ativo', true).order('nome');  motoristasCache = result.data || [];
   return motoristasCache;
 }
 
@@ -414,86 +467,102 @@ async function renderComercial(container){
 
   content.innerHTML =
     '<div class="card form-card">' +
-      '<h3>Novo controle de insumos</h3>' +
-      '<p class="cardsub">Vinculado a uma locação de Criodermis ou Ultraformer MPT.</p>' +
+      '<h3>Nova loca\u00e7\u00e3o</h3>' +
+      '<p class="cardsub">Preencha os dados. O controle aparece automaticamente para o motorista em Transportes.</p>' +
       '<div class="grid2">' +
-        '<div class="field"><label>Referência da locação</label><input id="ci-locacao-ref" placeholder="Ex: #4521 ou nome do contrato"></div>' +
-        '<div class="field"><label>Cliente / Doutora</label><input id="ci-cliente" placeholder="Ex: Dra. Camila Ferreira"></div>' +
+        '<div class="field"><label>Nome da doutora</label><input id="ci-doutora" placeholder="Dra. Fulana de Tal"></div>' +
+        '<div class="field"><label>CPF ou CNPJ</label><input id="ci-cpfcnpj" placeholder="000.000.000-00"></div>' +
       '</div>' +
-      '<div class="field"><label>Equipamento</label><select id="ci-equipamento"><option value="criodermis">Criodermis</option><option value="ultraformer_mpt">Ultraformer MPT</option></select></div>' +
       '<div class="grid2">' +
-        '<div class="field"><label>Motorista — entrega</label><select id="ci-motorista-entrega">' + motoristaOptions + '</select></div>' +
-        '<div class="field"><label>Motorista — retirada</label><select id="ci-motorista-retirada">' + motoristaOptions + '</select></div>' +
-      '</div>' +      '<div class="field"><label>Contrato já assinado online?</label><select id="ci-assinado"><option value="false">Não — motorista precisa buscar assinatura</option><option value="true">Sim, assinado online</option></select></div>' +
+        '<div class="field"><label>N\u00famero da loca\u00e7\u00e3o</label><input id="ci-numero" placeholder="Ex: 1042"></div>' +
+        '<div class="field"><label>Data da loca\u00e7\u00e3o</label><input type="date" id="ci-data"></div>' +
+      '</div>' +
+      '<div class="field"><label>Equipamento</label><select id="ci-equipamento">' +
+        '<option value="mpt1">Ultraformer MPT 1</option>' +
+        '<option value="mpt2">Ultraformer MPT 2</option>' +
+        '<option value="crio">Criodermis 2.0</option>' +
+      '</select></div>' +
+      '<div class="grid2">' +
+        '<div class="field"><label>Motorista \u2014 entrega</label><select id="ci-motorista-entrega">' + motoristaOptions + '</select></div>' +
+        '<div class="field"><label>Motorista \u2014 retirada</label><select id="ci-motorista-retirada">' + motoristaOptions + '</select></div>' +
+      '</div>' +
+      '<div class="field"><label>Condi\u00e7\u00f5es da loca\u00e7\u00e3o (obs. interna, hor\u00e1rio de montagem etc.)</label><textarea id="ci-observacao" rows="2"></textarea></div>' +
+      '<div class="notice-box" style="background:var(--info-bg);border-left-color:var(--info);color:var(--info);">Status de assinatura do contrato ser\u00e1 verificado automaticamente pela API do EstoqueNOW assim que essa integra\u00e7\u00e3o for finalizada. Por enquanto, o motorista sempre ver\u00e1 o alerta de confer\u00eancia.</div>' +
+      '<h3 style="margin-top:22px;">Valores</h3>' +
+      '<div class="grid2">' +
+        '<div class="field"><label>Valor da loca\u00e7\u00e3o</label><input id="ci-valor-locacao" inputmode="decimal" placeholder="R$ 0,00"></div>' +
+        '<div class="field" id="ci-wrap-manta" style="display:none;"><label>Valor da manta negociada</label><input id="ci-valor-manta" inputmode="decimal" placeholder="R$ 0,00"></div>' +
+      '</div>' +
+      '<div class="field"><label>Valor combo Lavieen (se houver)</label><input id="ci-valor-lavieen" inputmode="decimal" placeholder="Deixe em branco se n\u00e3o for combo"></div>' +
       '<div class="field">' +
-        '<label>Insumos desta locação</label>' +
-        '<div id="ci-insumos-list"></div>' +
-        '<div class="add-row"><button class="btn btn-ghost btn-sm" id="btn-add-insumo" type="button">+ Adicionar insumo</button></div>' +
+        '<label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" id="ci-tem-frete" style="width:auto;"> Tem frete?</label>' +
+        '<input id="ci-valor-frete" inputmode="decimal" placeholder="R$ 0,00" style="display:none;margin-top:8px;">' +
       '</div>' +
-      '<div class="field"><label>Observação para o transportador (opcional)</label><textarea id="ci-observacao" rows="2"></textarea></div>' +
       '<div id="ci-error" class="login-error" style="display:none;"></div>' +
-      '<div id="ci-success" class="login-success" style="display:none;"></div>' +
-      '<button class="btn btn-primary" id="btn-criar-controle">Criar controle e enviar para Transportes</button>' +
+      '<div id="ci-success" class="login-success" style="display:none;"></div>' +      '<button class="btn btn-primary" id="btn-criar-controle">Criar controle e enviar para Transportes</button>' +
     '</div>' +
     '<div class="list-title">Controles ativos</div>' +
     '<div id="ci-lista"><p class="empty-hint">Carregando...</p></div>';
 
-  addInsumoRow();
-  document.getElementById('btn-add-insumo').addEventListener('click', function(){ addInsumoRow(); });
+  document.getElementById('ci-equipamento').addEventListener('change', function(){
+    document.getElementById('ci-wrap-manta').style.display = this.value === 'crio' ? 'block' : 'none';
+  });
+  document.getElementById('ci-tem-frete').addEventListener('change', function(){
+    document.getElementById('ci-valor-frete').style.display = this.checked ? 'block' : 'none';
+  });
   document.getElementById('btn-criar-controle').addEventListener('click', criarControleInsumo);
 
   await carregarControlesComercial();
 }
 
-function addInsumoRow(nome, qtd){
-  const list = document.getElementById('ci-insumos-list');
-  const row = document.createElement('div');
-  row.className = 'insumo-row';
-  row.innerHTML =
-    '<input type="text" class="ci-insumo-nome" placeholder="Ex: Ponteira MPT 4.0mm" value="' + (nome ? escapeHtml(nome) : '') + '">' +
-    '<input type="number" class="ci-insumo-qtd" min="1" value="' + (qtd || 1) + '">' +
-    '<button type="button" class="insumo-remove">Remover</button>';
-  row.querySelector('.insumo-remove').addEventListener('click', function(){ row.remove(); });
-  list.appendChild(row);
-}
-
 async function criarControleInsumo(){
-  const locacaoRef = document.getElementById('ci-locacao-ref').value.trim();
-  const cliente = document.getElementById('ci-cliente').value.trim();
+  const doutora = document.getElementById('ci-doutora').value.trim();
+  const cpfcnpj = document.getElementById('ci-cpfcnpj').value.trim();
+  const numero = document.getElementById('ci-numero').value.trim();
+  const data = document.getElementById('ci-data').value;
   const equipamento = document.getElementById('ci-equipamento').value;
   const motoristaEntrega = document.getElementById('ci-motorista-entrega').value;
   const motoristaRetirada = document.getElementById('ci-motorista-retirada').value;
-  const assinado = document.getElementById('ci-assinado').value === 'true';
   const observacao = document.getElementById('ci-observacao').value.trim();
+  const valorLocacao = parseFloat((document.getElementById('ci-valor-locacao').value || '0').replace(',','.')) || null;
+  const valorManta = parseFloat((document.getElementById('ci-valor-manta').value || '0').replace(',','.')) || null;
+  const valorLavieen = parseFloat((document.getElementById('ci-valor-lavieen').value || '0').replace(',','.')) || null;
+  const temFrete = document.getElementById('ci-tem-frete').checked;
+  const valorFrete = temFrete ? (parseFloat((document.getElementById('ci-valor-frete').value || '0').replace(',','.')) || null) : null;
+
   const errEl = document.getElementById('ci-error');
   const okEl = document.getElementById('ci-success');
   errEl.style.display='none'; okEl.style.display='none';
 
-  if(!locacaoRef || !cliente || !motoristaEntrega || !motoristaRetirada){
-    errEl.textContent = 'Preencha referência da locação, cliente e os dois motoristas.';
+  if(!doutora || !numero || !motoristaEntrega || !motoristaRetirada){
+    errEl.textContent = 'Preencha doutora, n\u00famero da loca\u00e7\u00e3o e os dois motoristas.';
     errEl.style.display = 'block';
     return;
   }
-
-  const insumos = [];
-  document.querySelectorAll('#ci-insumos-list .insumo-row').forEach(function(row){
-    const nome = row.querySelector('.ci-insumo-nome').value.trim();
-    const qtd = parseInt(row.querySelector('.ci-insumo-qtd').value, 10) || 1;
-    if(nome) insumos.push({ nome: nome, quantidade: qtd });
-  });
 
   const btn = document.getElementById('btn-criar-controle');
   btn.disabled = true; btn.textContent = 'Criando...';
 
   const result = await sb.from('controles_insumos').insert({
-    locacao_ref: locacaoRef,
-    cliente_nome: cliente,
+    locacao_ref: numero,
+    numero_locacao: numero,
+    cliente_nome: doutora,
+    doutora_cpf_cnpj: cpfcnpj || null,
+    data_locacao: data || null,
     equipamento: equipamento,
     motorista_entrega_id: motoristaEntrega,
     motorista_retirada_id: motoristaRetirada,
-    contrato_assinado_online: assinado,
-    insumos: insumos,
+    contrato_assinado_online: false,
+    contrato_assinado_fonte: 'pendente_api',
+    insumos: [],
     observacao: observacao || null,
+    valor_locacao: valorLocacao,
+    valor_manta: valorManta,
+    valor_lavieen: valorLavieen,
+    tem_frete: temFrete,
+    valor_frete: valorFrete,
+    cartuchos: {linear:[], booster:[]},
+    manta: {entrega:{}, retorno:{}},
     criado_por: currentUsuario.id
   });
 
@@ -505,12 +574,17 @@ async function criarControleInsumo(){
     return;
   }
 
-  okEl.textContent = 'Controle criado e enviado para Transportes!';  okEl.style.display = 'block';
-  document.getElementById('ci-locacao-ref').value = '';
-  document.getElementById('ci-cliente').value = '';
+  okEl.textContent = 'Controle criado e enviado para Transportes!';
+  okEl.style.display = 'block';
+  document.getElementById('ci-doutora').value = '';
+  document.getElementById('ci-cpfcnpj').value = '';
+  document.getElementById('ci-numero').value = '';
   document.getElementById('ci-observacao').value = '';
-  document.getElementById('ci-insumos-list').innerHTML = '';
-  addInsumoRow();
+  document.getElementById('ci-valor-locacao').value = '';
+  document.getElementById('ci-valor-manta').value = '';
+  document.getElementById('ci-valor-lavieen').value = '';
+  document.getElementById('ci-valor-frete').value = '';  document.getElementById('ci-tem-frete').checked = false;
+  document.getElementById('ci-valor-frete').style.display = 'none';
   await carregarControlesComercial();
 }
 
@@ -527,7 +601,7 @@ async function carregarControlesComercial(){
     return;
   }
   const motoristas = await getMotoristas();
-  const nomeMotorista = function(id){ const m = motoristas.find(function(x){ return x.id === id; }); return m ? m.nome : '—'; };
+  const nomeMotorista = function(id){ const m = motoristas.find(function(x){ return x.id === id; }); return m ? m.nome : '\u2014'; };
 
   let html = '';
   rows.forEach(function(r){
@@ -537,22 +611,34 @@ async function carregarControlesComercial(){
       '<div class="card loc-card">' +
         '<div class="loc-top">' +
           '<div>' +
-            '<div class="loc-eq">' + (EQUIPAMENTO_LABEL[r.equipamento] || r.equipamento) + '</div>' +
-            '<div class="loc-name">' + escapeHtml(r.cliente_nome) + ' — ' + escapeHtml(r.locacao_ref) + '</div>' +
+            '<div class="loc-eq">' + (EQUIP_LABEL[r.equipamento] || r.equipamento) + '</div>' +
+            '<div class="loc-name">' + escapeHtml(r.cliente_nome) + ' \u2014 #' + escapeHtml(r.numero_locacao || r.locacao_ref) + '</div>' +
             '<div class="loc-meta">Entrega: ' + escapeHtml(nomeMotorista(r.motorista_entrega_id)) + ' &middot; Retirada: ' + escapeHtml(nomeMotorista(r.motorista_retirada_id)) + '</div>' +
           '</div>' +
           '<span class="status-pill ' + st.cls + '"><span class="dot"></span>' + st.text + '</span>' +
         '</div>' +
         '<div class="loc-actions">' +
-          '<button class="btn btn-ghost btn-sm act-fechar" data-id="' + r.id + '" ' + (podefechar ? '' : 'disabled') + '>Fechar logística</button>' +
+          (r.assinatura_entrega_url ? '<button class="btn btn-ghost btn-sm act-ver-ass" data-tipo="entrega" data-id="' + r.id + '">Ver assinatura de entrega</button>' : '') +
+          (r.assinatura_fechamento_url ? '<button class="btn btn-ghost btn-sm act-ver-ass" data-tipo="fechamento" data-id="' + r.id + '">Ver assinatura de fechamento</button>' : '') +
+          '<button class="btn btn-ghost btn-sm act-fechar" data-id="' + r.id + '" ' + (podefechar ? '' : 'disabled') + '>Fechar log\u00edstica</button>' +
         '</div>' +
       '</div>';
   });
   lista.innerHTML = html;
+
+  lista.querySelectorAll('.act-ver-ass').forEach(function(btn){
+    btn.addEventListener('click', async function(){
+      const row = rows.find(function(r){ return r.id === btn.dataset.id; });
+      const url = btn.dataset.tipo === 'entrega' ? row.assinatura_entrega_url : row.assinatura_fechamento_url;
+      const w = window.open('', '_blank');
+      w.document.write('<img src="' + url + '" style="max-width:100%;">');
+    });
+  });
+
   lista.querySelectorAll('.act-fechar').forEach(function(btn){
     if(btn.disabled) return;
     btn.addEventListener('click', async function(){
-      if(!confirm('Fechar logística? Os dados deste controle serão removidos.')) return;
+      if(!confirm('Fechar log\u00edstica? Os dados deste controle ser\u00e3o removidos.')) return;
       btn.disabled = true; btn.textContent = 'Fechando...';
       await sb.from('controles_insumos').delete().eq('id', btn.dataset.id);
       await carregarControlesComercial();
@@ -569,6 +655,18 @@ async function renderTransportes(container){
   await carregarControlesTransportes();
 }
 
+function cartuchoFieldsHtml(prefix, listaLinear, listaBooster, valoresBase){
+  function linha(item){
+    const base = (valoresBase && valoresBase[item.key] != null) ? valoresBase[item.key] : '';    const hint = base !== '' ? ' <span class="field-hint" style="color:var(--gray-soft);">(entrega: ' + base + ')</span>' : '';
+    return '<div class="insumo-row"><span style="flex:1;font-size:13.5px;">' + item.label + hint + '</span>' +
+      '<input type="number" min="0" class="cart-input" data-key="' + item.key + '" style="width:100px;" placeholder="0">' +
+      '</div>';
+  }
+  let html = '<div class="field"><label>Cartuchos Linear</label>' + listaLinear.map(linha).join('') + '</div>';
+  html += '<div class="field"><label>Cartuchos Booster</label>' + listaBooster.map(linha).join('') + '</div>';
+  return html;
+}
+
 async function carregarControlesTransportes(){
   const content = document.getElementById('transportes-content');
   const result = await sb.from('controles_insumos')
@@ -583,51 +681,179 @@ async function carregarControlesTransportes(){
   }
   const rows = result.data || [];
   if(!rows.length){
-    content.innerHTML = '<p class="empty-hint">Nenhum controle atribuído a você no momento.</p>';
+    content.innerHTML = '<p class="empty-hint">Nenhum controle atribu\u00eddo a voc\u00ea no momento.</p>';
     return;
   }
 
   let html = '';
   rows.forEach(function(r){
     const st = STATUS_LABEL[r.status] || { text: r.status, cls: 'status-wait' };
-    const souEntrega = r.motorista_entrega_id === currentUsuario.id;    const souRetirada = r.motorista_retirada_id === currentUsuario.id;
-    const insumosTxt = (r.insumos || []).map(function(i){ return i.nome + ' (' + i.quantidade + ')'; }).join(', ') || 'Sem insumos cadastrados';
-
-    let actionBtn = '';
-    if(r.status === 'aguardando_entrega' && souEntrega){
-      actionBtn = '<button class="btn btn-primary btn-sm act-confirmar" data-id="' + r.id + '" data-acao="entrega">Confirmar entrega</button>';
-    } else if(r.status === 'entregue' && souRetirada){
-      actionBtn = '<button class="btn btn-primary btn-sm act-confirmar" data-id="' + r.id + '" data-acao="retirada">Confirmar retirada</button>';
-    }
+    const souEntrega = r.motorista_entrega_id === currentUsuario.id;
+    const souRetirada = r.motorista_retirada_id === currentUsuario.id;
+    const isCrio = r.equipamento === 'crio';
 
     html +=
-      '<div class="card loc-card">' +
+      '<div class="card loc-card" id="job-' + r.id + '">' +
         '<div class="loc-top">' +
           '<div>' +
-            '<div class="loc-eq">' + (EQUIPAMENTO_LABEL[r.equipamento] || r.equipamento) + '</div>' +
-            '<div class="loc-name">' + escapeHtml(r.cliente_nome) + ' — ' + escapeHtml(r.locacao_ref) + '</div>' +
-            '<div class="loc-meta">Insumos: ' + escapeHtml(insumosTxt) + '</div>' +
+            '<div class="loc-eq">' + (EQUIP_LABEL[r.equipamento] || r.equipamento) + '</div>' +
+            '<div class="loc-name">' + escapeHtml(r.cliente_nome) + ' \u2014 #' + escapeHtml(r.numero_locacao || r.locacao_ref) + '</div>' +
+            (r.data_locacao ? '<div class="loc-meta">Data: ' + r.data_locacao.split('-').reverse().join('/') + '</div>' : '') +
           '</div>' +
           '<span class="status-pill ' + st.cls + '"><span class="dot"></span>' + st.text + '</span>' +
         '</div>' +
-        (!r.contrato_assinado_online ? '<div class="notice-box" style="margin-top:12px;margin-bottom:0;">Contrato não assinado online — buscar assinatura presencial na entrega.</div>' : '') +
+        (!r.contrato_assinado_online ? '<div class="notice-box" style="margin-top:12px;margin-bottom:0;">Contrato n\u00e3o confirmado como assinado online \u2014 buscar assinatura presencial na entrega.</div>' : '') +
         (r.observacao ? '<div class="loc-meta" style="margin-top:10px;">Obs: ' + escapeHtml(r.observacao) + '</div>' : '') +
-        (actionBtn ? '<div class="loc-actions">' + actionBtn + '</div>' : '') +
+        '<div class="loc-actions" id="actions-' + r.id + '"></div>' +
+        '<div id="panel-' + r.id + '"></div>' +
       '</div>';
   });
   content.innerHTML = html;
 
-  content.querySelectorAll('.act-confirmar').forEach(function(btn){
-    btn.addEventListener('click', async function(){
-      const acao = btn.dataset.acao;
-      btn.disabled = true; btn.textContent = 'Confirmando...';
-      const update = acao === 'entrega'
-        ? { status: 'entregue', entregue_em: new Date().toISOString() }
-        : { status: 'retirado', retirado_em: new Date().toISOString() };
-      const result = await sb.from('controles_insumos').update(update).eq('id', btn.dataset.id);
-      if(result.error){ alert('Erro: ' + result.error.message); }
-      await carregarControlesTransportes();
-    });
+  rows.forEach(function(r){
+    const souEntrega = r.motorista_entrega_id === currentUsuario.id;
+    const souRetirada = r.motorista_retirada_id === currentUsuario.id;
+    const actionsEl = document.getElementById('actions-' + r.id);
+
+    if(r.status === 'aguardando_entrega' && souEntrega){
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary btn-sm';
+      btn.textContent = 'Iniciar entrega';
+      btn.addEventListener('click', function(){ abrirPainelEntrega(r); });
+      actionsEl.appendChild(btn);
+    } else if(r.status === 'entregue' && souRetirada){
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary btn-sm';
+      btn.textContent = 'Iniciar retirada';
+      btn.addEventListener('click', function(){ abrirPainelRetirada(r); });
+      actionsEl.appendChild(btn);
+    }
+  });
+}
+
+function abrirPainelEntrega(r){
+  const isCrio = r.equipamento === 'crio';
+  const panel = document.getElementById('panel-' + r.id);
+  panel.innerHTML =
+    '<div class="card" style="margin-top:14px;background:var(--paper-soft);">' +
+      '<h3 style="font-size:14px;margin-bottom:12px;">Registro de entrega</h3>' +
+      (isCrio        ? '<div class="field"><label>Quantidade de manta entregue</label><input type="number" min="0" id="manta-entrega-' + r.id + '" placeholder="0"></div>'
+        : cartuchoFieldsHtml('ent', LINEAR, BOOSTER, null)
+      ) +
+      '<div class="field"><label>Assinatura da doutora</label><canvas class="sig-canvas" id="sig-entrega-' + r.id + '" style="width:100%;height:140px;background:#fff;border:1.5px dashed var(--line);border-radius:4px;"></canvas>' +
+        '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" id="btn-limpar-sig-' + r.id + '">Limpar assinatura</button>' +
+      '</div>' +
+      '<div id="err-entrega-' + r.id + '" class="login-error" style="display:none;"></div>' +
+      '<button class="btn btn-primary btn-block" id="btn-confirmar-entrega-' + r.id + '">Confirmar entrega</button>' +
+    '</div>';
+
+  const pad = initSignaturePad('sig-entrega-' + r.id);
+  document.getElementById('btn-limpar-sig-' + r.id).addEventListener('click', function(){ pad.clear(); });
+
+  document.getElementById('btn-confirmar-entrega-' + r.id).addEventListener('click', async function(){
+    const errEl = document.getElementById('err-entrega-' + r.id);
+    errEl.style.display = 'none';
+    if(pad.isEmpty()){ errEl.textContent = 'Colete a assinatura antes de confirmar.'; errEl.style.display='block'; return; }
+
+    let cartuchos = r.cartuchos || {linear:[], booster:[]};
+    let manta = r.manta || {entrega:{}, retorno:{}};
+
+    if(isCrio){
+      const qtd = parseInt(document.getElementById('manta-entrega-' + r.id).value, 10) || 0;
+      manta = { entrega: { quantidade: qtd, ts: new Date().toISOString() }, retorno: manta.retorno || {} };
+    } else {
+      const entregaLinear = {};
+      const entregaBooster = {};
+      panel.querySelectorAll('.cart-input').forEach(function(inp){
+        const key = inp.dataset.key;
+        const val = parseInt(inp.value, 10) || 0;
+        const isBooster = BOOSTER.some(function(b){ return b.key === key; });
+        if(isBooster) entregaBooster[key] = val; else entregaLinear[key] = val;
+      });
+      cartuchos = { linear: [{ etapa: 'entrega', valores: entregaLinear, ts: new Date().toISOString() }], booster: [{ etapa: 'entrega', valores: entregaBooster, ts: new Date().toISOString() }] };
+    }
+
+    const btn = document.getElementById('btn-confirmar-entrega-' + r.id);
+    btn.disabled = true; btn.textContent = 'Salvando...';
+
+    const result = await sb.from('controles_insumos').update({
+      cartuchos: cartuchos,
+      manta: manta,
+      assinatura_entrega_url: pad.toDataURL(),
+      status: 'entregue',
+      entregue_em: new Date().toISOString()
+    }).eq('id', r.id);
+
+    if(result.error){ errEl.textContent = 'Erro: ' + result.error.message; errEl.style.display='block'; btn.disabled=false; btn.textContent='Confirmar entrega'; return; }
+    await carregarControlesTransportes();
+  });
+}
+
+function abrirPainelRetirada(r){
+  const isCrio = r.equipamento === 'crio';
+  const panel = document.getElementById('panel-' + r.id);
+  const valoresEntregaLinear = (!isCrio && r.cartuchos && r.cartuchos.linear && r.cartuchos.linear[0]) ? r.cartuchos.linear[0].valores : {};
+  const valoresEntregaBooster = (!isCrio && r.cartuchos && r.cartuchos.booster && r.cartuchos.booster[0]) ? r.cartuchos.booster[0].valores : {};
+  const valoresEntregaTudo = Object.assign({}, valoresEntregaLinear, valoresEntregaBooster);
+  const mantaEntregaQtd = (isCrio && r.manta && r.manta.entrega) ? (r.manta.entrega.quantidade || 0) : 0;
+
+  panel.innerHTML =
+    '<div class="card" style="margin-top:14px;background:var(--paper-soft);">' +
+      '<h3 style="font-size:14px;margin-bottom:12px;">Registro de retirada</h3>' +
+      (isCrio
+        ? '<div class="field"><label>Quantidade de manta retirada <span style="color:var(--gray-soft);font-weight:400;">(entregue: ' + mantaEntregaQtd + ')</span></label><input type="number" min="0" id="manta-retirada-' + r.id + '" placeholder="0"></div>'        : cartuchoFieldsHtml('ret', LINEAR, BOOSTER, valoresEntregaTudo)
+      ) +
+      '<div class="field"><label>Assinatura da doutora (fechamento)</label><canvas class="sig-canvas" id="sig-fechamento-' + r.id + '" style="width:100%;height:140px;background:#fff;border:1.5px dashed var(--line);border-radius:4px;"></canvas>' +
+        '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" id="btn-limpar-sig2-' + r.id + '">Limpar assinatura</button>' +
+      '</div>' +
+      '<div id="err-retirada-' + r.id + '" class="login-error" style="display:none;"></div>' +
+      '<button class="btn btn-primary btn-block" id="btn-confirmar-retirada-' + r.id + '">Confirmar retirada</button>' +
+    '</div>';
+
+  const pad = initSignaturePad('sig-fechamento-' + r.id);
+  document.getElementById('btn-limpar-sig2-' + r.id).addEventListener('click', function(){ pad.clear(); });
+
+  document.getElementById('btn-confirmar-retirada-' + r.id).addEventListener('click', async function(){
+    const errEl = document.getElementById('err-retirada-' + r.id);
+    errEl.style.display = 'none';
+    if(pad.isEmpty()){ errEl.textContent = 'Colete a assinatura antes de confirmar.'; errEl.style.display='block'; return; }
+
+    let cartuchos = r.cartuchos || {linear:[], booster:[]};
+    let manta = r.manta || {entrega:{}, retorno:{}};
+
+    if(isCrio){
+      const qtd = parseInt(document.getElementById('manta-retirada-' + r.id).value, 10) || 0;
+      manta = { entrega: manta.entrega || {}, retorno: { quantidade: qtd, ts: new Date().toISOString() } };
+    } else {
+      const retiradaLinear = {};
+      const retiradaBooster = {};
+      panel.querySelectorAll('.cart-input').forEach(function(inp){
+        const key = inp.dataset.key;
+        const val = parseInt(inp.value, 10) || 0;
+        const isBooster = BOOSTER.some(function(b){ return b.key === key; });
+        if(isBooster) retiradaBooster[key] = val; else retiradaLinear[key] = val;
+      });
+      const entregaEntry = cartuchos.linear && cartuchos.linear[0] ? cartuchos.linear[0] : { valores: {} };
+      const entregaEntryB = cartuchos.booster && cartuchos.booster[0] ? cartuchos.booster[0] : { valores: {} };
+      cartuchos = {
+        linear: [entregaEntry, { etapa: 'retirada', valores: retiradaLinear, ts: new Date().toISOString() }],
+        booster: [entregaEntryB, { etapa: 'retirada', valores: retiradaBooster, ts: new Date().toISOString() }]
+      };
+    }
+
+    const btn = document.getElementById('btn-confirmar-retirada-' + r.id);
+    btn.disabled = true; btn.textContent = 'Salvando...';
+
+    const result = await sb.from('controles_insumos').update({
+      cartuchos: cartuchos,
+      manta: manta,
+      assinatura_fechamento_url: pad.toDataURL(),
+      status: 'retirado',
+      retirado_em: new Date().toISOString()
+    }).eq('id', r.id);
+
+    if(result.error){ errEl.textContent = 'Erro: ' + result.error.message; errEl.style.display='block'; btn.disabled=false; btn.textContent='Confirmar retirada'; return; }
+    await carregarControlesTransportes();
   });
 }
 
