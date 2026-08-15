@@ -9,6 +9,7 @@
 <link rel="icon" href="assets/logo-black.png">
 <link rel="stylesheet" href="css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{
   --paper:#faf7f2; --paper-soft:#f1ebe1; --line:#e4dccd;
@@ -52,8 +53,8 @@ html,body{margin:0;background:#dedcc8;font-family:'Source Sans 3',-apple-system,
 
 /* ===== shell with sidebar ===== */
 .shell{display:grid;grid-template-columns:240px 1fr;min-height:calc(100vh - 56px);}
-.sidebar{background:var(--dark);color:#cfc9bd;padding:20px 0;}
-.nav-label{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#7d766b;padding:0 22px;margin:14px 0 6px;}.mod-link{display:flex;align-items:center;gap:10px;padding:11px 22px;font-size:14px;font-weight:600;color:#cfc9bd;cursor:pointer;border-left:3px solid transparent;}
+.sidebar{background:var(--dark);color:#cfc9bd;padding:20px 0;}.nav-label{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#7d766b;padding:0 22px;margin:14px 0 6px;}
+.mod-link{display:flex;align-items:center;gap:10px;padding:11px 22px;font-size:14px;font-weight:600;color:#cfc9bd;cursor:pointer;border-left:3px solid transparent;}
 .mod-link:hover{background:rgba(255,255,255,.05);}
 .mod-link.active{background:rgba(122,18,32,.28);border-left-color:var(--wine-bright);color:#fff;}
 .mod-link.soon{color:#6f695f;cursor:default;}
@@ -92,6 +93,8 @@ html,body{margin:0;background:#dedcc8;font-family:'Source Sans 3',-apple-system,
 .insumo-row input[type=text]{flex:1;}
 .insumo-row input[type=number]{width:80px;}
 .insumo-remove{color:var(--wine);font-size:12.5px;font-weight:700;cursor:pointer;background:none;border:none;white-space:nowrap;}
+.dup-pill{padding:8px 12px;border:1.5px solid var(--line);border-radius:100px;font-size:12.5px;font-weight:700;color:var(--gray);cursor:pointer;user-select:none;background:var(--paper);}
+.dup-pill.sel{border-color:var(--wine);background:#f7e9ea;color:var(--wine);}
 .add-row{display:flex;gap:8px;margin-top:10px;}
 
 .job-card{padding:14px 18px;margin-bottom:12px;display:flex;gap:14px;align-items:center;}
@@ -102,10 +105,10 @@ html,body{margin:0;background:#dedcc8;font-family:'Source Sans 3',-apple-system,
 .job-body h4{font-size:15px;margin:0 0 3px;}
 .job-eq{font-size:11px;color:var(--wine);font-weight:700;text-transform:uppercase;}
 .job-flags{display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex:none;}
-
 .notice-box{display:flex;gap:12px;align-items:flex-start;background:var(--alert-bg);border-left:4px solid var(--wine-bright);padding:14px 16px;border-radius:var(--radius);margin-bottom:18px;font-size:13px;color:var(--alert);}
 .empty-hint{color:var(--gray);font-size:13.5px;padding:20px;text-align:center;}
-.placeholder-screen{max-width:600px;margin:60px auto;text-align:center;padding:0 20px;}.placeholder-screen h1{margin-bottom:10px;}
+.placeholder-screen{max-width:600px;margin:60px auto;text-align:center;padding:0 20px;}
+.placeholder-screen h1{margin-bottom:10px;}
 
 @media (max-width:860px){
   .shell{grid-template-columns:1fr;}
@@ -145,14 +148,14 @@ const STATUS_LABEL = {
 };
 
 /* ================= LOGIN ================= */
-function screenLogin(errorMsg){
-  app.innerHTML = SITE_HEADER +
+function screenLogin(errorMsg){  app.innerHTML = SITE_HEADER +
     '<section class="page-hero"><div class="container">' +
       '<div class="breadcrumb"><a href="index.html">Início</a> / Área do Colaborador</div>' +
       '<span class="eyebrow">Acesso restrito</span>' +
       '<h1 class="mt-16">Área do Colaborador</h1>' +
       '<p>Entre com seu e-mail cadastrado para acessar as ferramentas do seu setor.</p>' +
-    '</div></section>' +    '<section><div class="container" style="max-width:400px;">' +
+    '</div></section>' +
+    '<section><div class="container" style="max-width:400px;">' +
       '<div class="form-card shard-tl">' +
         (errorMsg ? '<p style="color:#8a2e1f;background:#f6e6e0;padding:10px 12px;border-radius:4px;font-size:13px;margin:0 0 16px;">' + escapeHtml(errorMsg) + '</p>' : '') +
         '<div class="field"><label for="f-email">E-mail</label><input type="email" id="f-email" placeholder="seuemail@rjxlocacoes.com.br"></div>' +
@@ -206,15 +209,15 @@ async function doSetPassword(){
   if(p1 !== p2){ errEl.textContent='As senhas não coincidem.'; errEl.style.display='block'; return; }
   const btn = document.getElementById('btn-definir');
   btn.disabled = true; btn.textContent = 'Salvando...';
-  const result = await sb.auth.updateUser({ password: p1 });
-  if(result.error){ errEl.textContent = 'Erro ao salvar: ' + result.error.message; errEl.style.display='block'; btn.disabled=false; btn.textContent='Definir senha e entrar'; return; }
+  const result = await sb.auth.updateUser({ password: p1 });  if(result.error){ errEl.textContent = 'Erro ao salvar: ' + result.error.message; errEl.style.display='block'; btn.disabled=false; btn.textContent='Definir senha e entrar'; return; }
   history.replaceState(null, '', location.pathname);
   await boot();
 }
 
 /* ================= BOOT ================= */
 async function boot(){
-  const hash = window.location.hash || '';  const isRecoveryLink = hash.indexOf('type=invite') !== -1 || hash.indexOf('type=recovery') !== -1;
+  const hash = window.location.hash || '';
+  const isRecoveryLink = hash.indexOf('type=invite') !== -1 || hash.indexOf('type=recovery') !== -1;
   const sessionResult = await sb.auth.getSession();
   const session = sessionResult.data.session;
   if(!session){ screenLogin(); return; }
@@ -288,8 +291,7 @@ function selectModule(modId){
   document.querySelectorAll('.mod-link[data-mod]').forEach(function(l){ l.classList.toggle('active', l.dataset.mod === modId); });
   const mainArea = document.getElementById('main-area');
   if(modId === 'gerencial'){ renderGerencial(mainArea); }
-  else if(modId === 'comercial'){ renderComercial(mainArea); }
-  else if(modId === 'transportes'){ renderTransportes(mainArea); }
+  else if(modId === 'comercial'){ renderComercial(mainArea); }  else if(modId === 'transportes'){ renderTransportes(mainArea); }
 }
 
 /* ================= API HELPER (usuarios via serverless) ================= */
@@ -297,7 +299,8 @@ async function apiCall(method, body){
   const sessionResult = await sb.auth.getSession();
   const session = sessionResult.data.session;
   const resp = await fetch('/api/intranet-usuarios', {
-    method: method,    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+    method: method,
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
     body: body ? JSON.stringify(body) : undefined
   });
   const data = await resp.json().catch(function(){ return {}; });
@@ -351,8 +354,8 @@ async function carregarUsuarios(){
         '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + (u.ativo ? 'Ativo' : 'Inativo') + '</td>' +
         '<td style="padding:10px 14px;border-bottom:1px solid var(--line);"><a href="#" class="act-toggle" data-id="' + u.id + '" data-ativo="' + u.ativo + '" style="color:var(--wine);font-weight:700;font-size:12.5px;">' + (u.ativo ? 'Desativar' : 'Reativar') + '</a></td>' +
       '</tr>';
-    });
-    tabela.innerHTML = '<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Nome</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">E-mail</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Papel</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Status</th><th></th></tr></thead><tbody>' + rowsHtml + '</tbody></table>';    tabela.querySelectorAll('.act-toggle').forEach(function(a){
+    });    tabela.innerHTML = '<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Nome</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">E-mail</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Papel</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Status</th><th></th></tr></thead><tbody>' + rowsHtml + '</tbody></table>';
+    tabela.querySelectorAll('.act-toggle').forEach(function(a){
       a.addEventListener('click', async function(e){
         e.preventDefault();
         const id = a.dataset.id;
@@ -432,8 +435,7 @@ function initSignaturePad(canvasId){
   canvas.addEventListener('mousedown', start);
   canvas.addEventListener('mousemove', move);
   window.addEventListener('mouseup', end);
-  canvas.addEventListener('touchstart', start, {passive:false});
-  canvas.addEventListener('touchmove', move, {passive:false});
+  canvas.addEventListener('touchstart', start, {passive:false});  canvas.addEventListener('touchmove', move, {passive:false});
   canvas.addEventListener('touchend', end);
   return {
     clear: function(){ ctx.clearRect(0,0,canvas.width,canvas.height); },
@@ -449,7 +451,8 @@ function initSignaturePad(canvasId){
 /* ================= COMERCIAL — Controle de Insumos ================= */
 async function getMotoristas(){
   if(motoristasCache) return motoristasCache;
-  const result = await sb.from('usuarios').select('id,nome').eq('papel','transportes').eq('ativo', true).order('nome');  motoristasCache = result.data || [];
+  const result = await sb.from('usuarios').select('id,nome').eq('papel','transportes').eq('ativo', true).order('nome');
+  motoristasCache = result.data || [];
   return motoristasCache;
 }
 
@@ -467,45 +470,64 @@ async function renderComercial(container){
 
   content.innerHTML =
     '<div class="card form-card">' +
-      '<h3>Nova loca\u00e7\u00e3o</h3>' +
+      '<h3>Nova locação</h3>' +
       '<p class="cardsub">Preencha os dados. O controle aparece automaticamente para o motorista em Transportes.</p>' +
       '<div class="grid2">' +
         '<div class="field"><label>Nome da doutora</label><input id="ci-doutora" placeholder="Dra. Fulana de Tal"></div>' +
         '<div class="field"><label>CPF ou CNPJ</label><input id="ci-cpfcnpj" placeholder="000.000.000-00"></div>' +
       '</div>' +
       '<div class="grid2">' +
-        '<div class="field"><label>N\u00famero da loca\u00e7\u00e3o</label><input id="ci-numero" placeholder="Ex: 1042"></div>' +
-        '<div class="field"><label>Data da loca\u00e7\u00e3o</label><input type="date" id="ci-data"></div>' +
+        '<div class="field"><label>Número da locação</label><input id="ci-numero" placeholder="Ex: 1042"></div>' +
+        '<div class="field"><label>Data da locação</label><input type="date" id="ci-data"></div>' +
       '</div>' +
       '<div class="field"><label>Equipamento</label><select id="ci-equipamento">' +
         '<option value="mpt1">Ultraformer MPT 1</option>' +
         '<option value="mpt2">Ultraformer MPT 2</option>' +
         '<option value="crio">Criodermis 2.0</option>' +
       '</select></div>' +
-      '<div class="grid2">' +
-        '<div class="field"><label>Motorista \u2014 entrega</label><select id="ci-motorista-entrega">' + motoristaOptions + '</select></div>' +
-        '<div class="field"><label>Motorista \u2014 retirada</label><select id="ci-motorista-retirada">' + motoristaOptions + '</select></div>' +
+      '<div class="field" id="ci-wrap-duplicados">' +
+        '<label>Cartuchos duplicados (marque os tipos que vão com 2 unidades nesta locação)</label>' +
+        '<div id="ci-duplicados-pills" style="display:flex;flex-wrap:wrap;gap:8px;"></div>' +
       '</div>' +
-      '<div class="field"><label>Condi\u00e7\u00f5es da loca\u00e7\u00e3o (obs. interna, hor\u00e1rio de montagem etc.)</label><textarea id="ci-observacao" rows="2"></textarea></div>' +
-      '<div class="notice-box" style="background:var(--info-bg);border-left-color:var(--info);color:var(--info);">Status de assinatura do contrato ser\u00e1 verificado automaticamente pela API do EstoqueNOW assim que essa integra\u00e7\u00e3o for finalizada. Por enquanto, o motorista sempre ver\u00e1 o alerta de confer\u00eancia.</div>' +
+      '<div class="grid2">' +
+        '<div class="field"><label>Motorista — entrega</label><select id="ci-motorista-entrega">' + motoristaOptions + '</select></div>' +
+        '<div class="field"><label>Motorista — retirada</label><select id="ci-motorista-retirada">' + motoristaOptions + '</select></div>' +
+      '</div>' +
+      '<div class="field"><label>Condições da locação (obs. interna, horário de montagem etc.)</label><textarea id="ci-observacao" rows="2"></textarea></div>' +
+      '<div class="field"><label>Contrato já assinado online?</label><select id="ci-assinado"><option value="false">Não — motorista precisa buscar assinatura</option><option value="true">Sim, assinado online</option></select></div>' +
       '<h3 style="margin-top:22px;">Valores</h3>' +
       '<div class="grid2">' +
-        '<div class="field"><label>Valor da loca\u00e7\u00e3o</label><input id="ci-valor-locacao" inputmode="decimal" placeholder="R$ 0,00"></div>' +
-        '<div class="field" id="ci-wrap-manta" style="display:none;"><label>Valor da manta negociada</label><input id="ci-valor-manta" inputmode="decimal" placeholder="R$ 0,00"></div>' +
+        '<div class="field"><label>Valor da locação</label><input id="ci-valor-locacao" inputmode="decimal" placeholder="R$ 0,00"></div>' +        '<div class="field" id="ci-wrap-manta" style="display:none;"><label>Valor da manta negociada</label><input id="ci-valor-manta" inputmode="decimal" placeholder="R$ 0,00"></div>' +
       '</div>' +
-      '<div class="field"><label>Valor combo Lavieen (se houver)</label><input id="ci-valor-lavieen" inputmode="decimal" placeholder="Deixe em branco se n\u00e3o for combo"></div>' +
+      '<div class="field"><label>Valor combo Lavieen (se houver)</label><input id="ci-valor-lavieen" inputmode="decimal" placeholder="Deixe em branco se não for combo"></div>' +
       '<div class="field">' +
         '<label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" id="ci-tem-frete" style="width:auto;"> Tem frete?</label>' +
         '<input id="ci-valor-frete" inputmode="decimal" placeholder="R$ 0,00" style="display:none;margin-top:8px;">' +
       '</div>' +
       '<div id="ci-error" class="login-error" style="display:none;"></div>' +
-      '<div id="ci-success" class="login-success" style="display:none;"></div>' +      '<button class="btn btn-primary" id="btn-criar-controle">Criar controle e enviar para Transportes</button>' +
+      '<div id="ci-success" class="login-success" style="display:none;"></div>' +
+      '<button class="btn btn-primary" id="btn-criar-controle">Criar controle e enviar para Transportes</button>' +
     '</div>' +
     '<div class="list-title">Controles ativos</div>' +
     '<div id="ci-lista"><p class="empty-hint">Carregando...</p></div>';
 
+  function renderDuplicadosPills(){
+    const wrap = document.getElementById('ci-duplicados-pills');
+    const isCrio = document.getElementById('ci-equipamento').value === 'crio';
+    document.getElementById('ci-wrap-duplicados').style.display = isCrio ? 'none' : 'block';
+    if(isCrio){ wrap.innerHTML=''; return; }
+    wrap.innerHTML = LINEAR.concat(BOOSTER).map(function(item){
+      return '<div class="dup-pill" data-key="' + item.key + '">' + item.label + '</div>';
+    }).join('');
+    wrap.querySelectorAll('.dup-pill').forEach(function(p){
+      p.addEventListener('click', function(){ p.classList.toggle('sel'); });
+    });
+  }
+  renderDuplicadosPills();
+
   document.getElementById('ci-equipamento').addEventListener('change', function(){
     document.getElementById('ci-wrap-manta').style.display = this.value === 'crio' ? 'block' : 'none';
+    renderDuplicadosPills();
   });
   document.getElementById('ci-tem-frete').addEventListener('change', function(){
     document.getElementById('ci-valor-frete').style.display = this.checked ? 'block' : 'none';
@@ -529,13 +551,14 @@ async function criarControleInsumo(){
   const valorLavieen = parseFloat((document.getElementById('ci-valor-lavieen').value || '0').replace(',','.')) || null;
   const temFrete = document.getElementById('ci-tem-frete').checked;
   const valorFrete = temFrete ? (parseFloat((document.getElementById('ci-valor-frete').value || '0').replace(',','.')) || null) : null;
+  const assinado = document.getElementById('ci-assinado').value === 'true';
+  const duplicados = Array.from(document.querySelectorAll('#ci-duplicados-pills .dup-pill.sel')).map(function(p){ return p.dataset.key; });
 
   const errEl = document.getElementById('ci-error');
   const okEl = document.getElementById('ci-success');
   errEl.style.display='none'; okEl.style.display='none';
 
-  if(!doutora || !numero || !motoristaEntrega || !motoristaRetirada){
-    errEl.textContent = 'Preencha doutora, n\u00famero da loca\u00e7\u00e3o e os dois motoristas.';
+  if(!doutora || !numero || !motoristaEntrega || !motoristaRetirada){    errEl.textContent = 'Preencha doutora, número da locação e os dois motoristas.';
     errEl.style.display = 'block';
     return;
   }
@@ -552,8 +575,8 @@ async function criarControleInsumo(){
     equipamento: equipamento,
     motorista_entrega_id: motoristaEntrega,
     motorista_retirada_id: motoristaRetirada,
-    contrato_assinado_online: false,
-    contrato_assinado_fonte: 'pendente_api',
+    contrato_assinado_online: assinado,
+    contrato_assinado_fonte: 'manual',
     insumos: [],
     observacao: observacao || null,
     valor_locacao: valorLocacao,
@@ -562,6 +585,7 @@ async function criarControleInsumo(){
     tem_frete: temFrete,
     valor_frete: valorFrete,
     cartuchos: {linear:[], booster:[]},
+    cartuchos_duplicados: duplicados,
     manta: {entrega:{}, retorno:{}},
     criado_por: currentUsuario.id
   });
@@ -583,8 +607,11 @@ async function criarControleInsumo(){
   document.getElementById('ci-valor-locacao').value = '';
   document.getElementById('ci-valor-manta').value = '';
   document.getElementById('ci-valor-lavieen').value = '';
-  document.getElementById('ci-valor-frete').value = '';  document.getElementById('ci-tem-frete').checked = false;
+  document.getElementById('ci-valor-frete').value = '';
+  document.getElementById('ci-tem-frete').checked = false;
   document.getElementById('ci-valor-frete').style.display = 'none';
+  document.getElementById('ci-assinado').value = 'false';
+  document.querySelectorAll('#ci-duplicados-pills .dup-pill.sel').forEach(function(p){ p.classList.remove('sel'); });
   await carregarControlesComercial();
 }
 
@@ -601,7 +628,7 @@ async function carregarControlesComercial(){
     return;
   }
   const motoristas = await getMotoristas();
-  const nomeMotorista = function(id){ const m = motoristas.find(function(x){ return x.id === id; }); return m ? m.nome : '\u2014'; };
+  const nomeMotorista = function(id){ const m = motoristas.find(function(x){ return x.id === id; }); return m ? m.nome : '—'; };
 
   let html = '';
   rows.forEach(function(r){
@@ -612,15 +639,16 @@ async function carregarControlesComercial(){
         '<div class="loc-top">' +
           '<div>' +
             '<div class="loc-eq">' + (EQUIP_LABEL[r.equipamento] || r.equipamento) + '</div>' +
-            '<div class="loc-name">' + escapeHtml(r.cliente_nome) + ' \u2014 #' + escapeHtml(r.numero_locacao || r.locacao_ref) + '</div>' +
+            '<div class="loc-name">' + escapeHtml(r.cliente_nome) + ' — #' + escapeHtml(r.numero_locacao || r.locacao_ref) + '</div>' +
             '<div class="loc-meta">Entrega: ' + escapeHtml(nomeMotorista(r.motorista_entrega_id)) + ' &middot; Retirada: ' + escapeHtml(nomeMotorista(r.motorista_retirada_id)) + '</div>' +
           '</div>' +
           '<span class="status-pill ' + st.cls + '"><span class="dot"></span>' + st.text + '</span>' +
         '</div>' +
         '<div class="loc-actions">' +
-          (r.assinatura_entrega_url ? '<button class="btn btn-ghost btn-sm act-ver-ass" data-tipo="entrega" data-id="' + r.id + '">Ver assinatura de entrega</button>' : '') +
-          (r.assinatura_fechamento_url ? '<button class="btn btn-ghost btn-sm act-ver-ass" data-tipo="fechamento" data-id="' + r.id + '">Ver assinatura de fechamento</button>' : '') +
-          '<button class="btn btn-ghost btn-sm act-fechar" data-id="' + r.id + '" ' + (podefechar ? '' : 'disabled') + '>Fechar log\u00edstica</button>' +
+          (r.assinatura_entrega_url ? '<button class="btn btn-ghost btn-sm act-ver-ass" data-tipo="entrega" data-id="' + r.id + '">Ver assinatura de entrega</button>' : '') +          (r.assinatura_fechamento_url ? '<button class="btn btn-ghost btn-sm act-ver-ass" data-tipo="fechamento" data-id="' + r.id + '">Ver assinatura de fechamento</button>' : '') +
+          (r.pdf_entrega_url ? '<button class="btn btn-ghost btn-sm act-baixar-pdf" data-tipo="entrega" data-id="' + r.id + '">Baixar PDF entrega</button>' : '') +
+          (r.pdf_fechamento_url ? '<button class="btn btn-ghost btn-sm act-baixar-pdf" data-tipo="fechamento" data-id="' + r.id + '">Baixar PDF fechamento</button>' : '') +
+          '<button class="btn btn-ghost btn-sm act-fechar" data-id="' + r.id + '" ' + (podefechar ? '' : 'disabled') + '>Fechar logística</button>' +
         '</div>' +
       '</div>';
   });
@@ -635,10 +663,23 @@ async function carregarControlesComercial(){
     });
   });
 
+  lista.querySelectorAll('.act-baixar-pdf').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const row = rows.find(function(r){ return r.id === btn.dataset.id; });
+      const url = btn.dataset.tipo === 'entrega' ? row.pdf_entrega_url : row.pdf_fechamento_url;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'controle-' + (row.numero_locacao || row.locacao_ref) + '-' + btn.dataset.tipo + '.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+  });
+
   lista.querySelectorAll('.act-fechar').forEach(function(btn){
     if(btn.disabled) return;
     btn.addEventListener('click', async function(){
-      if(!confirm('Fechar log\u00edstica? Os dados deste controle ser\u00e3o removidos.')) return;
+      if(!confirm('Fechar logística? Os dados deste controle serão removidos.')) return;
       btn.disabled = true; btn.textContent = 'Fechando...';
       await sb.from('controles_insumos').delete().eq('id', btn.dataset.id);
       await carregarControlesComercial();
@@ -655,16 +696,96 @@ async function renderTransportes(container){
   await carregarControlesTransportes();
 }
 
-function cartuchoFieldsHtml(prefix, listaLinear, listaBooster, valoresBase){
+function expandCartuchos(list, duplicados){
+  const dup = duplicados || [];
+  const out = [];
+  list.forEach(function(item){
+    if(dup.indexOf(item.key) !== -1){
+      out.push({ key: item.key + '__1', label: item.label + ' (1)' });
+      out.push({ key: item.key + '__2', label: item.label + ' (2)' });
+    } else {
+      out.push(item);
+    }
+  });
+  return out;
+}
+
+function baseCartKey(key){ return key.split('__')[0]; }
+
+function cartuchoFieldsHtml(rId, prefix, listaLinear, listaBooster, valoresBase, duplicados){
+  const expLinear = expandCartuchos(listaLinear, duplicados);
+  const expBooster = expandCartuchos(listaBooster, duplicados);
   function linha(item){
-    const base = (valoresBase && valoresBase[item.key] != null) ? valoresBase[item.key] : '';    const hint = base !== '' ? ' <span class="field-hint" style="color:var(--gray-soft);">(entrega: ' + base + ')</span>' : '';
-    return '<div class="insumo-row"><span style="flex:1;font-size:13.5px;">' + item.label + hint + '</span>' +
-      '<input type="number" min="0" class="cart-input" data-key="' + item.key + '" style="width:100px;" placeholder="0">' +
+    const base = (valoresBase && valoresBase[item.key] != null) ? valoresBase[item.key] : '';
+    const hint = base !== '' ? ' <span class="field-hint" style="color:var(--gray-soft);">(entrega: ' + base + ')</span>' : '';
+    const inputId = 'cart-' + prefix + '-' + rId + '-' + item.key;
+    return '<div class="insumo-row"><span style="flex:1;font-size:13.5px;">' + item.label + hint + '</span>' +      '<input type="number" min="0" class="cart-input" id="' + inputId + '" data-key="' + item.key + '" data-label="' + item.label + '" style="width:90px;" placeholder="0">' +
+      '<label class="btn btn-ghost btn-sm cart-photo-btn" style="cursor:pointer;padding:8px 10px;">📷' +
+        '<input type="file" accept="image/*" capture="environment" class="cart-photo-input" data-target="' + inputId + '" style="display:none;">' +
+      '</label>' +
       '</div>';
   }
-  let html = '<div class="field"><label>Cartuchos Linear</label>' + listaLinear.map(linha).join('') + '</div>';
-  html += '<div class="field"><label>Cartuchos Booster</label>' + listaBooster.map(linha).join('') + '</div>';
+  let html = '<div class="field"><label>Cartuchos Linear <span style="font-weight:400;color:var(--gray-soft);">(tire foto da tela pra ler automaticamente)</span></label>' + expLinear.map(linha).join('') + '</div>';
+  html += '<div class="field"><label>Cartuchos Booster</label>' + expBooster.map(linha).join('') + '</div>';
   return html;
+}
+
+function fileToDataURL(file){
+  return new Promise(function(resolve, reject){
+    const reader = new FileReader();
+    reader.onload = function(){ resolve(reader.result); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function wireCartPhotoInputs(container){
+  container.querySelectorAll('.cart-photo-input').forEach(function(inp){
+    inp.addEventListener('change', async function(){
+      const file = inp.files[0];
+      if(!file) return;
+      const targetInput = document.getElementById(inp.dataset.target);
+      const label = inp.closest('.cart-photo-btn');
+      const original = label.firstChild.textContent;
+      label.firstChild.textContent = '...';
+      try{
+        const dataUrl = await fileToDataURL(file);
+        const resp = await fetch('/api/ler-disparo', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ image: dataUrl }) });
+        const data = await resp.json();
+        if(data && data.valor != null){ targetInput.value = data.valor; }
+        else{ alert('Não consegui ler o número na foto. Preencha manualmente.'); }
+      }catch(e){
+        alert('Erro ao ler foto: ' + e.message);
+      }finally{
+        label.firstChild.textContent = original;
+      }
+    });
+  });
+}
+
+function gerarPDFControle(r, etapa, assinaturaDataUrl, leituras){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+  doc.text('RJX Baiense Locações - Controle de Insumos', 14, 18);
+  doc.setFontSize(11);
+  let y = 30;
+  doc.text('Locação: #' + (r.numero_locacao || r.locacao_ref), 14, y); y += 7;
+  doc.text('Cliente/Doutora: ' + (r.cliente_nome || ''), 14, y); y += 7;
+  doc.text('Equipamento: ' + (EQUIP_LABEL[r.equipamento] || r.equipamento), 14, y); y += 7;
+  doc.text('Etapa: ' + (etapa === 'entrega' ? 'Entrega' : 'Fechamento (retirada)'), 14, y); y += 7;
+  doc.text('Data/hora: ' + new Date().toLocaleString('pt-BR'), 14, y); y += 10;
+  if(leituras && leituras.length){
+    doc.setFontSize(12); doc.text('Leituras:', 14, y); y += 7;
+    doc.setFontSize(10);
+    leituras.forEach(function(l){ doc.text(l, 16, y); y += 6; });
+    y += 4;
+  }
+  if(assinaturaDataUrl){
+    doc.setFontSize(11); doc.text('Assinatura:', 14, y); y += 4;
+    try{ doc.addImage(assinaturaDataUrl, 'PNG', 14, y, 80, 35); }catch(e){}
+  }
+  return doc.output('datauristring');
 }
 
 async function carregarControlesTransportes(){
@@ -681,13 +802,12 @@ async function carregarControlesTransportes(){
   }
   const rows = result.data || [];
   if(!rows.length){
-    content.innerHTML = '<p class="empty-hint">Nenhum controle atribu\u00eddo a voc\u00ea no momento.</p>';
+    content.innerHTML = '<p class="empty-hint">Nenhum controle atribuído a você no momento.</p>';
     return;
   }
 
   let html = '';
-  rows.forEach(function(r){
-    const st = STATUS_LABEL[r.status] || { text: r.status, cls: 'status-wait' };
+  rows.forEach(function(r){    const st = STATUS_LABEL[r.status] || { text: r.status, cls: 'status-wait' };
     const souEntrega = r.motorista_entrega_id === currentUsuario.id;
     const souRetirada = r.motorista_retirada_id === currentUsuario.id;
     const isCrio = r.equipamento === 'crio';
@@ -697,12 +817,12 @@ async function carregarControlesTransportes(){
         '<div class="loc-top">' +
           '<div>' +
             '<div class="loc-eq">' + (EQUIP_LABEL[r.equipamento] || r.equipamento) + '</div>' +
-            '<div class="loc-name">' + escapeHtml(r.cliente_nome) + ' \u2014 #' + escapeHtml(r.numero_locacao || r.locacao_ref) + '</div>' +
+            '<div class="loc-name">' + escapeHtml(r.cliente_nome) + ' — #' + escapeHtml(r.numero_locacao || r.locacao_ref) + '</div>' +
             (r.data_locacao ? '<div class="loc-meta">Data: ' + r.data_locacao.split('-').reverse().join('/') + '</div>' : '') +
           '</div>' +
           '<span class="status-pill ' + st.cls + '"><span class="dot"></span>' + st.text + '</span>' +
         '</div>' +
-        (!r.contrato_assinado_online ? '<div class="notice-box" style="margin-top:12px;margin-bottom:0;">Contrato n\u00e3o confirmado como assinado online \u2014 buscar assinatura presencial na entrega.</div>' : '') +
+        (!r.contrato_assinado_online ? '<div class="notice-box" style="margin-top:12px;margin-bottom:0;">Contrato não confirmado como assinado online — buscar assinatura presencial na entrega.</div>' : '') +
         (r.observacao ? '<div class="loc-meta" style="margin-top:10px;">Obs: ' + escapeHtml(r.observacao) + '</div>' : '') +
         '<div class="loc-actions" id="actions-' + r.id + '"></div>' +
         '<div id="panel-' + r.id + '"></div>' +
@@ -737,8 +857,9 @@ function abrirPainelEntrega(r){
   panel.innerHTML =
     '<div class="card" style="margin-top:14px;background:var(--paper-soft);">' +
       '<h3 style="font-size:14px;margin-bottom:12px;">Registro de entrega</h3>' +
-      (isCrio        ? '<div class="field"><label>Quantidade de manta entregue</label><input type="number" min="0" id="manta-entrega-' + r.id + '" placeholder="0"></div>'
-        : cartuchoFieldsHtml('ent', LINEAR, BOOSTER, null)
+      (isCrio
+        ? '<div class="field"><label>Quantidade de manta entregue</label><input type="number" min="0" id="manta-entrega-' + r.id + '" placeholder="0"></div>'
+        : cartuchoFieldsHtml(r.id, 'ent', LINEAR, BOOSTER, null, r.cartuchos_duplicados)
       ) +
       '<div class="field"><label>Assinatura da doutora</label><canvas class="sig-canvas" id="sig-entrega-' + r.id + '" style="width:100%;height:140px;background:#fff;border:1.5px dashed var(--line);border-radius:4px;"></canvas>' +
         '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" id="btn-limpar-sig-' + r.id + '">Limpar assinatura</button>' +
@@ -747,28 +868,31 @@ function abrirPainelEntrega(r){
       '<button class="btn btn-primary btn-block" id="btn-confirmar-entrega-' + r.id + '">Confirmar entrega</button>' +
     '</div>';
 
+  wireCartPhotoInputs(panel);
   const pad = initSignaturePad('sig-entrega-' + r.id);
   document.getElementById('btn-limpar-sig-' + r.id).addEventListener('click', function(){ pad.clear(); });
 
   document.getElementById('btn-confirmar-entrega-' + r.id).addEventListener('click', async function(){
     const errEl = document.getElementById('err-entrega-' + r.id);
-    errEl.style.display = 'none';
-    if(pad.isEmpty()){ errEl.textContent = 'Colete a assinatura antes de confirmar.'; errEl.style.display='block'; return; }
+    errEl.style.display = 'none';    if(pad.isEmpty()){ errEl.textContent = 'Colete a assinatura antes de confirmar.'; errEl.style.display='block'; return; }
 
     let cartuchos = r.cartuchos || {linear:[], booster:[]};
     let manta = r.manta || {entrega:{}, retorno:{}};
+    const leituras = [];
 
     if(isCrio){
       const qtd = parseInt(document.getElementById('manta-entrega-' + r.id).value, 10) || 0;
       manta = { entrega: { quantidade: qtd, ts: new Date().toISOString() }, retorno: manta.retorno || {} };
+      leituras.push('Manta entregue: ' + qtd);
     } else {
       const entregaLinear = {};
       const entregaBooster = {};
       panel.querySelectorAll('.cart-input').forEach(function(inp){
         const key = inp.dataset.key;
         const val = parseInt(inp.value, 10) || 0;
-        const isBooster = BOOSTER.some(function(b){ return b.key === key; });
+        const isBooster = BOOSTER.some(function(b){ return b.key === baseCartKey(key); });
         if(isBooster) entregaBooster[key] = val; else entregaLinear[key] = val;
+        leituras.push(inp.dataset.label + ': ' + val);
       });
       cartuchos = { linear: [{ etapa: 'entrega', valores: entregaLinear, ts: new Date().toISOString() }], booster: [{ etapa: 'entrega', valores: entregaBooster, ts: new Date().toISOString() }] };
     }
@@ -776,10 +900,15 @@ function abrirPainelEntrega(r){
     const btn = document.getElementById('btn-confirmar-entrega-' + r.id);
     btn.disabled = true; btn.textContent = 'Salvando...';
 
+    const assinaturaUrl = pad.toDataURL();
+    let pdfUrl = null;
+    try{ pdfUrl = gerarPDFControle(r, 'entrega', assinaturaUrl, leituras); }catch(e){}
+
     const result = await sb.from('controles_insumos').update({
       cartuchos: cartuchos,
       manta: manta,
-      assinatura_entrega_url: pad.toDataURL(),
+      assinatura_entrega_url: assinaturaUrl,
+      pdf_entrega_url: pdfUrl,
       status: 'entregue',
       entregue_em: new Date().toISOString()
     }).eq('id', r.id);
@@ -801,7 +930,8 @@ function abrirPainelRetirada(r){
     '<div class="card" style="margin-top:14px;background:var(--paper-soft);">' +
       '<h3 style="font-size:14px;margin-bottom:12px;">Registro de retirada</h3>' +
       (isCrio
-        ? '<div class="field"><label>Quantidade de manta retirada <span style="color:var(--gray-soft);font-weight:400;">(entregue: ' + mantaEntregaQtd + ')</span></label><input type="number" min="0" id="manta-retirada-' + r.id + '" placeholder="0"></div>'        : cartuchoFieldsHtml('ret', LINEAR, BOOSTER, valoresEntregaTudo)
+        ? '<div class="field"><label>Quantidade de manta retirada <span style="color:var(--gray-soft);font-weight:400;">(entregue: ' + mantaEntregaQtd + ')</span></label><input type="number" min="0" id="manta-retirada-' + r.id + '" placeholder="0"></div>'
+        : cartuchoFieldsHtml(r.id, 'ret', LINEAR, BOOSTER, valoresEntregaTudo, r.cartuchos_duplicados)
       ) +
       '<div class="field"><label>Assinatura da doutora (fechamento)</label><canvas class="sig-canvas" id="sig-fechamento-' + r.id + '" style="width:100%;height:140px;background:#fff;border:1.5px dashed var(--line);border-radius:4px;"></canvas>' +
         '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" id="btn-limpar-sig2-' + r.id + '">Limpar assinatura</button>' +
@@ -810,8 +940,8 @@ function abrirPainelRetirada(r){
       '<button class="btn btn-primary btn-block" id="btn-confirmar-retirada-' + r.id + '">Confirmar retirada</button>' +
     '</div>';
 
-  const pad = initSignaturePad('sig-fechamento-' + r.id);
-  document.getElementById('btn-limpar-sig2-' + r.id).addEventListener('click', function(){ pad.clear(); });
+  wireCartPhotoInputs(panel);
+  const pad = initSignaturePad('sig-fechamento-' + r.id);  document.getElementById('btn-limpar-sig2-' + r.id).addEventListener('click', function(){ pad.clear(); });
 
   document.getElementById('btn-confirmar-retirada-' + r.id).addEventListener('click', async function(){
     const errEl = document.getElementById('err-retirada-' + r.id);
@@ -820,18 +950,23 @@ function abrirPainelRetirada(r){
 
     let cartuchos = r.cartuchos || {linear:[], booster:[]};
     let manta = r.manta || {entrega:{}, retorno:{}};
+    const leituras = [];
 
     if(isCrio){
       const qtd = parseInt(document.getElementById('manta-retirada-' + r.id).value, 10) || 0;
       manta = { entrega: manta.entrega || {}, retorno: { quantidade: qtd, ts: new Date().toISOString() } };
+      leituras.push('Manta retirada: ' + qtd + ' (entregue: ' + mantaEntregaQtd + ')');
     } else {
       const retiradaLinear = {};
       const retiradaBooster = {};
       panel.querySelectorAll('.cart-input').forEach(function(inp){
         const key = inp.dataset.key;
         const val = parseInt(inp.value, 10) || 0;
-        const isBooster = BOOSTER.some(function(b){ return b.key === key; });
+        const isBooster = BOOSTER.some(function(b){ return b.key === baseCartKey(key); });
         if(isBooster) retiradaBooster[key] = val; else retiradaLinear[key] = val;
+        const base = valoresEntregaTudo[key];
+        const diff = (base != null) ? (base - val) : null;
+        leituras.push(inp.dataset.label + ': ' + val + (diff != null ? ' (usados: ' + diff + ')' : ''));
       });
       const entregaEntry = cartuchos.linear && cartuchos.linear[0] ? cartuchos.linear[0] : { valores: {} };
       const entregaEntryB = cartuchos.booster && cartuchos.booster[0] ? cartuchos.booster[0] : { valores: {} };
@@ -844,10 +979,15 @@ function abrirPainelRetirada(r){
     const btn = document.getElementById('btn-confirmar-retirada-' + r.id);
     btn.disabled = true; btn.textContent = 'Salvando...';
 
+    const assinaturaUrl = pad.toDataURL();
+    let pdfUrl = null;
+    try{ pdfUrl = gerarPDFControle(r, 'fechamento', assinaturaUrl, leituras); }catch(e){}
+
     const result = await sb.from('controles_insumos').update({
       cartuchos: cartuchos,
       manta: manta,
-      assinatura_fechamento_url: pad.toDataURL(),
+      assinatura_fechamento_url: assinaturaUrl,
+      pdf_fechamento_url: pdfUrl,
       status: 'retirado',
       retirado_em: new Date().toISOString()
     }).eq('id', r.id);
