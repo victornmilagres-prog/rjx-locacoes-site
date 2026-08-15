@@ -239,7 +239,7 @@ async function boot(){
 function moduleList(){
   const papel = currentUsuario.papel;
   const mods = [];
-  mods.push({ id:'gerencial', label:'Gerencial', enabled: papel === 'gerencial' });
+      mods.push({ id:'gerencial', label:'Gerencial', enabled: true });
   mods.push({ id:'comercial', label:'Comercial', enabled: papel === 'comercial' || papel === 'gerencial' });
   mods.push({ id:'transportes', label:'Transportes', enabled: papel === 'transportes' || papel === 'gerencial' });
   mods.push({ id:'financeiro', label:'Financeiro', enabled:false, soon:true });
