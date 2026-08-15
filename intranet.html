@@ -15,7 +15,9 @@
   --ink:#17130f; --ink-soft:#362f29; --gray:#5c554e; --gray-soft:#8a8377;
   --wine:#7a1220; --wine-dark:#591019; --wine-bright:#b81f2b; --gold:#a9813f;
   --ok:#3f6b52; --ok-bg:#eaf1ec; --alert:#8a2e1f; --alert-bg:#f6e6e0;
+  --wait:#8a5a12; --wait-bg:#f7ecd9; --info:#2c4a66; --info-bg:#e9eef3;
   --radius:3px;
+  --dark:#17130f;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;background:#dedcc8;font-family:'Source Sans 3',-apple-system,sans-serif;color:var(--ink);min-height:100vh;}
@@ -35,39 +37,82 @@ html,body{margin:0;background:#dedcc8;font-family:'Source Sans 3',-apple-system,
 .login-box p.hint{font-size:13px;color:var(--gray);margin:0 0 18px;text-align:center;}
 .field{margin-bottom:16px;}
 .field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;}
-.field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;font-size:14px;font-family:inherit;}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;font-size:14px;font-family:inherit;}
+.field textarea{resize:vertical;}
 .btn{display:inline-block;padding:11px 18px;border-radius:var(--radius);font-size:14px;font-weight:700;cursor:pointer;border:1px solid var(--wine);text-align:center;background:var(--paper);color:var(--wine);}
 .btn-primary{background:var(--wine);color:#fff;border-color:var(--wine);}
 .btn-primary:disabled{opacity:.6;cursor:default;}
 .btn-outline{background:transparent;color:var(--wine);}
 .btn-block{width:100%;}
+.btn-sm{padding:8px 14px;font-size:12.5px;}
+.btn-ghost{background:transparent;border-color:var(--line);color:var(--gray);}
+.btn-ghost:disabled{opacity:.35;cursor:default;}
 .login-error{background:var(--alert-bg);color:var(--alert);border-radius:var(--radius);padding:9px 12px;font-size:13px;margin-bottom:14px;}
 .login-success{background:var(--ok-bg);color:var(--ok);border-radius:var(--radius);padding:9px 12px;font-size:13px;margin-bottom:14px;}
 
-.screen{max-width:1000px;margin:0 auto;padding:28px 20px 60px;}
-h1{font-family:'Fraunces',Georgia,serif;font-size:25px;margin:0 0 4px;font-weight:600;}
-.sub{color:var(--gray);font-size:14px;margin:0 0 22px;}
+/* ===== shell with sidebar ===== */
+.shell{display:grid;grid-template-columns:240px 1fr;min-height:calc(100vh - 56px);}
+.sidebar{background:var(--dark);color:#cfc9bd;padding:20px 0;}
+.nav-label{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#7d766b;padding:0 22px;margin:14px 0 6px;}.mod-link{display:flex;align-items:center;gap:10px;padding:11px 22px;font-size:14px;font-weight:600;color:#cfc9bd;cursor:pointer;border-left:3px solid transparent;}
+.mod-link:hover{background:rgba(255,255,255,.05);}
+.mod-link.active{background:rgba(122,18,32,.28);border-left-color:var(--wine-bright);color:#fff;}
+.mod-link.soon{color:#6f695f;cursor:default;}
+.mod-link .tag{margin-left:auto;font-size:10px;color:#6f695f;}
+.main{padding:0;overflow:auto;}
+.pagehead{background:var(--paper);border-bottom:1px solid var(--line);padding:22px 32px;}
+.pagehead .crumb{font-size:12px;color:var(--gray-soft);}
+.pagehead h1{font-family:'Fraunces',Georgia,serif;font-size:23px;margin:4px 0 0;font-weight:600;}
+.pagehead .sub{font-size:13px;color:var(--gray);margin-top:3px;}
+.subnav{background:var(--paper);border-bottom:1px solid var(--line);padding:0 32px;display:flex;gap:4px;}
+.subtab{font-weight:700;font-size:13px;color:var(--gray);background:none;border:none;padding:13px 14px;cursor:pointer;border-bottom:3px solid transparent;font-family:inherit;}
+.subtab.active{color:var(--wine);border-bottom-color:var(--wine);}
+.content{padding:28px 32px 60px;max-width:920px;}
+
 .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);}
-.form-card{padding:20px;margin-bottom:26px;}
-.form-card h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--wine);margin:0 0 16px;}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-.list-title{font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--gray);margin-bottom:10px;font-weight:700;}
-table{width:100%;border-collapse:collapse;}
-th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);}
-td{padding:12px 14px;border-bottom:1px solid var(--line);font-size:14px;}
-tr:last-child td{border-bottom:none;}
-.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
-.badge-comercial{background:#f1e6d6;color:#8a5a1f;}
-.badge-transportes{background:#dbe6f1;color:#28517d;}
-.badge-operacional{background:#e3ecd9;color:#4b6b2f;}
-.badge-financeiro{background:#e6dcf1;color:#5a3b8a;}
-.badge-gerencial{background:#f0dbe0;color:var(--wine);}
-.badge-ativo{background:var(--ok-bg);color:var(--ok);}
-.badge-inativo{background:var(--paper-soft);color:var(--gray-soft);}
-.row-actions a{font-size:12.5px;color:var(--wine);font-weight:700;text-decoration:none;}
-.placeholder-screen{max-width:600px;margin:60px auto;text-align:center;padding:0 20px;}
-.placeholder-screen h1{margin-bottom:10px;}
-@media (max-width: 600px){ .grid2{grid-template-columns:1fr;} }
+.form-card{padding:26px;margin-bottom:24px;}
+.form-card h3{font-size:16px;margin:0 0 4px;font-family:'Fraunces',Georgia,serif;font-weight:600;}
+.form-card .cardsub{font-size:13px;color:var(--gray);margin:0 0 18px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.list-title{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--gray);margin:0 0 12px;font-weight:700;}
+
+.status-pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:100px;white-space:nowrap;}
+.status-pill .dot{width:6px;height:6px;border-radius:50%;}
+.status-wait{background:var(--wait-bg);color:var(--wait);} .status-wait .dot{background:var(--wait);}
+.status-info{background:var(--info-bg);color:var(--info);} .status-info .dot{background:var(--info);}
+.status-ok{background:var(--ok-bg);color:var(--ok);} .status-ok .dot{background:var(--ok);}
+
+.loc-card{padding:16px 20px;margin-bottom:12px;}
+.loc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;}
+.loc-eq{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--wine);}
+.loc-name{font-size:16px;margin-top:3px;font-weight:600;}
+.loc-meta{color:var(--gray);font-size:13px;margin-top:5px;}
+.loc-actions{margin-top:12px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;}
+.insumo-row{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line);}
+.insumo-row:last-child{border-bottom:none;}
+.insumo-row input[type=text]{flex:1;}
+.insumo-row input[type=number]{width:80px;}
+.insumo-remove{color:var(--wine);font-size:12.5px;font-weight:700;cursor:pointer;background:none;border:none;white-space:nowrap;}
+.add-row{display:flex;gap:8px;margin-top:10px;}
+
+.job-card{padding:14px 18px;margin-bottom:12px;display:flex;gap:14px;align-items:center;}
+.job-time{flex:none;width:60px;text-align:center;}
+.job-time b{font-family:'Fraunces',Georgia,serif;font-size:17px;display:block;}
+.job-time span{font-size:10px;color:var(--gray-soft);text-transform:uppercase;}
+.job-body{flex:1;}
+.job-body h4{font-size:15px;margin:0 0 3px;}
+.job-eq{font-size:11px;color:var(--wine);font-weight:700;text-transform:uppercase;}
+.job-flags{display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex:none;}
+
+.notice-box{display:flex;gap:12px;align-items:flex-start;background:var(--alert-bg);border-left:4px solid var(--wine-bright);padding:14px 16px;border-radius:var(--radius);margin-bottom:18px;font-size:13px;color:var(--alert);}
+.empty-hint{color:var(--gray);font-size:13.5px;padding:20px;text-align:center;}
+.placeholder-screen{max-width:600px;margin:60px auto;text-align:center;padding:0 20px;}.placeholder-screen h1{margin-bottom:10px;}
+
+@media (max-width:860px){
+  .shell{grid-template-columns:1fr;}
+  .sidebar{display:flex;overflow-x:auto;padding:10px;}
+  .nav-label{display:none;}
+  .grid2{grid-template-columns:1fr;}
+}
 </style>
 </head>
 <body>
@@ -78,10 +123,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_c7qXlRlBbV7RQj08ULjamA_Jwe5bsYG';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const app = document.getElementById('app');
 let currentUsuario = null;
-
-const SITE_HEADER = '<header class="site-header"><div class="container"><a href="index.html" class="logo"><img src="assets/logo-black.png" alt="Rjx Loca\u00e7\u00f5es"></a><nav class="nav-links"><a href="index.html">In\u00edcio</a><a href="equipamentos.html">Equipamentos</a><a href="seja-cliente.html">Seja Cliente</a><a href="reclamacao-sugestao.html">Reclama\u00e7\u00f5es/Sugest\u00f5es</a><a href="contato.html">Contato</a></nav><div class="nav-cta"><a href="intranet.html" class="btn btn-ghost active">\u00c1rea do Colaborador</a><a href="area-cliente.html" class="btn btn-ghost">\u00c1rea do Cliente</a><a href="faca-sua-locacao.html" class="btn btn-primary">Fa\u00e7a sua Loca\u00e7\u00e3o</a></div><button class="nav-toggle" aria-label="Abrir menu"><span></span><span></span><span></span></button></div></header>';
-
-const SITE_FOOTER = '<footer class="site-footer"><div class="container"><div class="footer-grid"><div><div class="footer-logo"><img src="assets/logo-white.png" alt="Rjx Loca\u00e7\u00f5es"></div><p>Loca\u00e7\u00e3o de equipamentos est\u00e9ticos de alta tecnologia para cl\u00ednicas de Niter\u00f3i, Rio de Janeiro e Regi\u00e3o Metropolitana.</p></div><div><h4>Navega\u00e7\u00e3o</h4><a href="index.html">In\u00edcio</a><br><a href="equipamentos.html">Equipamentos</a><br><a href="seja-cliente.html">Seja Cliente</a><br><a href="faca-sua-locacao.html">Fa\u00e7a sua Loca\u00e7\u00e3o</a><br><a href="reclamacao-sugestao.html">Reclama\u00e7\u00e3o/Sugest\u00e3o</a></div><div><h4>Equipamentos</h4><a href="equipamentos/criolipolise.html">Criolip\u00f3lise Criodermis 2.0</a><br><a href="equipamentos/endolaser.html">Endolaser Pioon 1470</a><br><a href="equipamentos/lavieen.html">Lavieen</a><br><a href="equipamentos/ultraformer.html">Ultraformer MPT</a></div><div><h4>Contato</h4><p>Rua Mem de S\u00e1, 19, Icara\u00ed<br>sala 810 \u00b7 Niter\u00f3i/RJ \u00b7 CEP 24220-260</p><p><a href="tel:+5521976078440">(21) 97607-8440</a></p><p><a href="mailto:comercial@rjxlocacoes.com.br">comercial@rjxlocacoes.com.br</a></p></div></div><div class="footer-legal"><span>RJX Baiense Loca\u00e7\u00f5es de Equipamentos LTDA \u00b7 CNPJ 51.797.671/0001-66 \u00b7 AFE 8.34727-6</span><span><a href="politica-de-privacidade.html" style="color:#b3aa9d;">Pol\u00edtica de Privacidade</a> \u00b7 <a href="termos-de-uso.html" style="color:#b3aa9d;">Termos de Uso</a></span><span>\u00a9 2026 Rjx Loca\u00e7\u00f5es. Todos os direitos reservados.</span></div></div></footer>';
+let motoristasCache = null;
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -91,35 +133,25 @@ function papelLabel(p){
   return {gerencial:'Gerencial',comercial:'Comercial',transportes:'Transportes',operacional:'Operacional',financeiro:'Financeiro'}[p] || p;
 }
 
+const EQUIPAMENTO_LABEL = { criodermis: 'Criodermis', ultraformer_mpt: 'Ultraformer MPT' };
+const STATUS_LABEL = {
+  aguardando_entrega: { text: 'Aguardando entrega', cls: 'status-wait' },
+  entregue: { text: 'Insumos entregues', cls: 'status-info' },
+  retirado: { text: 'Insumos retirados', cls: 'status-ok' }
+};
+
+/* ================= LOGIN ================= */
 function screenLogin(errorMsg){
-  app.innerHTML = SITE_HEADER +
-    '<section class="page-hero"><div class="container">' +
-      '<div class="breadcrumb"><a href="index.html">In\u00edcio</a> / \u00c1rea do Colaborador</div>' +
-      '<span class="eyebrow">Acesso restrito</span>' +
-      '<h1 class="mt-16">\u00c1rea do Colaborador</h1>' +
-      '<p>Entre com seu e-mail cadastrado para acessar as ferramentas do seu setor.</p>' +
-    '</div></section>' +
-    '<section><div class="container" style="max-width:400px;">' +
-      '<div class="form-card shard-tl">' +
-        (errorMsg ? '<p style="color:#8a2e1f;background:#f6e6e0;padding:10px 12px;border-radius:4px;font-size:13px;margin:0 0 16px;">' + escapeHtml(errorMsg) + '</p>' : '') +
-        '<div class="field"><label for="f-email">E-mail</label><input type="email" id="f-email" placeholder="seuemail@rjxlocacoes.com.br"></div>' +
-        '<div class="field"><label for="f-senha">Senha</label><input type="password" id="f-senha" placeholder="********"></div>' +
-        '<button class="btn btn-primary btn-block" id="btn-entrar">Entrar</button>' +
-        '<p style="text-align:center;font-size:12px;color:var(--gray-soft);margin-top:16px;">Esqueceu a senha? Fale com o Gerencial.</p>' +
-      '</div>' +
-    '</div></section>' +
-    '<section><div class="container" style="text-align:center;">' +
-      '<span class="eyebrow">O que tem aqui dentro</span>' +
-      '<h2 class="mt-16" style="font-size:26px;">M\u00f3dulos da Intranet</h2>' +
-      '<ul class="check-list mt-24" style="display:inline-block; text-align:left;">' +
-        '<li><b>Comercial</b></li>' +
-        '<li><b>Transportes</b></li>' +
-        '<li><b>Operacional</b> <span style="color:var(--gray-soft);font-size:12.5px;">(em breve)</span></li>' +
-        '<li><b>Financeiro</b> <span style="color:var(--gray-soft);font-size:12.5px;">(em breve)</span></li>' +
-        '<li><b>Gerencial</b></li>' +
-      '</ul>' +
-    '</div></section>' +
-    SITE_FOOTER;
+  app.innerHTML =
+    '<div class="login-wrap"><div class="login-box">' +
+      '<div class="brand"><div class="rjx">RJX</div><div class="tag">Intranet</div></div>' +
+      '<p class="hint">Entre com seu e-mail cadastrado.</p>' +
+      (errorMsg ? '<div class="login-error">' + escapeHtml(errorMsg) + '</div>' : '') +
+      '<div class="field"><label for="f-email">E-mail</label><input type="email" id="f-email" placeholder="seuemail@rjxlocacoes.com.br"></div>' +
+      '<div class="field"><label for="f-senha">Senha</label><input type="password" id="f-senha" placeholder="********"></div>' +
+      '<button class="btn btn-primary btn-block" id="btn-entrar">Entrar</button>' +
+      '<p style="text-align:center;font-size:12px;color:var(--gray-soft);margin-top:16px;">Esqueceu a senha? Fale com o Gerencial.</p>' +
+    '</div></div>';
   document.getElementById('btn-entrar').addEventListener('click', doLogin);
   document.getElementById('f-senha').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
   document.getElementById('f-email').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
@@ -137,31 +169,23 @@ async function doLogin(){
 }
 
 function screenSetPassword(){
-  app.innerHTML = SITE_HEADER +
-    '<section class="page-hero"><div class="container">' +
-      '<div class="breadcrumb"><a href="index.html">In\u00edcio</a> / \u00c1rea do Colaborador</div>' +
-      '<span class="eyebrow">Primeiro acesso</span>' +
-      '<h1 class="mt-16">Defina sua senha</h1>' +
-      '<p>Essa \u00e9 a primeira vez que voc\u00ea acessa. Crie uma senha para continuar.</p>' +
-    '</div></section>' +
-    '<section><div class="container" style="max-width:400px;">' +
-      '<div class="form-card shard-tl">' +
-        '<div id="set-pw-error" style="display:none;color:#8a2e1f;background:#f6e6e0;padding:10px 12px;border-radius:4px;font-size:13px;margin:0 0 16px;"></div>' +
-        '<div class="field"><label for="f-nova-senha">Nova senha</label><input type="password" id="f-nova-senha" placeholder="M\u00ednimo 6 caracteres"></div>' +
-        '<div class="field"><label for="f-conf-senha">Confirmar senha</label><input type="password" id="f-conf-senha" placeholder="Repita a senha"></div>' +
-        '<button class="btn btn-primary btn-block" id="btn-definir">Definir senha e entrar</button>' +
-      '</div>' +
-    '</div></section>' +
-    SITE_FOOTER;
+  app.innerHTML =
+    '<div class="login-wrap"><div class="login-box">' +
+      '<div class="brand"><div class="rjx">RJX</div><div class="tag">Intranet</div></div>' +
+      '<p class="hint">Primeiro acesso. Crie uma senha para continuar.</p>' +
+      '<div id="set-pw-error" class="login-error" style="display:none;"></div>' +
+      '<div class="field"><label for="f-nova-senha">Nova senha</label><input type="password" id="f-nova-senha" placeholder="Mínimo 6 caracteres"></div>' +
+      '<div class="field"><label for="f-conf-senha">Confirmar senha</label><input type="password" id="f-conf-senha" placeholder="Repita a senha"></div>' +
+      '<button class="btn btn-primary btn-block" id="btn-definir">Definir senha e entrar</button>' +
+    '</div></div>';
   document.getElementById('btn-definir').addEventListener('click', doSetPassword);
 }
 
 async function doSetPassword(){
   const p1 = document.getElementById('f-nova-senha').value;
-  const p2 = document.getElementById('f-conf-senha').value;
-  const errEl = document.getElementById('set-pw-error');
+  const p2 = document.getElementById('f-conf-senha').value;  const errEl = document.getElementById('set-pw-error');
   if(p1.length < 6){ errEl.textContent='A senha precisa ter pelo menos 6 caracteres.'; errEl.style.display='block'; return; }
-  if(p1 !== p2){ errEl.textContent='As senhas n&atilde;o coincidem.'; errEl.style.display='block'; return; }
+  if(p1 !== p2){ errEl.textContent='As senhas não coincidem.'; errEl.style.display='block'; return; }
   const btn = document.getElementById('btn-definir');
   btn.disabled = true; btn.textContent = 'Salvando...';
   const result = await sb.auth.updateUser({ password: p1 });
@@ -170,56 +194,107 @@ async function doSetPassword(){
   await boot();
 }
 
+/* ================= BOOT ================= */
 async function boot(){
   const hash = window.location.hash || '';
   const isRecoveryLink = hash.indexOf('type=invite') !== -1 || hash.indexOf('type=recovery') !== -1;
-
   const sessionResult = await sb.auth.getSession();
   const session = sessionResult.data.session;
-
   if(!session){ screenLogin(); return; }
-
   if(isRecoveryLink){ screenSetPassword(); return; }
 
   const rowsResult = await sb.from('usuarios').select('*').eq('id', session.user.id);
   if(rowsResult.error || !rowsResult.data || !rowsResult.data.length){
-    app.innerHTML = '<div class="login-wrap"><div class="login-box"><p>Seu usu&aacute;rio ainda n&atilde;o foi cadastrado na intranet. Fale com o Gerencial.</p><button class="btn btn-outline btn-block" id="btn-sair">Sair</button></div></div>';
+    app.innerHTML = '<div class="login-wrap"><div class="login-box"><p>Seu usuário ainda não foi cadastrado na intranet. Fale com o Gerencial.</p><button class="btn btn-outline btn-block" id="btn-sair">Sair</button></div></div>';
     document.getElementById('btn-sair').addEventListener('click', async function(){ await sb.auth.signOut(); screenLogin(); });
     return;
   }
   currentUsuario = rowsResult.data[0];
   if(!currentUsuario.ativo){
-    app.innerHTML = '<div class="login-wrap"><div class="login-box"><p>Sua conta est&aacute; desativada. Fale com o Gerencial.</p><button class="btn btn-outline btn-block" id="btn-sair">Sair</button></div></div>';
+    app.innerHTML = '<div class="login-wrap"><div class="login-box"><p>Sua conta está desativada. Fale com o Gerencial.</p><button class="btn btn-outline btn-block" id="btn-sair">Sair</button></div></div>';
     document.getElementById('btn-sair').addEventListener('click', async function(){ await sb.auth.signOut(); screenLogin(); });
     return;
   }
   renderShell();
 }
 
+/* ================= SHELL / SIDEBAR ================= */
+function moduleList(){
+  const papel = currentUsuario.papel;
+  const mods = [];
+  mods.push({ id:'gerencial', label:'Gerencial', enabled: papel === 'gerencial' });
+  mods.push({ id:'comercial', label:'Comercial', enabled: papel === 'comercial' || papel === 'gerencial' });
+  mods.push({ id:'transportes', label:'Transportes', enabled: papel === 'transportes' || papel === 'gerencial' });
+  mods.push({ id:'financeiro', label:'Financeiro', enabled:false, soon:true });
+  mods.push({ id:'operacional', label:'Operacional', enabled:false, soon:true });
+  mods.push({ id:'cadastros', label:'Cadastros', enabled:false, soon:true });
+  return mods;
+}
+
 function renderShell(){
+  const mods = moduleList();
+  const firstEnabled = mods.find(m => m.enabled);
+
   app.innerHTML =
     '<div class="topbar">' +
       '<div class="logo">RJX <span>Intranet</span></div>' +
       '<div class="topbar-user">' + escapeHtml(currentUsuario.nome) + ' &middot; ' + papelLabel(currentUsuario.papel) + ' <button id="btn-logout" class="btn-logout">Sair</button></div>' +
     '</div>' +
-    '<div id="main-area"></div>';
+    '<div class="shell">' +
+      '<div class="sidebar" id="sidebar">' +
+        '<div class="nav-label">Módulos</div>' +
+      '</div>' +
+      '<div class="main" id="main-area"></div>' +
+    '</div>';
+
   document.getElementById('btn-logout').addEventListener('click', async function(){ await sb.auth.signOut(); location.reload(); });
 
-  const mainArea = document.getElementById('main-area');
-  if(currentUsuario.papel === 'gerencial'){
-    renderGerencial(mainArea);
-  } else {
-    mainArea.innerHTML = '<div class="placeholder-screen"><h1>Bem-vindo, ' + escapeHtml(currentUsuario.nome.split(' ')[0]) + '</h1><p>O m&oacute;dulo <b>' + papelLabel(currentUsuario.papel) + '</b> ainda est&aacute; em constru&ccedil;&atilde;o.</p></div>';
-  }
+  const sidebar = document.getElementById('sidebar');
+  mods.forEach(function(m){
+    const el = document.createElement('div');
+    if(m.enabled){
+      el.className = 'mod-link';
+      el.textContent = m.label;
+      el.dataset.mod = m.id;
+      el.addEventListener('click', function(){ selectModule(m.id); });
+    } else {
+      el.className = 'mod-link soon';      el.innerHTML = escapeHtml(m.label) + (m.soon ? ' <span class="tag">em breve</span>' : '');
+    }
+    sidebar.appendChild(el);
+  });
+
+  if(firstEnabled){ selectModule(firstEnabled.id); }
 }
 
+function selectModule(modId){
+  document.querySelectorAll('.mod-link[data-mod]').forEach(function(l){ l.classList.toggle('active', l.dataset.mod === modId); });
+  const mainArea = document.getElementById('main-area');
+  if(modId === 'gerencial'){ renderGerencial(mainArea); }
+  else if(modId === 'comercial'){ renderComercial(mainArea); }
+  else if(modId === 'transportes'){ renderTransportes(mainArea); }
+}
+
+/* ================= API HELPER (usuarios via serverless) ================= */
+async function apiCall(method, body){
+  const sessionResult = await sb.auth.getSession();
+  const session = sessionResult.data.session;
+  const resp = await fetch('/api/intranet-usuarios', {
+    method: method,
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await resp.json().catch(function(){ return {}; });
+  if(!resp.ok){ throw new Error(data.error || 'Erro na requisição.'); }
+  return data;
+}
+
+/* ================= GERENCIAL ================= */
 async function renderGerencial(container){
   container.innerHTML =
-    '<div class="screen">' +
-      '<h1>Usu&aacute;rios</h1>' +
-      '<p class="sub">Cadastro de colaboradores e defini&ccedil;&atilde;o de pap&eacute;is de acesso.</p>' +
+    '<div class="pagehead"><div class="crumb">Intranet / <b>Gerencial</b></div><h1>Gerencial</h1><div class="sub">Cadastro de colaboradores e papéis de acesso.</div></div>' +
+    '<div class="content">' +
       '<div class="card form-card">' +
-        '<h3>Novo usu&aacute;rio</h3>' +
+        '<h3>Novo usuário</h3>' +
         '<div class="grid2">' +
           '<div class="field"><label>Nome completo</label><input id="nu-nome" placeholder="Ex: Carlos Eduardo"></div>' +
           '<div class="field"><label>E-mail</label><input id="nu-email" type="email" placeholder="carlos@rjxlocacoes.com.br"></div>' +
@@ -235,29 +310,13 @@ async function renderGerencial(container){
         '</div>' +
         '<div id="nu-error" class="login-error" style="display:none;"></div>' +
         '<div id="nu-success" class="login-success" style="display:none;"></div>' +
-        '<button class="btn btn-primary" id="btn-criar-usuario">Convidar usu&aacute;rio</button>' +
+        '<button class="btn btn-primary" id="btn-criar-usuario">Convidar usuário</button>' +
       '</div>' +
-      '<h3 class="list-title">Usu&aacute;rios cadastrados</h3>' +
-      '<div class="card" id="tabela-usuarios"><p class="sub" style="padding:16px;">Carregando...</p></div>' +
+      '<div class="list-title">Usuários cadastrados</div>' +
+      '<div class="card" id="tabela-usuarios"><p class="empty-hint">Carregando...</p></div>' +
     '</div>';
   document.getElementById('btn-criar-usuario').addEventListener('click', criarUsuario);
   await carregarUsuarios();
-}
-
-async function apiCall(method, body){
-  const sessionResult = await sb.auth.getSession();
-  const session = sessionResult.data.session;
-  const resp = await fetch('/api/intranet-usuarios', {
-    method: method,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + session.access_token
-    },
-    body: body ? JSON.stringify(body) : undefined
-  });
-  const data = await resp.json().catch(function(){ return {}; });
-  if(!resp.ok){ throw new Error(data.error || 'Erro na requisi&ccedil;&atilde;o.'.replace('&ccedil;','c').replace('&atilde;','a')); }
-  return data;
 }
 
 async function carregarUsuarios(){
@@ -265,37 +324,29 @@ async function carregarUsuarios(){
   try{
     const data = await apiCall('GET');
     const usuarios = data.usuarios || [];
-    if(!usuarios.length){
-      tabela.innerHTML = '<p class="sub" style="padding:16px;">Nenhum usu&aacute;rio cadastrado ainda.</p>';
-      return;
-    }
+    if(!usuarios.length){ tabela.innerHTML = '<p class="empty-hint">Nenhum usuário cadastrado ainda.</p>'; return; }
     let rowsHtml = '';
     usuarios.forEach(function(u){
       rowsHtml += '<tr data-id="' + u.id + '">' +
-        '<td>' + escapeHtml(u.nome) + '</td>' +
-        '<td>' + escapeHtml(u.email) + '</td>' +
-        '<td><span class="badge badge-' + u.papel + '">' + papelLabel(u.papel) + '</span></td>' +
-        '<td><span class="badge ' + (u.ativo ? 'badge-ativo' : 'badge-inativo') + '">' + (u.ativo ? 'Ativo' : 'Inativo') + '</span></td>' +
-        '<td class="row-actions"><a href="#" class="act-toggle" data-id="' + u.id + '" data-ativo="' + u.ativo + '">' + (u.ativo ? 'Desativar' : 'Reativar') + '</a></td>' +
+        '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + escapeHtml(u.nome) + '</td>' +
+        '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + escapeHtml(u.email) + '</td>' +
+        '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + papelLabel(u.papel) + '</td>' +
+        '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + (u.ativo ? 'Ativo' : 'Inativo') + '</td>' +        '<td style="padding:10px 14px;border-bottom:1px solid var(--line);"><a href="#" class="act-toggle" data-id="' + u.id + '" data-ativo="' + u.ativo + '" style="color:var(--wine);font-weight:700;font-size:12.5px;">' + (u.ativo ? 'Desativar' : 'Reativar') + '</a></td>' +
       '</tr>';
     });
-    tabela.innerHTML = '<table><thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Status</th><th></th></tr></thead><tbody>' + rowsHtml + '</tbody></table>';
+    tabela.innerHTML = '<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Nome</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">E-mail</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Papel</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Status</th><th></th></tr></thead><tbody>' + rowsHtml + '</tbody></table>';
     tabela.querySelectorAll('.act-toggle').forEach(function(a){
       a.addEventListener('click', async function(e){
         e.preventDefault();
         const id = a.dataset.id;
         const ativoAtual = a.dataset.ativo === 'true';
         a.textContent = '...';
-        try{
-          await apiCall('PATCH', { id: id, ativo: !ativoAtual });
-          await carregarUsuarios();
-        }catch(err){
-          alert('Erro: ' + err.message);
-        }
+        try{ await apiCall('PATCH', { id: id, ativo: !ativoAtual }); await carregarUsuarios(); }
+        catch(err){ alert('Erro: ' + err.message); }
       });
     });
   }catch(err){
-    tabela.innerHTML = '<p class="sub" style="padding:16px;">Erro ao carregar: ' + escapeHtml(err.message) + '</p>';
+    tabela.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(err.message) + '</p>';
   }
 }
 
@@ -322,6 +373,245 @@ async function criarUsuario(){
   }finally{
     btn.disabled = false; btn.textContent = 'Convidar usuário';
   }
+}
+
+/* ================= COMERCIAL — Controle de Insumos ================= */
+async function getMotoristas(){
+  if(motoristasCache) return motoristasCache;
+  const result = await sb.from('usuarios').select('id,nome').eq('papel','transportes').eq('ativo', true).order('nome');
+  motoristasCache = result.data || [];
+  return motoristasCache;
+}
+
+async function renderComercial(container){
+  container.innerHTML =
+    '<div class="pagehead"><div class="crumb">Intranet / <b>Comercial</b></div><h1>Comercial</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Comercial</div></div>' +
+    '<div class="subnav"><button class="subtab active">Controle de Insumos</button></div>' +
+    '<div class="content" id="comercial-content"><p class="empty-hint">Carregando...</p></div>';
+
+  const motoristas = await getMotoristas();
+  const content = document.getElementById('comercial-content');
+
+  let motoristaOptions = motoristas.map(function(m){ return '<option value="' + m.id + '">' + escapeHtml(m.nome) + '</option>'; }).join('');
+  if(!motoristas.length){ motoristaOptions = '<option value="">Nenhum motorista cadastrado</option>'; }
+
+  content.innerHTML =
+    '<div class="card form-card">' +
+      '<h3>Novo controle de insumos</h3>' +      '<p class="cardsub">Vinculado a uma locação de Criodermis ou Ultraformer MPT.</p>' +
+      '<div class="grid2">' +
+        '<div class="field"><label>Referência da locação</label><input id="ci-locacao-ref" placeholder="Ex: #4521 ou nome do contrato"></div>' +
+        '<div class="field"><label>Cliente / Doutora</label><input id="ci-cliente" placeholder="Ex: Dra. Camila Ferreira"></div>' +
+      '</div>' +
+      '<div class="field"><label>Equipamento</label><select id="ci-equipamento"><option value="criodermis">Criodermis</option><option value="ultraformer_mpt">Ultraformer MPT</option></select></div>' +
+      '<div class="grid2">' +
+        '<div class="field"><label>Motorista — entrega</label><select id="ci-motorista-entrega">' + motoristaOptions + '</select></div>' +
+        '<div class="field"><label>Motorista — retirada</label><select id="ci-motorista-retirada">' + motoristaOptions + '</select></div>' +
+      '</div>' +
+      '<div class="field"><label>Contrato já assinado online?</label><select id="ci-assinado"><option value="false">Não — motorista precisa buscar assinatura</option><option value="true">Sim, assinado online</option></select></div>' +
+      '<div class="field">' +
+        '<label>Insumos desta locação</label>' +
+        '<div id="ci-insumos-list"></div>' +
+        '<div class="add-row"><button class="btn btn-ghost btn-sm" id="btn-add-insumo" type="button">+ Adicionar insumo</button></div>' +
+      '</div>' +
+      '<div class="field"><label>Observação para o transportador (opcional)</label><textarea id="ci-observacao" rows="2"></textarea></div>' +
+      '<div id="ci-error" class="login-error" style="display:none;"></div>' +
+      '<div id="ci-success" class="login-success" style="display:none;"></div>' +
+      '<button class="btn btn-primary" id="btn-criar-controle">Criar controle e enviar para Transportes</button>' +
+    '</div>' +
+    '<div class="list-title">Controles ativos</div>' +
+    '<div id="ci-lista"><p class="empty-hint">Carregando...</p></div>';
+
+  addInsumoRow();
+  document.getElementById('btn-add-insumo').addEventListener('click', function(){ addInsumoRow(); });
+  document.getElementById('btn-criar-controle').addEventListener('click', criarControleInsumo);
+
+  await carregarControlesComercial();
+}
+
+function addInsumoRow(nome, qtd){
+  const list = document.getElementById('ci-insumos-list');
+  const row = document.createElement('div');
+  row.className = 'insumo-row';
+  row.innerHTML =
+    '<input type="text" class="ci-insumo-nome" placeholder="Ex: Ponteira MPT 4.0mm" value="' + (nome ? escapeHtml(nome) : '') + '">' +
+    '<input type="number" class="ci-insumo-qtd" min="1" value="' + (qtd || 1) + '">' +
+    '<button type="button" class="insumo-remove">Remover</button>';
+  row.querySelector('.insumo-remove').addEventListener('click', function(){ row.remove(); });
+  list.appendChild(row);
+}
+
+async function criarControleInsumo(){
+  const locacaoRef = document.getElementById('ci-locacao-ref').value.trim();
+  const cliente = document.getElementById('ci-cliente').value.trim();
+  const equipamento = document.getElementById('ci-equipamento').value;
+  const motoristaEntrega = document.getElementById('ci-motorista-entrega').value;
+  const motoristaRetirada = document.getElementById('ci-motorista-retirada').value;
+  const assinado = document.getElementById('ci-assinado').value === 'true';
+  const observacao = document.getElementById('ci-observacao').value.trim();
+  const errEl = document.getElementById('ci-error');
+  const okEl = document.getElementById('ci-success');
+  errEl.style.display='none'; okEl.style.display='none';
+
+  if(!locacaoRef || !cliente || !motoristaEntrega || !motoristaRetirada){
+    errEl.textContent = 'Preencha referência da locação, cliente e os dois motoristas.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const insumos = [];
+  document.querySelectorAll('#ci-insumos-list .insumo-row').forEach(function(row){    const nome = row.querySelector('.ci-insumo-nome').value.trim();
+    const qtd = parseInt(row.querySelector('.ci-insumo-qtd').value, 10) || 1;
+    if(nome) insumos.push({ nome: nome, quantidade: qtd });
+  });
+
+  const btn = document.getElementById('btn-criar-controle');
+  btn.disabled = true; btn.textContent = 'Criando...';
+
+  const result = await sb.from('controles_insumos').insert({
+    locacao_ref: locacaoRef,
+    cliente_nome: cliente,
+    equipamento: equipamento,
+    motorista_entrega_id: motoristaEntrega,
+    motorista_retirada_id: motoristaRetirada,
+    contrato_assinado_online: assinado,
+    insumos: insumos,
+    observacao: observacao || null,
+    criado_por: currentUsuario.id
+  });
+
+  btn.disabled = false; btn.textContent = 'Criar controle e enviar para Transportes';
+
+  if(result.error){
+    errEl.textContent = 'Erro ao criar: ' + result.error.message;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  okEl.textContent = 'Controle criado e enviado para Transportes!';
+  okEl.style.display = 'block';
+  document.getElementById('ci-locacao-ref').value = '';
+  document.getElementById('ci-cliente').value = '';
+  document.getElementById('ci-observacao').value = '';
+  document.getElementById('ci-insumos-list').innerHTML = '';
+  addInsumoRow();
+  await carregarControlesComercial();
+}
+
+async function carregarControlesComercial(){
+  const lista = document.getElementById('ci-lista');
+  const result = await sb.from('controles_insumos').select('*').neq('status','fechado').order('criado_em', { ascending: false });
+  if(result.error){
+    lista.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>';
+    return;
+  }
+  const rows = result.data || [];
+  if(!rows.length){
+    lista.innerHTML = '<p class="empty-hint">Nenhum controle ativo no momento.</p>';
+    return;
+  }
+  const motoristas = await getMotoristas();
+  const nomeMotorista = function(id){ const m = motoristas.find(function(x){ return x.id === id; }); return m ? m.nome : '—'; };
+
+  let html = '';
+  rows.forEach(function(r){
+    const st = STATUS_LABEL[r.status] || { text: r.status, cls: 'status-wait' };
+    const podefechar = r.status === 'retirado';
+    html +=
+      '<div class="card loc-card">' +
+        '<div class="loc-top">' +
+          '<div>' +
+            '<div class="loc-eq">' + (EQUIPAMENTO_LABEL[r.equipamento] || r.equipamento) + '</div>' +
+            '<div class="loc-name">' + escapeHtml(r.cliente_nome) + ' — ' + escapeHtml(r.locacao_ref) + '</div>' +
+            '<div class="loc-meta">Entrega: ' + escapeHtml(nomeMotorista(r.motorista_entrega_id)) + ' &middot; Retirada: ' + escapeHtml(nomeMotorista(r.motorista_retirada_id)) + '</div>' +
+          '</div>' +
+          '<span class="status-pill ' + st.cls + '"><span class="dot"></span>' + st.text + '</span>' +
+        '</div>' +
+        '<div class="loc-actions">' +
+          '<button class="btn btn-ghost btn-sm act-fechar" data-id="' + r.id + '" ' + (podefechar ? '' : 'disabled') + '>Fechar logística</button>' +
+        '</div>' +
+      '</div>';
+  });
+  lista.innerHTML = html;
+  lista.querySelectorAll('.act-fechar').forEach(function(btn){
+    if(btn.disabled) return;
+    btn.addEventListener('click', async function(){
+      if(!confirm('Fechar logística? Os dados deste controle serão removidos.')) return;
+      btn.disabled = true; btn.textContent = 'Fechando...';
+      await sb.from('controles_insumos').delete().eq('id', btn.dataset.id);
+      await carregarControlesComercial();
+    });
+  });
+}
+
+/* ================= TRANSPORTES — Agenda do motorista ================= */
+async function renderTransportes(container){
+  container.innerHTML =
+    '<div class="pagehead"><div class="crumb">Intranet / <b>Transportes</b></div><h1>Transportes</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Transportes</div></div>' +
+    '<div class="subnav"><button class="subtab active">Meus controles</button></div>' +    '<div class="content" id="transportes-content"><p class="empty-hint">Carregando...</p></div>';
+  await carregarControlesTransportes();
+}
+
+async function carregarControlesTransportes(){
+  const content = document.getElementById('transportes-content');
+  const result = await sb.from('controles_insumos')
+    .select('*')
+    .neq('status','fechado')
+    .or('motorista_entrega_id.eq.' + currentUsuario.id + ',motorista_retirada_id.eq.' + currentUsuario.id)
+    .order('criado_em', { ascending: true });
+
+  if(result.error){
+    content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>';
+    return;
+  }
+  const rows = result.data || [];
+  if(!rows.length){
+    content.innerHTML = '<p class="empty-hint">Nenhum controle atribuído a você no momento.</p>';
+    return;
+  }
+
+  let html = '';
+  rows.forEach(function(r){
+    const st = STATUS_LABEL[r.status] || { text: r.status, cls: 'status-wait' };
+    const souEntrega = r.motorista_entrega_id === currentUsuario.id;
+    const souRetirada = r.motorista_retirada_id === currentUsuario.id;
+    const insumosTxt = (r.insumos || []).map(function(i){ return i.nome + ' (' + i.quantidade + ')'; }).join(', ') || 'Sem insumos cadastrados';
+
+    let actionBtn = '';
+    if(r.status === 'aguardando_entrega' && souEntrega){
+      actionBtn = '<button class="btn btn-primary btn-sm act-confirmar" data-id="' + r.id + '" data-acao="entrega">Confirmar entrega</button>';
+    } else if(r.status === 'entregue' && souRetirada){
+      actionBtn = '<button class="btn btn-primary btn-sm act-confirmar" data-id="' + r.id + '" data-acao="retirada">Confirmar retirada</button>';
+    }
+
+    html +=
+      '<div class="card loc-card">' +
+        '<div class="loc-top">' +
+          '<div>' +
+            '<div class="loc-eq">' + (EQUIPAMENTO_LABEL[r.equipamento] || r.equipamento) + '</div>' +
+            '<div class="loc-name">' + escapeHtml(r.cliente_nome) + ' — ' + escapeHtml(r.locacao_ref) + '</div>' +
+            '<div class="loc-meta">Insumos: ' + escapeHtml(insumosTxt) + '</div>' +
+          '</div>' +
+          '<span class="status-pill ' + st.cls + '"><span class="dot"></span>' + st.text + '</span>' +
+        '</div>' +
+        (!r.contrato_assinado_online ? '<div class="notice-box" style="margin-top:12px;margin-bottom:0;">Contrato não assinado online — buscar assinatura presencial na entrega.</div>' : '') +
+        (r.observacao ? '<div class="loc-meta" style="margin-top:10px;">Obs: ' + escapeHtml(r.observacao) + '</div>' : '') +
+        (actionBtn ? '<div class="loc-actions">' + actionBtn + '</div>' : '') +
+      '</div>';
+  });
+  content.innerHTML = html;
+
+  content.querySelectorAll('.act-confirmar').forEach(function(btn){
+    btn.addEventListener('click', async function(){
+      const acao = btn.dataset.acao;
+      btn.disabled = true; btn.textContent = 'Confirmando...';
+      const update = acao === 'entrega'
+        ? { status: 'entregue', entregue_em: new Date().toISOString() }
+        : { status: 'retirado', retirado_em: new Date().toISOString() };
+      const result = await sb.from('controles_insumos').update(update).eq('id', btn.dataset.id);
+      if(result.error){ alert('Erro: ' + result.error.message); }
+      await carregarControlesTransportes();
+    });
+  });
 }
 
 boot();
