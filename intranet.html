@@ -125,6 +125,10 @@ const app = document.getElementById('app');
 let currentUsuario = null;
 let motoristasCache = null;
 
+const SITE_HEADER = '<header class="site-header"><div class="container"><a href="index.html" class="logo"><img src="assets/logo-black.png" alt="Rjx Locações"></a><nav class="nav-links"><a href="index.html">Início</a><a href="equipamentos.html">Equipamentos</a><a href="seja-cliente.html">Seja Cliente</a><a href="reclamacao-sugestao.html">Reclamações/Sugestões</a><a href="contato.html">Contato</a></nav><div class="nav-cta"><a href="intranet.html" class="btn btn-ghost active">Área do Colaborador</a><a href="area-cliente.html" class="btn btn-ghost">Área do Cliente</a><a href="faca-sua-locacao.html" class="btn btn-primary">Faça sua Locação</a></div><button class="nav-toggle" aria-label="Abrir menu"><span></span><span></span><span></span></button></div></header>';
+
+const SITE_FOOTER = '<footer class="site-footer"><div class="container"><div class="footer-grid"><div><div class="footer-logo"><img src="assets/logo-white.png" alt="Rjx Locações"></div><p>Locação de equipamentos estéticos de alta tecnologia para clínicas de Niterói, Rio de Janeiro e Região Metropolitana.</p></div><div><h4>Navegação</h4><a href="index.html">Início</a><br><a href="equipamentos.html">Equipamentos</a><br><a href="seja-cliente.html">Seja Cliente</a><br><a href="faca-sua-locacao.html">Faça sua Locação</a><br><a href="reclamacao-sugestao.html">Reclamação/Sugestão</a></div><div><h4>Equipamentos</h4><a href="equipamentos/criolipolise.html">Criolipólise Criodermis 2.0</a><br><a href="equipamentos/endolaser.html">Endolaser Pioon 1470</a><br><a href="equipamentos/lavieen.html">Lavieen</a><br><a href="equipamentos/ultraformer.html">Ultraformer MPT</a></div><div><h4>Contato</h4><p>Rua Mem de Sá, 19, Icaraí<br>sala 810 · Niterói/RJ · CEP 24220-260</p><p><a href="tel:+552197607-8440">(21) 97607-8440</a></p><p><a href="mailto:comercial@rjxlocacoes.com.br">comercial@rjxlocacoes.com.br</a></p></div></div><div class="footer-legal"><span>RJX Baiense Locações de Equipamentos LTDA · CNPJ 51.797.671/0001-66 · AFE 8.34727-6</span><span><a href="politica-de-privacidade.html" style="color:#b3aa9d;">Política de Privacidade</a> · <a href="termos-de-uso.html" style="color:#b3aa9d;">Termos de Uso</a></span><span>© 2026 Rjx Locações. Todos os direitos reservados.</span></div></div></footer>';
+
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -142,16 +146,22 @@ const STATUS_LABEL = {
 
 /* ================= LOGIN ================= */
 function screenLogin(errorMsg){
-  app.innerHTML =
-    '<div class="login-wrap"><div class="login-box">' +
-      '<div class="brand"><div class="rjx">RJX</div><div class="tag">Intranet</div></div>' +
-      '<p class="hint">Entre com seu e-mail cadastrado.</p>' +
-      (errorMsg ? '<div class="login-error">' + escapeHtml(errorMsg) + '</div>' : '') +
-      '<div class="field"><label for="f-email">E-mail</label><input type="email" id="f-email" placeholder="seuemail@rjxlocacoes.com.br"></div>' +
-      '<div class="field"><label for="f-senha">Senha</label><input type="password" id="f-senha" placeholder="********"></div>' +
-      '<button class="btn btn-primary btn-block" id="btn-entrar">Entrar</button>' +
-      '<p style="text-align:center;font-size:12px;color:var(--gray-soft);margin-top:16px;">Esqueceu a senha? Fale com o Gerencial.</p>' +
-    '</div></div>';
+  app.innerHTML = SITE_HEADER +
+    '<section class="page-hero"><div class="container">' +
+      '<div class="breadcrumb"><a href="index.html">Início</a> / Área do Colaborador</div>' +
+      '<span class="eyebrow">Acesso restrito</span>' +
+      '<h1 class="mt-16">Área do Colaborador</h1>' +
+      '<p>Entre com seu e-mail cadastrado para acessar as ferramentas do seu setor.</p>' +
+    '</div></section>' +    '<section><div class="container" style="max-width:400px;">' +
+      '<div class="form-card shard-tl">' +
+        (errorMsg ? '<p style="color:#8a2e1f;background:#f6e6e0;padding:10px 12px;border-radius:4px;font-size:13px;margin:0 0 16px;">' + escapeHtml(errorMsg) + '</p>' : '') +
+        '<div class="field"><label for="f-email">E-mail</label><input type="email" id="f-email" placeholder="seuemail@rjxlocacoes.com.br"></div>' +
+        '<div class="field"><label for="f-senha">Senha</label><input type="password" id="f-senha" placeholder="********"></div>' +
+        '<button class="btn btn-primary btn-block" id="btn-entrar">Entrar</button>' +
+        '<p style="text-align:center;font-size:12px;color:var(--gray-soft);margin-top:16px;">Esqueceu a senha? Fale com o Gerencial.</p>' +
+      '</div>' +
+    '</div></section>' +
+    SITE_FOOTER;
   document.getElementById('btn-entrar').addEventListener('click', doLogin);
   document.getElementById('f-senha').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
   document.getElementById('f-email').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
@@ -169,21 +179,29 @@ async function doLogin(){
 }
 
 function screenSetPassword(){
-  app.innerHTML =
-    '<div class="login-wrap"><div class="login-box">' +
-      '<div class="brand"><div class="rjx">RJX</div><div class="tag">Intranet</div></div>' +
-      '<p class="hint">Primeiro acesso. Crie uma senha para continuar.</p>' +
-      '<div id="set-pw-error" class="login-error" style="display:none;"></div>' +
-      '<div class="field"><label for="f-nova-senha">Nova senha</label><input type="password" id="f-nova-senha" placeholder="Mínimo 6 caracteres"></div>' +
-      '<div class="field"><label for="f-conf-senha">Confirmar senha</label><input type="password" id="f-conf-senha" placeholder="Repita a senha"></div>' +
-      '<button class="btn btn-primary btn-block" id="btn-definir">Definir senha e entrar</button>' +
-    '</div></div>';
+  app.innerHTML = SITE_HEADER +
+    '<section class="page-hero"><div class="container">' +
+      '<div class="breadcrumb"><a href="index.html">Início</a> / Área do Colaborador</div>' +
+      '<span class="eyebrow">Primeiro acesso</span>' +
+      '<h1 class="mt-16">Defina sua senha</h1>' +
+      '<p>Essa é a primeira vez que você acessa. Crie uma senha para continuar.</p>' +
+    '</div></section>' +
+    '<section><div class="container" style="max-width:400px;">' +
+      '<div class="form-card shard-tl">' +
+        '<div id="set-pw-error" style="display:none;color:#8a2e1f;background:#f6e6e0;padding:10px 12px;border-radius:4px;font-size:13px;margin:0 0 16px;"></div>' +
+        '<div class="field"><label for="f-nova-senha">Nova senha</label><input type="password" id="f-nova-senha" placeholder="Mínimo 6 caracteres"></div>' +
+        '<div class="field"><label for="f-conf-senha">Confirmar senha</label><input type="password" id="f-conf-senha" placeholder="Repita a senha"></div>' +
+        '<button class="btn btn-primary btn-block" id="btn-definir">Definir senha e entrar</button>' +
+      '</div>' +
+    '</div></section>' +
+    SITE_FOOTER;
   document.getElementById('btn-definir').addEventListener('click', doSetPassword);
 }
 
 async function doSetPassword(){
   const p1 = document.getElementById('f-nova-senha').value;
-  const p2 = document.getElementById('f-conf-senha').value;  const errEl = document.getElementById('set-pw-error');
+  const p2 = document.getElementById('f-conf-senha').value;
+  const errEl = document.getElementById('set-pw-error');
   if(p1.length < 6){ errEl.textContent='A senha precisa ter pelo menos 6 caracteres.'; errEl.style.display='block'; return; }
   if(p1 !== p2){ errEl.textContent='As senhas não coincidem.'; errEl.style.display='block'; return; }
   const btn = document.getElementById('btn-definir');
@@ -196,8 +214,7 @@ async function doSetPassword(){
 
 /* ================= BOOT ================= */
 async function boot(){
-  const hash = window.location.hash || '';
-  const isRecoveryLink = hash.indexOf('type=invite') !== -1 || hash.indexOf('type=recovery') !== -1;
+  const hash = window.location.hash || '';  const isRecoveryLink = hash.indexOf('type=invite') !== -1 || hash.indexOf('type=recovery') !== -1;
   const sessionResult = await sb.auth.getSession();
   const session = sessionResult.data.session;
   if(!session){ screenLogin(); return; }
@@ -258,7 +275,8 @@ function renderShell(){
       el.dataset.mod = m.id;
       el.addEventListener('click', function(){ selectModule(m.id); });
     } else {
-      el.className = 'mod-link soon';      el.innerHTML = escapeHtml(m.label) + (m.soon ? ' <span class="tag">em breve</span>' : '');
+      el.className = 'mod-link soon';
+      el.innerHTML = escapeHtml(m.label) + (m.soon ? ' <span class="tag">em breve</span>' : '');
     }
     sidebar.appendChild(el);
   });
@@ -279,8 +297,7 @@ async function apiCall(method, body){
   const sessionResult = await sb.auth.getSession();
   const session = sessionResult.data.session;
   const resp = await fetch('/api/intranet-usuarios', {
-    method: method,
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+    method: method,    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
     body: body ? JSON.stringify(body) : undefined
   });
   const data = await resp.json().catch(function(){ return {}; });
@@ -331,11 +348,11 @@ async function carregarUsuarios(){
         '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + escapeHtml(u.nome) + '</td>' +
         '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + escapeHtml(u.email) + '</td>' +
         '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + papelLabel(u.papel) + '</td>' +
-        '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + (u.ativo ? 'Ativo' : 'Inativo') + '</td>' +        '<td style="padding:10px 14px;border-bottom:1px solid var(--line);"><a href="#" class="act-toggle" data-id="' + u.id + '" data-ativo="' + u.ativo + '" style="color:var(--wine);font-weight:700;font-size:12.5px;">' + (u.ativo ? 'Desativar' : 'Reativar') + '</a></td>' +
+        '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + (u.ativo ? 'Ativo' : 'Inativo') + '</td>' +
+        '<td style="padding:10px 14px;border-bottom:1px solid var(--line);"><a href="#" class="act-toggle" data-id="' + u.id + '" data-ativo="' + u.ativo + '" style="color:var(--wine);font-weight:700;font-size:12.5px;">' + (u.ativo ? 'Desativar' : 'Reativar') + '</a></td>' +
       '</tr>';
     });
-    tabela.innerHTML = '<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Nome</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">E-mail</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Papel</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Status</th><th></th></tr></thead><tbody>' + rowsHtml + '</tbody></table>';
-    tabela.querySelectorAll('.act-toggle').forEach(function(a){
+    tabela.innerHTML = '<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Nome</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">E-mail</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Papel</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Status</th><th></th></tr></thead><tbody>' + rowsHtml + '</tbody></table>';    tabela.querySelectorAll('.act-toggle').forEach(function(a){
       a.addEventListener('click', async function(e){
         e.preventDefault();
         const id = a.dataset.id;
@@ -397,7 +414,8 @@ async function renderComercial(container){
 
   content.innerHTML =
     '<div class="card form-card">' +
-      '<h3>Novo controle de insumos</h3>' +      '<p class="cardsub">Vinculado a uma locação de Criodermis ou Ultraformer MPT.</p>' +
+      '<h3>Novo controle de insumos</h3>' +
+      '<p class="cardsub">Vinculado a uma locação de Criodermis ou Ultraformer MPT.</p>' +
       '<div class="grid2">' +
         '<div class="field"><label>Referência da locação</label><input id="ci-locacao-ref" placeholder="Ex: #4521 ou nome do contrato"></div>' +
         '<div class="field"><label>Cliente / Doutora</label><input id="ci-cliente" placeholder="Ex: Dra. Camila Ferreira"></div>' +
@@ -406,8 +424,7 @@ async function renderComercial(container){
       '<div class="grid2">' +
         '<div class="field"><label>Motorista — entrega</label><select id="ci-motorista-entrega">' + motoristaOptions + '</select></div>' +
         '<div class="field"><label>Motorista — retirada</label><select id="ci-motorista-retirada">' + motoristaOptions + '</select></div>' +
-      '</div>' +
-      '<div class="field"><label>Contrato já assinado online?</label><select id="ci-assinado"><option value="false">Não — motorista precisa buscar assinatura</option><option value="true">Sim, assinado online</option></select></div>' +
+      '</div>' +      '<div class="field"><label>Contrato já assinado online?</label><select id="ci-assinado"><option value="false">Não — motorista precisa buscar assinatura</option><option value="true">Sim, assinado online</option></select></div>' +
       '<div class="field">' +
         '<label>Insumos desta locação</label>' +
         '<div id="ci-insumos-list"></div>' +
@@ -459,7 +476,8 @@ async function criarControleInsumo(){
   }
 
   const insumos = [];
-  document.querySelectorAll('#ci-insumos-list .insumo-row').forEach(function(row){    const nome = row.querySelector('.ci-insumo-nome').value.trim();
+  document.querySelectorAll('#ci-insumos-list .insumo-row').forEach(function(row){
+    const nome = row.querySelector('.ci-insumo-nome').value.trim();
     const qtd = parseInt(row.querySelector('.ci-insumo-qtd').value, 10) || 1;
     if(nome) insumos.push({ nome: nome, quantidade: qtd });
   });
@@ -487,8 +505,7 @@ async function criarControleInsumo(){
     return;
   }
 
-  okEl.textContent = 'Controle criado e enviado para Transportes!';
-  okEl.style.display = 'block';
+  okEl.textContent = 'Controle criado e enviado para Transportes!';  okEl.style.display = 'block';
   document.getElementById('ci-locacao-ref').value = '';
   document.getElementById('ci-cliente').value = '';
   document.getElementById('ci-observacao').value = '';
@@ -547,7 +564,8 @@ async function carregarControlesComercial(){
 async function renderTransportes(container){
   container.innerHTML =
     '<div class="pagehead"><div class="crumb">Intranet / <b>Transportes</b></div><h1>Transportes</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Transportes</div></div>' +
-    '<div class="subnav"><button class="subtab active">Meus controles</button></div>' +    '<div class="content" id="transportes-content"><p class="empty-hint">Carregando...</p></div>';
+    '<div class="subnav"><button class="subtab active">Meus controles</button></div>' +
+    '<div class="content" id="transportes-content"><p class="empty-hint">Carregando...</p></div>';
   await carregarControlesTransportes();
 }
 
@@ -572,8 +590,7 @@ async function carregarControlesTransportes(){
   let html = '';
   rows.forEach(function(r){
     const st = STATUS_LABEL[r.status] || { text: r.status, cls: 'status-wait' };
-    const souEntrega = r.motorista_entrega_id === currentUsuario.id;
-    const souRetirada = r.motorista_retirada_id === currentUsuario.id;
+    const souEntrega = r.motorista_entrega_id === currentUsuario.id;    const souRetirada = r.motorista_retirada_id === currentUsuario.id;
     const insumosTxt = (r.insumos || []).map(function(i){ return i.nome + ' (' + i.quantidade + ')'; }).join(', ') || 'Sem insumos cadastrados';
 
     let actionBtn = '';
