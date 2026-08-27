@@ -146,6 +146,54 @@ const STATUS_LABEL = {
   entregue: { text: 'Insumos entregues', cls: 'status-info' },
   retirado: { text: 'Insumos retirados', cls: 'status-ok' }
 };
+/* ================== CAMPANHA DE PREMIACAO ================== */
+const PREMIACAO_EQUIP = {
+  mpt1: { label: 'Ultraformer MPT 1', insumos: true },
+  mpt2: { label: 'Ultraformer MPT 2', insumos: true },
+  crio: { label: 'Criodermis 2.0', insumos: true },
+  endolaser: { label: 'Endolaser Pioon 1470', insumos: false },
+  lavieen: { label: 'Laser Lavieen', insumos: false }
+};
+const PREMIACAO_ETAPAS_COM_INSUMOS = [
+  'Retirou equipamento na empresa',
+  'A caminho da entrega',
+  'Equipamento montado (foto + video)',
+  'Preencheu Controle de Insumos inicial',
+  'Colheu assinatura de entrega',
+  'Marcou "Entregue" no EstoqueNOW',
+  'A caminho da retirada',
+  'Equipamento retirado (foto + video)',
+  'Preencheu Controle de Insumos final',
+  'Colheu assinatura de fechamento',
+  'Marcou retirado no EstoqueNOW'
+];
+const PREMIACAO_ETAPAS_SEM_INSUMOS = [
+  'Retirou equipamento na empresa',
+  'A caminho da entrega',
+  'Equipamento montado (foto + video)',
+  'Colheu assinatura de entrega',
+  'Marcou "Entregue" no EstoqueNOW',
+  'A caminho da retirada',
+  'Equipamento retirado (foto + video)',
+  'Marcou retirado no EstoqueNOW'
+];
+function premiacaoEtapasBase(equip){
+  const info = PREMIACAO_EQUIP[equip];
+  const tem = info ? info.insumos : false;
+  return tem ? PREMIACAO_ETAPAS_COM_INSUMOS : PREMIACAO_ETAPAS_SEM_INSUMOS;
+}
+const PONTOS_UNIFORME_PREMIACAO = 5;
+function premiacaoIsoHoje(offsetDias){
+  const d = new Date();
+  d.setDate(d.getDate() + (offsetDias || 0));
+  return d.toISOString().slice(0,10);
+}
+function premiacaoDataBR(iso){
+  if(!iso) return '-';
+  const p = iso.split('-');
+  return p[2] + '/' + p[1] + '/' + p[0];
+}
+
 
 /* ================= LOGIN ================= */
 function screenLogin(errorMsg){  app.innerHTML = SITE_HEADER +
@@ -458,12 +506,28 @@ async function getMotoristas(){
 }
 
 async function renderComercial(container){
+
   container.innerHTML =
     '<div class="pagehead"><div class="crumb">Intranet / <b>Comercial</b></div><h1>Comercial</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Comercial</div></div>' +
-    '<div class="subnav"><button class="subtab active">Controle de Insumos</button></div>' +
+    '<div class="subnav">' +
+'<button class="subtab active" id="cs-tab-insumos" onclick="selectComercialSubtab(&quot;insumos&quot;)">Controle de Insumos</button>' +
+'<button class="subtab" id="cs-tab-premiacao" onclick="selectComercialSubtab(&quot;premiacao&quot;)">Premiacao</button>' +
+'</div>' +
     '<div class="content" id="comercial-content"><p class="empty-hint">Carregando...</p></div>';
 
-  const motoristas = await getMotoristas();
+  
+  await selectComercialSubtab('insumos');
+}
+
+async function selectComercialSubtab(tab){
+  document.getElementById('cs-tab-insumos').classList.toggle('active', tab==='insumos');
+  document.getElementById('cs-tab-premiacao').classList.toggle('active', tab==='premiacao');
+  if(tab === 'insumos'){ await carregarInsumosComercial(); }
+  else { await carregarPremiacaoComercial(); }
+}
+
+async function carregarInsumosComercial(){
+const motoristas = await getMotoristas();
   const content = document.getElementById('comercial-content');
 
   let motoristaOptions = motoristas.map(function(m){ return '<option value="' + m.id + '">' + escapeHtml(m.nome) + '</option>'; }).join('');
@@ -536,6 +600,95 @@ async function renderComercial(container){
   document.getElementById('btn-criar-controle').addEventListener('click', criarControleInsumo);
 
   await carregarControlesComercial();
+
+}
+
+let pcEditandoId = null;
+async function carregarPremiacaoComercial(){
+  const content = document.getElementById('comercial-content');
+  const motoristas = await getMotoristas();
+  let motoristaOptions = motoristas.map(function(m){
+    return '<option value="' + m.id + '">' + escapeHtml(m.nome) + '</option>';
+  }).join('');
+  if(!motoristas.length){ motoristaOptions = '<option value="">Nenhum motorista cadastrado</option>'; }
+  let equipOptions = Object.keys(PREMIACAO_EQUIP).map(function(k){
+    return '<option value="' + k + '">' + PREMIACAO_EQUIP[k].label + '</option>';
+  }).join('');
+  let html = '';
+  html += '<div class="card"><h3>Abrir locacao para o dia seguinte</h3>';
+  html += '<p class="cardsub">Numero, equipamento, motorista e data. Depois de aberta, voce pode trocar o motorista, mas quem pontua e fecha e o Operacional.</p>';
+  html += '<div class="grid2"><div class="field"><label>Numero da locacao</label><input id="pc-numero" placeholder="Ex: 4521"></div><div class="field"><label>Equipamento</label><select id="pc-equipamento">' + equipOptions + '</select></div></div>';
+  html += '<div class="grid2"><div class="field"><label>Motorista</label><select id="pc-motorista">' + motoristaOptions + '</select></div><div class="field"><label>Data da locacao</label><input type="date" id="pc-data"></div></div>';
+  html += '<div id="pc-error" class="login-error" style="display:none;"></div><div id="pc-success" class="login-success" style="display:none;"></div>';
+  html += '<button class="btn btn-primary" id="btn-abrir-locacao-premiacao">Abrir locacao</button></div>';
+  html += '<div class="list-title">Locacoes abertas</div><div id="pc-lista-abertas"><p class="empty-hint">Carregando...</p></div>';
+  content.innerHTML = html;
+  const d = new Date(); d.setDate(d.getDate()+1);
+  document.getElementById('pc-data').value = d.toISOString().slice(0,10);
+  document.getElementById('btn-abrir-locacao-premiacao').addEventListener('click', criarLocacaoPremiacao);
+  await carregarListaAbertasComercial();
+}
+
+async function criarLocacaoPremiacao(){
+  const numero = document.getElementById('pc-numero').value.trim();
+  const equipamento = document.getElementById('pc-equipamento').value;
+  const motoristaId = document.getElementById('pc-motorista').value;
+  const data = document.getElementById('pc-data').value;
+  const errEl = document.getElementById('pc-error');
+  const okEl = document.getElementById('pc-success');
+  errEl.style.display='none'; okEl.style.display='none';
+  if(!numero || !motoristaId || !data){ errEl.textContent = 'Preencha numero, motorista e data.'; errEl.style.display='block'; return; }
+  const btn = document.getElementById('btn-abrir-locacao-premiacao');
+  btn.disabled = true; btn.textContent = 'Abrindo...';
+  const insertLoc = await sb.from('premiacao_locacoes').insert({ numero: numero, equipamento: equipamento, motorista_id: motoristaId, data_locacao: data, criado_por: currentUsuario.id }).select('id').single();
+  if(insertLoc.error){ errEl.textContent = 'Erro ao abrir: ' + insertLoc.error.message; errEl.style.display='block'; btn.disabled=false; btn.textContent='Abrir locacao'; return; }
+  const locId = insertLoc.data.id;
+  const etapasNomes = premiacaoEtapasBase(equipamento);
+  const etapasRows = etapasNomes.map(function(nome, i){ return { locacao_id: locId, ordem: i+1, nome: nome }; });
+  await sb.from('premiacao_etapas').insert(etapasRows);
+  await sb.from('premiacao_selfies').insert({ locacao_id: locId });
+  okEl.textContent = 'Locacao ' + numero + ' aberta.'; okEl.style.display = 'block';
+  document.getElementById('pc-numero').value = '';
+  btn.disabled = false; btn.textContent = 'Abrir locacao';
+  await carregarListaAbertasComercial();
+}
+
+async function carregarListaAbertasComercial(){
+  const wrap = document.getElementById('pc-lista-abertas');
+  const motoristas = await getMotoristas();
+  const motoristaNome = {};
+  motoristas.forEach(function(m){ motoristaNome[m.id] = m.nome; });
+  const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status').eq('status','aberta').order('data_locacao');
+  if(result.error){ wrap.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>'; return; }
+  const rows = result.data || [];
+  if(!rows.length){ wrap.innerHTML = '<p class="empty-hint">Nenhuma locacao aberta no momento.</p>'; return; }
+  wrap.innerHTML = rows.map(function(loc){
+    const eq = PREMIACAO_EQUIP[loc.equipamento] || { label: loc.equipamento };
+    const nomeMot = motoristaNome[loc.motorista_id] || '-';
+    let actionHtml;
+    if(pcEditandoId === loc.id){
+      const opts = motoristas.map(function(m){
+        return '<option value="' + m.id + '"' + (m.id===loc.motorista_id?' selected':'') + '>' + escapeHtml(m.nome) + '</option>';
+      }).join('');
+      actionHtml = '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><select id="pc-edit-select-' + loc.id + '">' + opts + '</select>' +
+        '<button class="btn btn-primary" onclick="salvarEdicaoMotoristaPremiacao(&quot;' + loc.id + '&quot;)">Salvar</button>' +
+        '<button class="btn btn-ghost" onclick="cancelarEdicaoMotoristaPremiacao()">Cancelar</button></div>';
+    } else {
+      actionHtml = '<button class="btn btn-ghost" style="margin-top:8px;" onclick="abrirEdicaoMotoristaPremiacao(&quot;' + loc.id + '&quot;)">Editar motorista</button>';
+    }
+    return '<div class="card" style="padding:12px 14px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
+      '<div><b>Locacao #' + escapeHtml(loc.numero) + '</b><div style="font-size:12px;color:var(--gray);">' + eq.label + ' - ' + premiacaoDataBR(loc.data_locacao) + '</div></div>' +
+      '<span class="status-pill status-wait"><span class="dot"></span>' + escapeHtml(nomeMot) + '</span></div>' + actionHtml + '</div>';
+  }).join('');
+}
+
+function abrirEdicaoMotoristaPremiacao(locId){ pcEditandoId = locId; carregarListaAbertasComercial(); }
+function cancelarEdicaoMotoristaPremiacao(){ pcEditandoId = null; carregarListaAbertasComercial(); }
+async function salvarEdicaoMotoristaPremiacao(locId){
+  const sel = document.getElementById('pc-edit-select-' + locId);
+  await sb.from('premiacao_locacoes').update({ motorista_id: sel.value, atualizado_em: new Date().toISOString() }).eq('id', locId);
+  pcEditandoId = null;
+  await carregarListaAbertasComercial();
 }
 
 async function criarControleInsumo(){
@@ -690,11 +843,155 @@ async function carregarControlesComercial(){
 
 /* ================= TRANSPORTES — Agenda do motorista ================= */
 async function renderTransportes(container){
+
   container.innerHTML =
     '<div class="pagehead"><div class="crumb">Intranet / <b>Transportes</b></div><h1>Transportes</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Transportes</div></div>' +
-    '<div class="subnav"><button class="subtab active">Meus controles</button></div>' +
+    '<div class="subnav">' +
+'<button class="subtab active" id="ts-tab-insumos" onclick="selectTransportesSubtab(&quot;insumos&quot;)">Meus controles</button>' +
+'<button class="subtab" id="ts-tab-premiacao" onclick="selectTransportesSubtab(&quot;premiacao&quot;)">Premiacao</button>' +
+'</div>' +
     '<div class="content" id="transportes-content"><p class="empty-hint">Carregando...</p></div>';
-  await carregarControlesTransportes();
+  
+  await selectTransportesSubtab('insumos');
+}
+
+async function selectTransportesSubtab(tab){
+  document.getElementById('ts-tab-insumos').classList.toggle('active', tab==='insumos');
+  document.getElementById('ts-tab-premiacao').classList.toggle('active', tab==='premiacao');
+  if(tab === 'insumos'){ await carregarControlesTransportes(); }
+  else { await carregarPremiacaoTransportes(); }
+}
+
+async function carregarPremiacaoTransportes(){
+  const content = document.getElementById('transportes-content');
+  content.innerHTML = '<p class="empty-hint">Carregando...</p>';
+  const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,data_locacao,status').eq('motorista_id', currentUsuario.id).order('data_locacao', { ascending: false });
+  if(result.error){
+    content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>';
+    return;
+  }
+  const locs = result.data || [];
+  const idsLocs = locs.map(function(l){ return l.id; });
+  let etapasPorLoc = {}, selfiesPorLoc = {};
+  if(idsLocs.length){
+    const rEtapas = await sb.from('premiacao_etapas').select('id,locacao_id,concluida,motorista_id').in('locacao_id', idsLocs);
+    (rEtapas.data||[]).forEach(function(e){
+      if(!etapasPorLoc[e.locacao_id]) etapasPorLoc[e.locacao_id] = [];
+      etapasPorLoc[e.locacao_id].push(e);
+    });
+    const rSelfies = await sb.from('premiacao_selfies').select('*').in('locacao_id', idsLocs);
+    (rSelfies.data||[]).forEach(function(s){ selfiesPorLoc[s.locacao_id] = s; });
+  }
+  let pontos = 0, possiveis = 0;
+  locs.forEach(function(loc){
+    const etapas = etapasPorLoc[loc.id] || [];
+    etapas.forEach(function(e){
+      possiveis += 1;
+      if(e.concluida && e.motorista_id === currentUsuario.id) pontos += 1;
+    });
+    const s = selfiesPorLoc[loc.id];
+    possiveis += PONTOS_UNIFORME_PREMIACAO;
+    if(s && s.validada === true) pontos += PONTOS_UNIFORME_PREMIACAO;
+    else if(s && s.validada === false && s.motivo === 'expirada') pontos -= PONTOS_UNIFORME_PREMIACAO;
+  });
+  const pct = possiveis > 0 ? Math.round((pontos/possiveis)*100) : 0;
+  let html = '';
+  html += '<div class="card"><h3>Minha pontuacao</h3>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+  html += '<div><div style="font-size:26px;font-weight:800;">' + pontos + ' pts</div><div class="cardsub" style="margin:2px 0 0;">de ' + possiveis + ' possiveis</div></div>';
+  html += '<span class="status-pill ' + (pct>=80?'status-ok':'status-wait') + '" style="font-size:14px;"><span class="dot"></span>' + pct + '%</span>';
+  html += '</div></div>';
+  html += '<div class="card"><h3>Minhas locacoes</h3><p class="cardsub">A selfie de uniforme e obrigatoria em cada locacao. Sem ela ate a data, voce perde ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p>';
+  html += '<div id="pt-lista-locacoes">';
+  if(!locs.length){
+    html += '<p class="empty-hint">Nenhuma locacao atribuida a voce ainda.</p>';
+  } else {
+    html += locs.map(function(loc){
+      const eq = PREMIACAO_EQUIP[loc.equipamento] || { label: loc.equipamento };
+      const etapas = etapasPorLoc[loc.id] || [];
+      const feitas = etapas.filter(function(e){ return e.concluida; }).length;
+      const total = etapas.length;
+      const s = selfiesPorLoc[loc.id] || {};
+      let statusLabel, statusCls, acaoHtml = '';
+      if(s.validada === true){ statusLabel = 'Validada (+' + PONTOS_UNIFORME_PREMIACAO + ')'; statusCls = 'status-ok'; }
+      else if(s.validada === false && s.motivo === 'expirada'){ statusLabel = 'Prazo expirado (-' + PONTOS_UNIFORME_PREMIACAO + ')'; statusCls = 'status-wait'; }
+      else if(s.validada === false && s.motivo === 'reprovada'){
+        statusLabel = 'IA reprovou'; statusCls = 'status-wait';
+        acaoHtml = '<button class="btn btn-primary" style="margin-top:8px;" onclick="iniciarSelfiePremiacao(&quot;' + loc.id + '&quot;)">Tentar de novo</button>';
+      } else if(s.enviada){ statusLabel = 'Aguardando validacao'; statusCls = 'status-info'; }
+      else {
+        statusLabel = 'Selfie pendente'; statusCls = 'status-wait';
+        acaoHtml = '<button class="btn btn-primary" style="margin-top:8px;" onclick="iniciarSelfiePremiacao(&quot;' + loc.id + '&quot;)">Tirar selfie do uniforme</button>';
+      }
+      return '<div class="card" style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
+        '<div><b>Locacao #' + escapeHtml(loc.numero) + '</b><div style="font-size:12px;color:var(--gray);">' + eq.label + ' - ' + premiacaoDataBR(loc.data_locacao) + ' - ' + (loc.status==='aberta'?'em andamento':'finalizada') + '</div></div>' +
+        '<span class="status-pill ' + statusCls + '"><span class="dot"></span>' + statusLabel + '</span></div>' +
+        '<div style="font-size:12px;color:var(--gray);margin-top:6px;">' + feitas + '/' + total + ' etapas (marcadas pelo Operacional)</div>' + acaoHtml + '</div>';
+    }).join('');
+  }
+  html += '</div></div>';
+  content.innerHTML = html;
+}
+
+let premiacaoSelfieAlvo = null;
+function iniciarSelfiePremiacao(locId){
+  premiacaoSelfieAlvo = locId;
+  let input = document.getElementById('premiacao-input-camera');
+  if(!input){
+    input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*'; input.capture = 'user';
+    input.id = 'premiacao-input-camera'; input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', onPremiacaoSelfieFile);
+  }
+  input.click();
+}
+function premiacaoFileToDataURL(file){
+  return new Promise(function(resolve, reject){
+    const reader = new FileReader();
+    reader.onload = function(){ resolve(reader.result); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function onPremiacaoSelfieFile(e){
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if(!file || !premiacaoSelfieAlvo) return;
+  const locId = premiacaoSelfieAlvo;
+  const getGeo = function(){
+    return new Promise(function(resolve){
+      if(!navigator.geolocation){ resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(
+        function(pos){ resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+        function(){ resolve(null); },
+        { timeout: 4000 }
+      );
+    });
+  };
+  const dataUrl = await premiacaoFileToDataURL(file);
+  const geo = await getGeo();
+  await sb.from('premiacao_selfies').update({
+    enviada: true, validada: null, motivo: null,
+    geo_lat: geo ? geo.lat : null, geo_lng: geo ? geo.lng : null,
+    enviada_em: new Date().toISOString()
+  }).eq('locacao_id', locId);
+  await carregarPremiacaoTransportes();
+  try {
+    const resp = await fetch('/api/validar-selfie', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: dataUrl })
+    });
+    const json = await resp.json();
+    if(json && typeof json.aprovado === 'boolean'){
+      if(json.aprovado){
+        await sb.from('premiacao_selfies').update({ validada: true, motivo: null, validada_em: new Date().toISOString() }).eq('locacao_id', locId);
+      } else {
+        await sb.from('premiacao_selfies').update({ validada: false, motivo: 'reprovada', validada_em: new Date().toISOString() }).eq('locacao_id', locId);
+      }
+    }
+  } catch(err){}
+  await carregarPremiacaoTransportes();
 }
 
 function expandCartuchos(list, duplicados){
@@ -1012,154 +1309,154 @@ return { first: first, last: last, label: label };
 }
 
 async function renderOperacional(container){
-var isGestor = currentUsuario.papel === 'gerencial' || currentUsuario.papel === 'operacional';
-container.innerHTML =
-'<div class="pagehead"><div class="crumb">Intranet / <b>Operacional</b></div><h1>Operacional</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Operacional</div></div>' +
-'<div class="subnav"><button class="subtab active">Campanha de premiacao</button></div>' +
-'<div class="content" id="operacional-content"><p class="empty-hint">Carregando...</p></div>';
-await carregarCampanha(isGestor);
+  const isGestor = (currentUsuario.papel === 'gerencial' || currentUsuario.papel === 'operacional');
+  container.innerHTML =
+    '<div class="pagehead"><div class="crumb">Intranet / <b>Operacional</b></div><h1>Operacional</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Operacional</div></div>' +
+    '<div class="subnav"><button class="subtab active">Campanha de Premiacao</button></div>' +
+    '<div class="content" id="operacional-content"><p class="empty-hint">Carregando...</p></div>';
+  await carregarPremiacaoOperacional(isGestor);
 }
 
-async function carregarCampanha(isGestor){
-var content = document.getElementById('operacional-content');
-var mes = mesAtualInfo();
-var motoristas = await getMotoristas();
+let opTabAtual = 'aberta';
+function mudarTabOperacionalPremiacao(t){ opTabAtual = t; carregarPremiacaoOperacional(true); }
 
-var result = await sb.from('pontos_diarios').select('*').gte('data', mes.first).lte('data', mes.last);
-if(result.error){
-content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>';
-return;
-}
-var rows = result.data || [];
-
-var somas = {};
-motoristas.forEach(function(m){ somas[m.id] = { nome: m.nome, pontos: 0, possiveis: 0 }; });
-rows.forEach(function(r){
-if(!somas[r.motorista_id]){ somas[r.motorista_id] = { nome: '\u2014', pontos: 0, possiveis: 0 }; }
-somas[r.motorista_id].pontos += r.pontos;
-somas[r.motorista_id].possiveis += r.pontos_possiveis;
-});
-
-var ranking = Object.keys(somas).map(function(id){
-var s = somas[id];
-var pct = s.possiveis > 0 ? Math.round((s.pontos / s.possiveis) * 100) : 0;
-return { id: id, nome: s.nome, pontos: s.pontos, possiveis: s.possiveis, pct: pct };
-}).sort(function(a,b){ return b.pct - a.pct; });
-
-var totalPossivelMes = ranking.reduce(function(acc, r){ return acc + r.possiveis; }, 0);
-
-var html = '';
-
-html += '<div class="grid2" style="grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;">';
-html += '<div class="card" style="padding:14px 18px;"><div style="font-size:11px;color:var(--gray);margin-bottom:4px;">Meta do mes</div><div style="font-size:19px;font-weight:600;">80%</div><div style="font-size:11px;color:var(--gray-soft);">para ganhar R$ 500</div></div>';
-html += '<div class="card" style="padding:14px 18px;"><div style="font-size:11px;color:var(--gray);margin-bottom:4px;">Mes de referencia</div><div style="font-size:19px;font-weight:600;text-transform:capitalize;">' + mes.label + '</div></div>';
-html += '<div class="card" style="padding:14px 18px;"><div style="font-size:11px;color:var(--gray);margin-bottom:4px;">Pontos possiveis (soma)</div><div style="font-size:19px;font-weight:600;">' + totalPossivelMes + '</div></div>';
-html += '</div>';
-
-if(isGestor){
-html += '<div class="card form-card">';
-html += '<h3>Registrar dia</h3>';
-html += '<p class="cardsub">Preencha quantas etapas o motorista tinha no dia, quantas cumpriu, e se estava de uniforme. O uniforme conta como +1 etapa possivel e +1 ponto quando marcado.</p>';
-html += '<div class="grid2">';
-html += '<div class="field"><label>Motorista</label><select id="pt-motorista">' + motoristas.map(function(m){ return '<option value="' + m.id + '">' + escapeHtml(m.nome) + '</option>'; }).join('') + '</select></div>';
-html += '<div class="field"><label>Data</label><input type="date" id="pt-data" value="' + new Date().toISOString().slice(0,10) + '"></div>';
-html += '</div>';
-html += '<div class="grid2">';
-html += '<div class="field"><label>Etapas do dia</label><input type="number" min="0" id="pt-etapas-dia" placeholder="Ex: 6"></div>';
-html += '<div class="field"><label>Etapas cumpridas</label><input type="number" min="0" id="pt-etapas-cumpridas" placeholder="Ex: 6"></div>';
-html += '</div>';
-html += '<div class="field"><label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" id="pt-uniforme" style="width:auto;"> Uniforme completo</label></div>';
-html += '<div class="field"><label>Observacao (opcional)</label><input id="pt-observacao" placeholder="Ex: chegou atrasado na segunda entrega"></div>';
-html += '<div id="pt-error" class="login-error" style="display:none;"></div>';
-html += '<div id="pt-success" class="login-success" style="display:none;"></div>';
-html += '<button class="btn btn-primary" id="btn-salvar-pontos">Salvar dia</button>';
-html += '</div>';
-}
-
-html += '<div class="list-title">Ranking do mes</div>';
-if(!ranking.length){
-html += '<p class="empty-hint">Nenhum motorista cadastrado ainda.</p>';
-} else {
-html += '<div class="card" style="overflow:hidden;">';
-html += '<table style="width:100%;border-collapse:collapse;">';
-html += '<thead><tr>';
-['Motorista','Pontos','%','Status'].forEach(function(h){
-html += '<th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">' + h + '</th>';
-});
-html += '</tr></thead><tbody>';
-ranking.forEach(function(r){
-var naMeta = r.pct >= 80;
-var pillCls = naMeta ? 'status-ok' : 'status-wait';
-var pillTxt = naMeta ? 'Na meta' : 'Abaixo da meta';
-var destaque = (currentUsuario.id === r.id) ? ' style="background:var(--paper-soft);"' : '';
-html += '<tr' + destaque + '>';
-html += '<td style="padding:10px 14px;border-bottom:1px solid var(--line);font-weight:600;">' + escapeHtml(r.nome) + '</td>';
-html += '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + r.pontos + ' / ' + r.possiveis + '</td>';
-html += '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + r.pct + '%</td>';
-html += '<td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span class="status-pill ' + pillCls + '"><span class="dot"></span>' + pillTxt + '</span></td>';
-html += '</tr>';
-});
-html += '</tbody></table></div>';
-}
-
-content.innerHTML = html;
-
-if(isGestor){
-document.getElementById('btn-salvar-pontos').addEventListener('click', async function(){
-var motoristaId = document.getElementById('pt-motorista').value;
-var data = document.getElementById('pt-data').value;
-var etapasDia = parseInt(document.getElementById('pt-etapas-dia').value, 10);
-var etapasCumpridas = parseInt(document.getElementById('pt-etapas-cumpridas').value, 10);
-var uniforme = document.getElementById('pt-uniforme').checked;
-var observacao = document.getElementById('pt-observacao').value.trim();
-var errEl = document.getElementById('pt-error');
-var okEl = document.getElementById('pt-success');
-errEl.style.display = 'none'; okEl.style.display = 'none';
-
-if(!motoristaId || !data || isNaN(etapasDia) || isNaN(etapasCumpridas)){
-errEl.textContent = 'Preencha motorista, data, etapas do dia e etapas cumpridas.';
-errEl.style.display = 'block';
-return;
-}
-if(etapasCumpridas > etapasDia){
-errEl.textContent = 'Etapas cumpridas nao pode ser maior que etapas do dia.';
-errEl.style.display = 'block';
-return;
+async function carregarPremiacaoOperacional(isGestor){
+  const content = document.getElementById('operacional-content');
+  const motoristas = await getMotoristas();
+  const motoristaNome = {};
+  motoristas.forEach(function(m){ motoristaNome[m.id] = m.nome; });
+  const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status').order('data_locacao', { ascending: false });
+  if(result.error){
+    content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>';
+    return;
+  }
+  const locs = result.data || [];
+  const idsLocs = locs.map(function(l){ return l.id; });
+  let etapasPorLoc = {}, selfiesPorLoc = {};
+  if(idsLocs.length){
+    const rEtapas = await sb.from('premiacao_etapas').select('id,locacao_id,ordem,nome,concluida,motorista_id').in('locacao_id', idsLocs).order('ordem');
+    (rEtapas.data || []).forEach(function(e){
+      if(!etapasPorLoc[e.locacao_id]) etapasPorLoc[e.locacao_id] = [];
+      etapasPorLoc[e.locacao_id].push(e);
+    });
+    const rSelfies = await sb.from('premiacao_selfies').select('*').in('locacao_id', idsLocs);
+    (rSelfies.data || []).forEach(function(s){ selfiesPorLoc[s.locacao_id] = s; });
+  }
+  let html = '';
+  html += '<div class="card" style="background:var(--paper-soft);"><p class="cardsub" style="margin:0;">Cada etapa do manual vale <b>1 ponto</b> (11 etapas em equipamentos com insumo, 8 nos demais). A selfie de uniforme vale <b>' + PONTOS_UNIFORME_PREMIACAO + ' pontos</b> por locacao, enviada pelo motorista na aba de Transportes e validada por IA. Sem envio ate a data da locacao, ele perde os ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p></div>';
+  html += '<div class="card"><h3>Selfies das locacoes</h3><p class="cardsub">Quem envia e o motorista. Use o botao para expirar quem nao enviou ate a data da locacao.</p>';
+  html += '<div id="op-lista-selfies">';
+  if(!locs.length){
+    html += '<p class="empty-hint">Nenhuma locacao registrada.</p>';
+  } else {
+    html += locs.map(function(loc){
+      const s = selfiesPorLoc[loc.id] || {};
+      let label, cls;
+      if(s.validada === true){ label = 'Validada (+' + PONTOS_UNIFORME_PREMIACAO + ')'; cls = 'status-ok'; }
+      else if(s.validada === false && s.motivo === 'expirada'){ label = 'Prazo expirado (-' + PONTOS_UNIFORME_PREMIACAO + ')'; cls = 'status-wait'; }
+      else if(s.validada === false && s.motivo === 'reprovada'){ label = 'IA reprovou - reenviar'; cls = 'status-wait'; }
+      else if(s.enviada){ label = 'Aguardando validacao'; cls = 'status-info'; }
+      else { label = 'Selfie pendente'; cls = 'status-wait'; }
+      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;"><span>#' + escapeHtml(loc.numero) + ' - ' + escapeHtml(motoristaNome[loc.motorista_id] || '-') + ' - ' + premiacaoDataBR(loc.data_locacao) + '</span><span class="status-pill ' + cls + '"><span class="dot"></span>' + label + '</span></div>';
+    }).join('');
+  }
+  html += '</div>';
+  html += '<button class="btn btn-ghost" style="margin-top:12px;" id="btn-virar-dia-premiacao">Simular virada do dia</button></div>';
+  html += '<div class="tabs-mini" style="display:flex;gap:8px;margin:20px 0 12px;">';
+  html += '<button class="subtab' + (opTabAtual==='aberta'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;aberta&quot;)">Locacoes abertas</button>';
+  html += '<button class="subtab' + (opTabAtual==='fechada'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;fechada&quot;)">Locacoes fechadas</button>';
+  html += '</div>';
+  const locsFiltradas = locs.filter(function(l){ return l.status === opTabAtual; });
+  if(!locsFiltradas.length){
+    html += '<p class="empty-hint">Nenhuma locacao ' + (opTabAtual==='aberta'?'aberta':'fechada') + '.</p>';
+  } else {
+    html += locsFiltradas.map(function(loc){
+      const eq = PREMIACAO_EQUIP[loc.equipamento] || { label: loc.equipamento };
+      const etapas = etapasPorLoc[loc.id] || [];
+      const feitas = etapas.filter(function(e){ return e.concluida; }).length;
+      const total = etapas.length;
+      const etapasHtml = etapas.map(function(e){
+        return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px;"><input type="checkbox" ' + (e.concluida?'checked':'') + ' ' + (loc.status==='fechada'?'disabled':'') + ' onchange="togglePremiacaoEtapa(&quot;' + e.id + '&quot;,&quot;' + loc.id + '&quot;,this.checked)"> <span style="flex:1;">' + e.ordem + '. ' + escapeHtml(e.nome) + '</span>' + (e.concluida ? '<span class="quem" style="font-size:11px;color:var(--gray);">' + escapeHtml(motoristaNome[e.motorista_id] || '') + '</span>' : '') + '</div>';
+      }).join('');
+      return '<div class="card" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;"><div><b>Locacao #' + escapeHtml(loc.numero) + '</b><div style="font-size:12px;color:var(--gray);">' + eq.label + ' - ' + escapeHtml(motoristaNome[loc.motorista_id]||'-') + '</div></div><span style="font-size:12px;color:var(--gray);">' + feitas + '/' + total + ' etapas</span></div><div style="margin-top:8px;">' + etapasHtml + '</div>' +
+        (loc.status==='aberta' ? '<button class="btn btn-primary" style="margin-top:10px;" onclick="finalizarLocacaoPremiacao(&quot;' + loc.id + '&quot;,' + feitas + ',' + total + ')">Finalizar locacao' + (feitas<total?' (' + (total-feitas) + ' pendente' + ((total-feitas)>1?'s':'') + ')':'') + '</button>' : '') + '</div>';
+    }).join('');
+  }
+  const dados = {};
+  motoristas.forEach(function(m){ dados[m.id] = { nome: m.nome, pontos: 0, possiveis: 0 }; });
+  locs.forEach(function(loc){
+    const etapas = etapasPorLoc[loc.id] || [];
+    etapas.forEach(function(e){
+      const resp = e.motorista_id || loc.motorista_id;
+      if(!dados[resp]) dados[resp] = { nome: motoristaNome[resp] || '-', pontos: 0, possiveis: 0 };
+      dados[resp].possiveis += 1;
+      if(e.concluida) dados[resp].pontos += 1;
+    });
+    const s = selfiesPorLoc[loc.id];
+    const resp2 = loc.motorista_id;
+    if(!dados[resp2]) dados[resp2] = { nome: motoristaNome[resp2] || '-', pontos: 0, possiveis: 0 };
+    dados[resp2].possiveis += PONTOS_UNIFORME_PREMIACAO;
+    if(s && s.validada === true) dados[resp2].pontos += PONTOS_UNIFORME_PREMIACAO;
+    else if(s && s.validada === false && s.motivo === 'expirada') dados[resp2].pontos -= PONTOS_UNIFORME_PREMIACAO;
+  });
+  const ranking = Object.values(dados).filter(function(r){ return r.possiveis > 0; }).sort(function(a,b){ return (b.pontos/b.possiveis) - (a.pontos/a.possiveis); });
+  html += '<div class="card" style="margin-top:20px;"><h3>Ranking do mes</h3>';
+  if(!ranking.length){
+    html += '<p class="empty-hint">Sem dados ainda.</p>';
+  } else {
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr><th style="text-align:left;padding:8px 4px;border-bottom:1px solid var(--line);">Motorista</th><th style="text-align:left;padding:8px 4px;border-bottom:1px solid var(--line);">Pontos</th><th style="text-align:left;padding:8px 4px;border-bottom:1px solid var(--line);">%</th></tr></thead><tbody>';
+    html += ranking.map(function(r){
+      const pct = Math.round((r.pontos/r.possiveis)*100);
+      const naMeta = pct >= 80;
+      return '<tr><td style="padding:8px 4px;border-bottom:1px solid var(--line);">' + escapeHtml(r.nome) + '</td><td style="padding:8px 4px;border-bottom:1px solid var(--line);">' + r.pontos + ' / ' + r.possiveis + '</td><td style="padding:8px 4px;border-bottom:1px solid var(--line);"><span class="status-pill ' + (naMeta?'status-ok':'status-wait') + '"><span class="dot"></span>' + pct + '%</span></td></tr>';
+    }).join('');
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+  content.innerHTML = html;
+  document.getElementById('btn-virar-dia-premiacao').addEventListener('click', virarDiaPremiacao);
 }
 
-var btn = document.getElementById('btn-salvar-pontos');
-btn.disabled = true; btn.textContent = 'Salvando...';
-
-var result = await sb.from('pontos_diarios').upsert({
-motorista_id: motoristaId,
-data: data,
-etapas_dia: etapasDia,
-etapas_cumpridas: etapasCumpridas,
-uniforme: uniforme,
-observacao: observacao || null,
-criado_por: currentUsuario.id,
-atualizado_em: new Date().toISOString()
-}, { onConflict: 'motorista_id,data' });
-
-btn.disabled = false; btn.textContent = 'Salvar dia';
-
-if(result.error){
-errEl.textContent = 'Erro ao salvar: ' + result.error.message;
-errEl.style.display = 'block';
-return;
+async function togglePremiacaoEtapa(etapaId, locId, checked){
+  const updates = { concluida: checked };
+  if(checked){
+    const locResult = await sb.from('premiacao_locacoes').select('motorista_id').eq('id', locId).single();
+    updates.motorista_id = locResult.data ? locResult.data.motorista_id : null;
+    updates.concluida_em = new Date().toISOString();
+  } else {
+    updates.motorista_id = null;
+    updates.concluida_em = null;
+  }
+  await sb.from('premiacao_etapas').update(updates).eq('id', etapaId);
+  await carregarPremiacaoOperacional(true);
 }
 
-okEl.textContent = 'Dia registrado!';
-okEl.style.display = 'block';
-document.getElementById('pt-etapas-dia').value = '';
-document.getElementById('pt-etapas-cumpridas').value = '';
-document.getElementById('pt-uniforme').checked = false;
-document.getElementById('pt-observacao').value = '';
-await carregarCampanha(isGestor);
-});
-}
+async function finalizarLocacaoPremiacao(locId, feitas, total){
+  if(feitas < total){
+    const ok = confirm('Esta locacao tem ' + (total-feitas) + ' etapa(s) nao marcadas, que nao vao pontuar. Finalizar mesmo assim?');
+    if(!ok) return;
+  }
+  await sb.from('premiacao_locacoes').update({ status: 'fechada', atualizado_em: new Date().toISOString() }).eq('id', locId);
+  await carregarPremiacaoOperacional(true);
 }
 
-</script>
+async function virarDiaPremiacao(){
+  const hoje = premiacaoIsoHoje(0);
+  const result = await sb.from('premiacao_locacoes').select('id,data_locacao').lt('data_locacao', hoje);
+  const locs = result.data || [];
+  let n = 0;
+  for(const loc of locs){
+    const sResult = await sb.from('premiacao_selfies').select('validada,motivo').eq('locacao_id', loc.id).single();
+    const s = sResult.data;
+    if(s && s.validada !== true && s.motivo !== 'expirada'){
+      await sb.from('premiacao_selfies').update({ validada: false, motivo: 'expirada', enviada: false, validada_em: new Date().toISOString() }).eq('locacao_id', loc.id);
+      n++;
+    }
+  }
+  alert(n > 0 ? (n + ' selfie(s) expiraram sem validacao.') : 'Nenhuma selfie vencida no momento.');
+  await carregarPremiacaoOperacional(true);
+}
+
+  </script>
 </body>
 </html>
