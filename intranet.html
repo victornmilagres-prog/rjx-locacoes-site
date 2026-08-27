@@ -246,7 +246,7 @@ function moduleList(){
   mods.push({ id:'comercial', label:'Comercial', enabled: papel === 'comercial' || papel === 'gerencial' });
   mods.push({ id:'transportes', label:'Transportes', enabled: papel === 'transportes' || papel === 'gerencial' });
   mods.push({ id:'financeiro', label:'Financeiro', enabled:false, soon:true });
-  mods.push({ id:'operacional', label:'Operacional', enabled:false, soon:true });
+  mods.push({ id:'operacional', label:'Operacional', enabled: papel === 'operacional' || papel === 'gerencial' || papel === 'transportes' });
   mods.push({ id:'cadastros', label:'Cadastros', enabled:false, soon:true });
   return mods;
 }
@@ -292,6 +292,7 @@ function selectModule(modId){
   const mainArea = document.getElementById('main-area');
   if(modId === 'gerencial'){ renderGerencial(mainArea); }
   else if(modId === 'comercial'){ renderComercial(mainArea); }  else if(modId === 'transportes'){ renderTransportes(mainArea); }
+else if(modId === 'operacional'){ renderOperacional(mainArea); }
 }
 
 /* ================= API HELPER (usuarios via serverless) ================= */
@@ -998,6 +999,167 @@ function abrirPainelRetirada(r){
 }
 
 boot();
+
+/* ================= OPERACIONAL - Campanha de Premiacao ================= */
+function mesAtualInfo(){
+var d = new Date();
+var y = d.getFullYear();
+var m = d.getMonth();
+var first = new Date(y, m, 1).toISOString().slice(0,10);
+var last = new Date(y, m+1, 0).toISOString().slice(0,10);
+var label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+return { first: first, last: last, label: label };
+}
+
+async function renderOperacional(container){
+var isGestor = currentUsuario.papel === 'gerencial' || currentUsuario.papel === 'operacional';
+container.innerHTML =
+'<div class="pagehead"><div class="crumb">Intranet / <b>Operacional</b></div><h1>Operacional</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Operacional</div></div>' +
+'<div class="subnav"><button class="subtab active">Campanha de premiacao</button></div>' +
+'<div class="content" id="operacional-content"><p class="empty-hint">Carregando...</p></div>';
+await carregarCampanha(isGestor);
+}
+
+async function carregarCampanha(isGestor){
+var content = document.getElementById('operacional-content');
+var mes = mesAtualInfo();
+var motoristas = await getMotoristas();
+
+var result = await sb.from('pontos_diarios').select('*').gte('data', mes.first).lte('data', mes.last);
+if(result.error){
+content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>';
+return;
+}
+var rows = result.data || [];
+
+var somas = {};
+motoristas.forEach(function(m){ somas[m.id] = { nome: m.nome, pontos: 0, possiveis: 0 }; });
+rows.forEach(function(r){
+if(!somas[r.motorista_id]){ somas[r.motorista_id] = { nome: '\u2014', pontos: 0, possiveis: 0 }; }
+somas[r.motorista_id].pontos += r.pontos;
+somas[r.motorista_id].possiveis += r.pontos_possiveis;
+});
+
+var ranking = Object.keys(somas).map(function(id){
+var s = somas[id];
+var pct = s.possiveis > 0 ? Math.round((s.pontos / s.possiveis) * 100) : 0;
+return { id: id, nome: s.nome, pontos: s.pontos, possiveis: s.possiveis, pct: pct };
+}).sort(function(a,b){ return b.pct - a.pct; });
+
+var totalPossivelMes = ranking.reduce(function(acc, r){ return acc + r.possiveis; }, 0);
+
+var html = '';
+
+html += '<div class="grid2" style="grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;">';
+html += '<div class="card" style="padding:14px 18px;"><div style="font-size:11px;color:var(--gray);margin-bottom:4px;">Meta do mes</div><div style="font-size:19px;font-weight:600;">80%</div><div style="font-size:11px;color:var(--gray-soft);">para ganhar R$ 500</div></div>';
+html += '<div class="card" style="padding:14px 18px;"><div style="font-size:11px;color:var(--gray);margin-bottom:4px;">Mes de referencia</div><div style="font-size:19px;font-weight:600;text-transform:capitalize;">' + mes.label + '</div></div>';
+html += '<div class="card" style="padding:14px 18px;"><div style="font-size:11px;color:var(--gray);margin-bottom:4px;">Pontos possiveis (soma)</div><div style="font-size:19px;font-weight:600;">' + totalPossivelMes + '</div></div>';
+html += '</div>';
+
+if(isGestor){
+html += '<div class="card form-card">';
+html += '<h3>Registrar dia</h3>';
+html += '<p class="cardsub">Preencha quantas etapas o motorista tinha no dia, quantas cumpriu, e se estava de uniforme. O uniforme conta como +1 etapa possivel e +1 ponto quando marcado.</p>';
+html += '<div class="grid2">';
+html += '<div class="field"><label>Motorista</label><select id="pt-motorista">' + motoristas.map(function(m){ return '<option value="' + m.id + '">' + escapeHtml(m.nome) + '</option>'; }).join('') + '</select></div>';
+html += '<div class="field"><label>Data</label><input type="date" id="pt-data" value="' + new Date().toISOString().slice(0,10) + '"></div>';
+html += '</div>';
+html += '<div class="grid2">';
+html += '<div class="field"><label>Etapas do dia</label><input type="number" min="0" id="pt-etapas-dia" placeholder="Ex: 6"></div>';
+html += '<div class="field"><label>Etapas cumpridas</label><input type="number" min="0" id="pt-etapas-cumpridas" placeholder="Ex: 6"></div>';
+html += '</div>';
+html += '<div class="field"><label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" id="pt-uniforme" style="width:auto;"> Uniforme completo</label></div>';
+html += '<div class="field"><label>Observacao (opcional)</label><input id="pt-observacao" placeholder="Ex: chegou atrasado na segunda entrega"></div>';
+html += '<div id="pt-error" class="login-error" style="display:none;"></div>';
+html += '<div id="pt-success" class="login-success" style="display:none;"></div>';
+html += '<button class="btn btn-primary" id="btn-salvar-pontos">Salvar dia</button>';
+html += '</div>';
+}
+
+html += '<div class="list-title">Ranking do mes</div>';
+if(!ranking.length){
+html += '<p class="empty-hint">Nenhum motorista cadastrado ainda.</p>';
+} else {
+html += '<div class="card" style="overflow:hidden;">';
+html += '<table style="width:100%;border-collapse:collapse;">';
+html += '<thead><tr>';
+['Motorista','Pontos','%','Status'].forEach(function(h){
+html += '<th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">' + h + '</th>';
+});
+html += '</tr></thead><tbody>';
+ranking.forEach(function(r){
+var naMeta = r.pct >= 80;
+var pillCls = naMeta ? 'status-ok' : 'status-wait';
+var pillTxt = naMeta ? 'Na meta' : 'Abaixo da meta';
+var destaque = (currentUsuario.id === r.id) ? ' style="background:var(--paper-soft);"' : '';
+html += '<tr' + destaque + '>';
+html += '<td style="padding:10px 14px;border-bottom:1px solid var(--line);font-weight:600;">' + escapeHtml(r.nome) + '</td>';
+html += '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + r.pontos + ' / ' + r.possiveis + '</td>';
+html += '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + r.pct + '%</td>';
+html += '<td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span class="status-pill ' + pillCls + '"><span class="dot"></span>' + pillTxt + '</span></td>';
+html += '</tr>';
+});
+html += '</tbody></table></div>';
+}
+
+content.innerHTML = html;
+
+if(isGestor){
+document.getElementById('btn-salvar-pontos').addEventListener('click', async function(){
+var motoristaId = document.getElementById('pt-motorista').value;
+var data = document.getElementById('pt-data').value;
+var etapasDia = parseInt(document.getElementById('pt-etapas-dia').value, 10);
+var etapasCumpridas = parseInt(document.getElementById('pt-etapas-cumpridas').value, 10);
+var uniforme = document.getElementById('pt-uniforme').checked;
+var observacao = document.getElementById('pt-observacao').value.trim();
+var errEl = document.getElementById('pt-error');
+var okEl = document.getElementById('pt-success');
+errEl.style.display = 'none'; okEl.style.display = 'none';
+
+if(!motoristaId || !data || isNaN(etapasDia) || isNaN(etapasCumpridas)){
+errEl.textContent = 'Preencha motorista, data, etapas do dia e etapas cumpridas.';
+errEl.style.display = 'block';
+return;
+}
+if(etapasCumpridas > etapasDia){
+errEl.textContent = 'Etapas cumpridas nao pode ser maior que etapas do dia.';
+errEl.style.display = 'block';
+return;
+}
+
+var btn = document.getElementById('btn-salvar-pontos');
+btn.disabled = true; btn.textContent = 'Salvando...';
+
+var result = await sb.from('pontos_diarios').upsert({
+motorista_id: motoristaId,
+data: data,
+etapas_dia: etapasDia,
+etapas_cumpridas: etapasCumpridas,
+uniforme: uniforme,
+observacao: observacao || null,
+criado_por: currentUsuario.id,
+atualizado_em: new Date().toISOString()
+}, { onConflict: 'motorista_id,data' });
+
+btn.disabled = false; btn.textContent = 'Salvar dia';
+
+if(result.error){
+errEl.textContent = 'Erro ao salvar: ' + result.error.message;
+errEl.style.display = 'block';
+return;
+}
+
+okEl.textContent = 'Dia registrado!';
+okEl.style.display = 'block';
+document.getElementById('pt-etapas-dia').value = '';
+document.getElementById('pt-etapas-cumpridas').value = '';
+document.getElementById('pt-uniforme').checked = false;
+document.getElementById('pt-observacao').value = '';
+await carregarCampanha(isGestor);
+});
+}
+}
+
 </script>
 </body>
 </html>
