@@ -513,6 +513,7 @@ async function renderComercial(container){
     '<div class="pagehead"><div class="crumb">Intranet / <b>Comercial</b></div><h1>Comercial</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Comercial</div></div>' +
     '<div class="subnav">' +
 '<button class="subtab active" id="cs-tab-insumos" onclick="selectComercialSubtab(&quot;insumos&quot;)">Controle de Insumos</button>' +
+'<button class="subtab" id="cs-tab-leads" onclick="selectComercialSubtab(&quot;leads&quot;)">Controle de Leads</button>' +
 '<button class="subtab" id="cs-tab-comissao" onclick="selectComercialSubtab(&quot;comissao&quot;)">Premiação Comercial</button>' +
 '<button class="subtab" id="cs-tab-logistica" onclick="selectComercialSubtab(&quot;logistica&quot;)">Premiação Logística</button>' +
 '</div>' +
@@ -525,9 +526,11 @@ async function renderComercial(container){
 
 async function selectComercialSubtab(tab){
   document.getElementById('cs-tab-insumos').classList.toggle('active', tab==='insumos');
+  document.getElementById('cs-tab-leads').classList.toggle('active', tab==='leads');
   document.getElementById('cs-tab-comissao').classList.toggle('active', tab==='comissao');
   document.getElementById('cs-tab-logistica').classList.toggle('active', tab==='logistica');
   if(tab === 'insumos'){ await carregarInsumosComercial(); }
+  else if(tab === 'leads'){ await carregarLeadsComercial(); }
   else if(tab === 'comissao'){ await carregarComissaoComercial(); }
   else { await carregarPremiacaoComercial(); }
 }
@@ -686,6 +689,242 @@ async function comissaoCancelar(id){
 async function comissaoReativar(id){
   await sb.from("comercial_premiacao_clientes").update({ cancelada: false }).eq("id", id);
   await carregarComissaoComercial();
+}
+
+
+const LEADS_PRAZOS = { contato1: 2, retomada1: 3, retomada2: 5, retomada3: 99 };
+const LEADS_ETAPA_LABEL = { contato1: "1º contato", retomada1: "Retomada 1", retomada2: "Retomada 2", retomada3: "Retomada 3", sem_retorno: "Sem retorno" };
+const LEADS_PROXIMA_ETAPA = { contato1: "retomada1", retomada1: "retomada2", retomada2: "retomada3", retomada3: "sem_retorno" };
+
+function leadsDataBR(iso){
+  if(!iso) return "-";
+  const p = iso.split("-");
+  return p[2] + "/" + p[1];
+}
+function leadsDiasEntre(iso1, iso2){
+  const d1 = new Date(iso1 + "T00:00:00");
+  const d2 = new Date(iso2 + "T00:00:00");
+  return Math.round((d2 - d1) / 86400000);
+}
+function leadsStatus(lead){
+  if(lead.etapa === "sem_retorno" || lead.alugou !== null){ return { relevante:false }; }
+  if(!lead.aguardando){ return { relevante:true, aguardando:false }; }
+  const hoje = premiacaoIsoHoje(0);
+  const dias = leadsDiasEntre(lead.data_ultimo_envio, hoje);
+  const prazo = LEADS_PRAZOS[lead.etapa];
+  return { relevante:true, aguardando:true, dias:dias, prazo:prazo, atrasado: dias >= prazo };
+}
+function leadsRowClass(lead){
+  if(lead.alugou === true) return "row-alugou";
+  if(lead.alugou === false) return "row-nao";
+  if(lead.estrela) return "row-estrela";
+  return "row-default";
+}
+function equipamentoParaPremio(texto){
+  if(!texto) return null;
+  const t = texto.trim().toLowerCase();
+  if(t.indexOf("criodermis") !== -1) return "Criodermis";
+  if(t.indexOf("mpt") !== -1) return "Ultraformer MPT";
+  if(t.indexOf("iii") !== -1) return "Ultraformer III";
+  if(t.indexOf("lavieen") !== -1 || t.indexOf("laser") !== -1) return "Lavieen";
+  if(t.indexOf("endolaser") !== -1) return "Endolaser";
+  return texto;
+}
+function calcularPremioLead(equipamento){ return (equipamento === "Criodermis") ? 25 : 50; }
+
+async function carregarLeadsComercial(){
+  const content = document.getElementById("comercial-content");
+  content.innerHTML = '<p class="empty-hint">Carregando...</p>';
+  const result = await sb.from("comercial_leads").select("*").order("data");
+  if(result.error){
+    content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>';
+    return;
+  }
+  window.__leadsAtuais = result.data || [];
+  let html = "";
+  html += '<div id="leads-alerta-wrap"></div>';
+  html += '<div class="card form-card"><h3>Novo lead</h3>';
+  html += '<p class="cardsub">Registre assim que responder o primeiro contato. O sistema conta os dias sozinho a partir daqui.</p>';
+  html += '<div class="grid3"><div class="field"><label>Nome</label><input id="ld-nome" placeholder="Ex: Renata"></div><div class="field"><label>Telefone</label><input id="ld-telefone" placeholder="21 99999-9999"></div><div class="field"><label>Equipamento</label><input id="ld-equipamento" placeholder="Ex: Ultraformer MPT"></div></div>';
+  html += '<div class="field" style="margin-top:12px;max-width:220px;"><label>Data</label><input type="date" id="ld-data"></div>';
+  html += '<button class="btn btn-primary" style="margin-top:16px;" onclick="adicionarLead()">Adicionar lead</button></div>';
+  html += '<div class="card" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr>';
+  ["","Data","Nome","Telefone","Equipamento","Etapa atual","Status","Ação","Observações","Alugou"].forEach(function(h){
+    html += '<th style="text-align:left;padding:9px 10px;font-size:10.5px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
+  });
+  html += '</tr></thead><tbody id="tbody-leads"></tbody></table></div>';
+  content.innerHTML = html;
+  document.getElementById("ld-data").value = premiacaoIsoHoje(0);
+  renderLeadsAlerta();
+  renderLeadsTabela();
+}
+
+function renderLeadsAlerta(){
+  const wrap = document.getElementById("leads-alerta-wrap");
+  if(!wrap) return;
+  const leads = window.__leadsAtuais || [];
+  const emEspera = leads.map(function(l){ return { lead:l, st:leadsStatus(l) }; })
+    .filter(function(x){ return x.st.relevante && x.st.aguardando; })
+    .sort(function(a,b){ return b.st.dias - a.st.dias; });
+  if(!emEspera.length){
+    wrap.innerHTML = '<div class="card" style="padding:14px 18px;margin-bottom:20px;color:var(--gray);font-size:13px;">✅ Nenhum lead aguardando retorno no momento.</div>';
+    return;
+  }
+  const atrasadosCount = emEspera.filter(function(x){ return x.st.atrasado; }).length;
+  wrap.innerHTML = '<div class="card" style="padding:16px 18px;margin-bottom:20px;background:var(--alert-bg);border-color:#e8cabd;"><h3 style="color:var(--alert);font-size:16px;">🔔 Leads aguardando retorno (' + emEspera.length + ')</h3>' +
+    '<p class="cardsub" style="color:#7a5c14;">' + (atrasadosCount ? atrasadosCount + ' já passaram do prazo — ' : "") + 'ordenado do mais parado pro mais recente.</p>' +
+    emEspera.map(function(x){
+      const cls = x.st.atrasado ? "status-wait" : "status-info";
+      const label = x.st.dias === 0 ? "Novo — aguardando" : (x.st.dias + " dia(s) parado");
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #eaceb f;gap:10px;flex-wrap:wrap;"><div style="display:flex;align-items:center;gap:10px;"><b>' + escapeHtml(x.lead.nome) + '</b><span class="quem" style="font-size:11px;background:var(--paper-soft);padding:3px 9px;border-radius:20px;">' + LEADS_ETAPA_LABEL[x.lead.etapa] + '</span><span class="status-pill ' + cls + '"><span class="dot"></span>' + label + '</span></div><div><button class="btn btn-ghost btn-sm" onclick="leadsRegistrarContato(&quot;' + x.lead.id + '&quot;,true)">Respondeu</button> <button class="btn btn-primary btn-sm" onclick="leadsRegistrarContato(&quot;' + x.lead.id + '&quot;,false)">Não respondeu</button></div></div>';
+    }).join("") + "</div>";
+}
+
+function renderLeadsTabela(){
+  const tbody = document.getElementById("tbody-leads");
+  if(!tbody) return;
+  const leads = window.__leadsAtuais || [];
+  if(!leads.length){ tbody.innerHTML = '<tr><td colspan="10" class="empty-hint">Nenhum lead cadastrado ainda.</td></tr>'; return; }
+  const ordenados = leads.slice().sort(function(a,b){ return a.data < b.data ? -1 : (a.data > b.data ? 1 : 0); });
+  tbody.innerHTML = ordenados.map(function(l){
+    const alugouVal = l.alugou === true ? "sim" : (l.alugou === false ? "nao" : "");
+    const st = leadsStatus(l);
+    let statusHtml, acaoHtml;
+    if(!st.relevante){ statusHtml = '<span class="status-pill status-wait"><span class="dot"></span>—</span>'; acaoHtml = "-"; }
+    else if(!st.aguardando){
+      statusHtml = '<span class="status-pill status-ok"><span class="dot"></span>Em conversa</span>';
+      acaoHtml = '<button class="btn btn-ghost btn-sm" onclick="leadsMarcarParado(&quot;' + l.id + '&quot;)">Parou de responder</button>';
+    } else {
+      const cls = st.atrasado ? "status-wait" : "status-info";
+      statusHtml = '<span class="status-pill ' + cls + '"><span class="dot"></span>' + st.dias + "/" + st.prazo + ' dias</span>';
+      acaoHtml = '<button class="btn btn-ghost btn-sm" onclick="leadsRegistrarContato(&quot;' + l.id + '&quot;,true)">Respondeu</button> <button class="btn btn-primary btn-sm" onclick="leadsRegistrarContato(&quot;' + l.id + '&quot;,false)">Não respondeu</button>';
+    }
+    const bg = l.alugou === true ? "var(--ok-bg)" : (l.alugou === false ? "var(--alert-bg)" : (l.estrela ? "#fdf3d0" : "#fff"));
+    return '<tr style="background:' + bg + ';">' +
+      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);"><button class="link-btn" style="background:none;border:none;cursor:pointer;font-size:16px;color:' + (l.estrela?"#c9971f":"var(--gray-soft)") + ';" onclick="leadsToggleEstrela(&quot;' + l.id + '&quot;)">' + (l.estrela?"★":"☆") + '</button></td>' +
+      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + leadsDataBR(l.data) + '</td>' +
+      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + escapeHtml(l.nome) + '</td>' +
+      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + escapeHtml(l.telefone||"") + '</td>' +
+      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + escapeHtml(l.equipamento||"") + '</td>' +
+      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);"><span class="quem" style="font-size:11px;background:var(--paper-soft);padding:3px 9px;border-radius:20px;">' + LEADS_ETAPA_LABEL[l.etapa] + '</span></td>' +
+      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + statusHtml + '</td>' +
+      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + acaoHtml + '</td>' +
+      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);"><input value="' + escapeHtml(l.obs||"") + '" placeholder="—" style="width:100%;min-width:140px;border:1px solid transparent;background:transparent;padding:4px 6px;border-radius:4px;font-size:12.5px;font-family:inherit;" onchange="leadsAtualizarObs(&quot;' + l.id + '&quot;,this.value)"></td>' +
+      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);"><select style="border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px;font-family:inherit;background:#fff;" onchange="leadsAtualizarAlugou(&quot;' + l.id + '&quot;,this.value)"><option value="" ' + (alugouVal===""?"selected":"") + '>—</option><option value="sim" ' + (alugouVal==="sim"?"selected":"") + '>Sim</option><option value="nao" ' + (alugouVal==="nao"?"selected":"") + '>Não</option></select></td>' +
+      "</tr>";
+  }).join("");
+}
+
+async function adicionarLead(){
+  const nome = document.getElementById("ld-nome").value.trim();
+  const telefone = document.getElementById("ld-telefone").value.trim();
+  const equipamento = document.getElementById("ld-equipamento").value.trim();
+  const data = document.getElementById("ld-data").value;
+  if(!nome || !data){ toast("Preencha ao menos nome e data."); return; }
+  const insertResult = await sb.from("comercial_leads").insert({
+    nome: nome, telefone: telefone, equipamento: equipamento, data: data,
+    etapa: "contato1", data_ultimo_envio: data, aguardando: true, criado_por: currentUsuario.id
+  });
+  if(insertResult.error){ toast("Erro ao salvar: " + insertResult.error.message); return; }
+  document.getElementById("ld-nome").value = "";
+  document.getElementById("ld-telefone").value = "";
+  document.getElementById("ld-equipamento").value = "";
+  toast("Lead adicionado.");
+  await carregarLeadsComercial();
+}
+
+async function leadsRegistrarContato(id, respondeu){
+  const lead = (window.__leadsAtuais||[]).find(function(l){ return l.id === id; });
+  if(!lead) return;
+  let updates;
+  if(respondeu){
+    updates = { aguardando: false };
+    toast(lead.nome + " respondeu — conversa em andamento.");
+  } else {
+    const proxima = LEADS_PROXIMA_ETAPA[lead.etapa];
+    updates = { etapa: proxima, data_ultimo_envio: premiacaoIsoHoje(0), aguardando: proxima !== "sem_retorno" };
+    toast(proxima === "sem_retorno" ? (lead.nome + " — 3 tentativas sem retorno.") : ("Avançou pra " + LEADS_ETAPA_LABEL[proxima] + "."));
+  }
+  await sb.from("comercial_leads").update(updates).eq("id", id);
+  await carregarLeadsComercial();
+}
+
+async function leadsMarcarParado(id){
+  await sb.from("comercial_leads").update({ aguardando: true, data_ultimo_envio: premiacaoIsoHoje(0) }).eq("id", id);
+  toast("Reiniciada a contagem de dias.");
+  await carregarLeadsComercial();
+}
+
+async function leadsToggleEstrela(id){
+  const lead = (window.__leadsAtuais||[]).find(function(l){ return l.id === id; });
+  if(!lead) return;
+  await sb.from("comercial_leads").update({ estrela: !lead.estrela }).eq("id", id);
+  await carregarLeadsComercial();
+}
+
+async function leadsAtualizarObs(id, valor){
+  await sb.from("comercial_leads").update({ obs: valor }).eq("id", id);
+  const lead = (window.__leadsAtuais||[]).find(function(l){ return l.id === id; });
+  if(lead) lead.obs = valor;
+}
+
+async function leadsAtualizarAlugou(id, valor){
+  const lead = (window.__leadsAtuais||[]).find(function(l){ return l.id === id; });
+  if(!lead) return;
+  const alugou = valor === "sim" ? true : (valor === "nao" ? false : null);
+  await sb.from("comercial_leads").update({ alugou: alugou }).eq("id", id);
+  lead.alugou = alugou;
+  await carregarLeadsComercial();
+  if(alugou === true){
+    const quer = confirm(lead.nome + " alugou! Deseja lançar o prêmio de comissão dela agora?");
+    if(quer) abrirModalPremioLead(lead);
+  }
+}
+
+function abrirModalPremioLead(lead){
+  const eqSugerido = equipamentoParaPremio(lead.equipamento);
+  let overlay = document.getElementById("premio-modal-overlay");
+  if(overlay) overlay.remove();
+  overlay = document.createElement("div");
+  overlay.id = "premio-modal-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,0.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  overlay.innerHTML =
+    '<div class="card form-card" style="max-width:420px;width:92%;margin:0;"><h3>Lançar prêmio — Premiação Comercial</h3>' +
+    '<p class="cardsub">Já veio preenchido com os dados do lead. Falta só a data da locação.</p>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Nome da cliente</label><input id="pm-nome" value="' + escapeHtml(lead.nome) + '" readonly style="background:var(--paper-soft);"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><input id="pm-equipamento" value="' + escapeHtml(eqSugerido || lead.equipamento || "") + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Data de cadastro</label><input type="date" id="pm-cadastro" value="' + lead.data + '"></div>' +
+    '<div class="field" style="margin-bottom:14px;"><label>Data da locação</label><input type="date" id="pm-locacao"></div>' +
+    '<div id="pm-preview" class="cardsub" style="margin-bottom:10px;"></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="fecharModalPremioLead()">Agora não</button><button class="btn btn-primary" onclick="confirmarPremioLead()">Lançar prêmio</button></div></div>';
+  document.body.appendChild(overlay);
+  const atualizarPreview = function(){
+    const eqVal = document.getElementById("pm-equipamento").value;
+    const premio = calcularPremioLead(equipamentoParaPremio(eqVal));
+    document.getElementById("pm-preview").textContent = "Prêmio calculado: R$ " + premio.toFixed(2).replace(".", ",");
+  };
+  document.getElementById("pm-equipamento").addEventListener("input", atualizarPreview);
+  atualizarPreview();
+}
+function fecharModalPremioLead(){
+  const overlay = document.getElementById("premio-modal-overlay");
+  if(overlay) overlay.remove();
+}
+async function confirmarPremioLead(){
+  const nome = document.getElementById("pm-nome").value;
+  const cadastro = document.getElementById("pm-cadastro").value;
+  const equipamento = document.getElementById("pm-equipamento").value.trim();
+  const locacao = document.getElementById("pm-locacao").value;
+  if(!locacao){ toast("Preencha a data da locação."); return; }
+  const premio = calcularPremioLead(equipamentoParaPremio(equipamento));
+  const mesRef = locacao.slice(0,7) + "-01";
+  const insertResult = await sb.from("comercial_premiacao_clientes").insert({
+    nome: nome, data_cadastro: cadastro, data_locacao: locacao,
+    equipamento: equipamento, premio: premio, cancelada: false, mes_referencia: mesRef, criado_por: currentUsuario.id
+  });
+  if(insertResult.error){ toast("Erro ao lançar prêmio: " + insertResult.error.message); return; }
+  fecharModalPremioLead();
+  toast("Prêmio de R$ " + premio.toFixed(2).replace(".", ",") + " lançado pra " + nome + " na Premiação Comercial.");
 }
 
 async function carregarInsumosComercial(){
