@@ -513,7 +513,7 @@ async function renderComercial(container){
     '<div class="pagehead"><div class="crumb">Intranet / <b>Comercial</b></div><h1>Comercial</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Comercial</div></div>' +
     '<div class="subnav">' +
 '<button class="subtab active" id="cs-tab-insumos" onclick="selectComercialSubtab(&quot;insumos&quot;)">Controle de Insumos</button>' +
-'<button class="subtab" id="cs-tab-premiacao" onclick="selectComercialSubtab(&quot;premiacao&quot;)">Premiacao</button>' +
+'<button class="subtab" id="cs-tab-premiacao" onclick="selectComercialSubtab(&quot;premiacao&quot;)">Premiação</button>' +
 '</div>' +
     '<div class="content" id="comercial-content"><p class="empty-hint">Carregando...</p></div>';
 
@@ -619,7 +619,7 @@ async function carregarPremiacaoComercial(){
     return '<option value="' + k + '">' + PREMIACAO_EQUIP[k].label + '</option>';
   }).join('');
   let html = '';
-  html += '<div class="card"><h3>Abrir locação para o dia seguinte</h3>';
+  html += '<div class="card form-card"><h3>Abrir locação para o dia seguinte</h3>';
   html += '<p class="cardsub">Número, equipamento, motorista e data. Depois de aberta, você pode trocar o motorista, mas quem pontua e fecha é o Operacional.</p>';
   html += '<div class="grid2"><div class="field"><label>Número da locação</label><input id="pc-numero" placeholder="Ex: 4521"></div><div class="field"><label>Equipamento</label><select id="pc-equipamento">' + equipOptions + '</select></div></div>';
   html += '<div class="grid2"><div class="field"><label>Motorista</label><select id="pc-motorista">' + motoristaOptions + '</select></div><div class="field"><label>Data da locação</label><input type="date" id="pc-data"></div></div>';
@@ -852,7 +852,7 @@ async function renderTransportes(container){
     '<div class="pagehead"><div class="crumb">Intranet / <b>Transportes</b></div><h1>Transportes</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Transportes</div></div>' +
     '<div class="subnav">' +
 '<button class="subtab active" id="ts-tab-insumos" onclick="selectTransportesSubtab(&quot;insumos&quot;)">Meus controles</button>' +
-'<button class="subtab" id="ts-tab-premiacao" onclick="selectTransportesSubtab(&quot;premiacao&quot;)">Premiacao</button>' +
+'<button class="subtab" id="ts-tab-premiacao" onclick="selectTransportesSubtab(&quot;premiacao&quot;)">Premiação</button>' +
 '</div>' +
     '<div class="content" id="transportes-content"><p class="empty-hint">Carregando...</p></div>';
   
@@ -901,12 +901,12 @@ async function carregarPremiacaoTransportes(){
   });
   const pct = possiveis > 0 ? Math.round((pontos/possiveis)*100) : 0;
   let html = '';
-  html += '<div class="card"><h3>Minha pontuação</h3>';
+  html += '<div class="card form-card"><h3>Minha pontuação</h3>';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
   html += '<div><div style="font-size:26px;font-weight:800;">' + pontos + ' pts</div><div class="cardsub" style="margin:2px 0 0;">de ' + possiveis + ' possíveis</div></div>';
   html += '<span class="status-pill ' + (pct>=80?'status-ok':'status-wait') + '" style="font-size:14px;"><span class="dot"></span>' + pct + '%</span>';
   html += '</div></div>';
-  html += '<div class="card"><h3>Minhas locações</h3><p class="cardsub">A selfie de uniforme é obrigatória em cada locação. Sem ela até a data, você perde ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p>';
+  html += '<div class="card form-card"><h3>Minhas locações</h3><p class="cardsub">A selfie de uniforme é obrigatória em cada locação. Sem ela até a data, você perde ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p>';
   html += '<div id="pt-lista-locacoes">';
   if(!locs.length){
     html += '<p class="empty-hint">Nenhuma locação atribuída a você ainda.</p>';
@@ -1350,7 +1350,7 @@ async function carregarPremiacaoOperacional(isGestor){
   }
   let html = '';
   html += '<div class="card" style="background:var(--paper-soft);"><p class="cardsub" style="margin:0;">Cada etapa do manual vale <b>1 ponto</b> (11 etapas em equipamentos com insumo, 8 nos demais). A selfie de uniforme vale <b>' + PONTOS_UNIFORME_PREMIACAO + ' pontos</b> por locação, enviada pelo motorista na aba de Transportes e validada por IA. Sem envio até a data da locação, ele perde os ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p></div>';
-  html += '<div class="card"><h3>Selfies das locações</h3><p class="cardsub">Quem envia é o motorista. Use o botão para expirar quem não enviou até a data da locação.</p>';
+  html += '<div class="card form-card"><h3>Selfies das locações</h3><p class="cardsub">Quem envia é o motorista. Use o botão para expirar quem não enviou até a data da locação.</p>';
   html += '<div id="op-lista-selfies">';
   if(!locs.length){
     html += '<p class="empty-hint">Nenhuma locação registrada.</p>';
@@ -1406,7 +1406,7 @@ async function carregarPremiacaoOperacional(isGestor){
     else if(s && s.validada === false && s.motivo === 'expirada') dados[resp2].pontos -= PONTOS_UNIFORME_PREMIACAO;
   });
   const ranking = Object.values(dados).filter(function(r){ return r.possiveis > 0; }).sort(function(a,b){ return (b.pontos/b.possiveis) - (a.pontos/a.possiveis); });
-  html += '<div class="card" style="margin-top:20px;"><h3>Ranking do mês</h3>';
+  html += '<div class="card form-card" style="margin-top:20px;"><h3>Ranking do mês</h3>';
   if(!ranking.length){
     html += '<p class="empty-hint">Sem dados ainda.</p>';
   } else {
