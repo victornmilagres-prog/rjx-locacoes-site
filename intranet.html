@@ -535,6 +535,7 @@ async function selectComercialSubtab(tab){
 
 const COMISSAO_EQUIPAMENTOS = ["Ultraformer MPT","Ultraformer III","Lavieen","Criodermis","Endolaser"];
 let comissaoMesSelecionado = null;
+let comissaoAnoSelecionado = null;
 let comissaoEquipSelecionados = [];
 
 function comissaoCalcularPremio(equipamentos){
@@ -546,6 +547,12 @@ function comissaoMesLabel(anoMes){
   const nomes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
   return nomes[parseInt(p[1],10)-1] + " " + p[0];
 }
+function comissaoMesLabelCurto(anoMes){
+  const p = anoMes.split("-");
+  const nomes = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  return nomes[parseInt(p[1],10)-1];
+}
+
 function comissaoDataBR(iso){
   if(!iso) return "-";
   const p = iso.split("-");
@@ -564,6 +571,7 @@ async function carregarComissaoComercial(){
   const hoje = premiacaoIsoHoje(0);
   const mesAtual = hoje.slice(0,7);
   if(!comissaoMesSelecionado) comissaoMesSelecionado = mesAtual;
+  if(!comissaoAnoSelecionado) comissaoAnoSelecionado = comissaoMesSelecionado.slice(0,4);
 
   let html = "";
   html += '<div class="card form-card"><h3>Cadastrar cliente novo</h3>';
@@ -581,8 +589,14 @@ async function carregarComissaoComercial(){
     if(!meses.includes(m)) meses.push(m);
   }
   meses.sort();
+  const anos = [...new Set(meses.map(function(m){ return m.slice(0,4); }))].sort();
+
+  html += '<div class="subnav" style="flex-wrap:wrap;margin-bottom:6px;">' +
+    anos.map(function(a){ return '<button class="subtab' + (a===comissaoAnoSelecionado?" active":"") + '" onclick="mudarAnoComissao(&quot;' + a + '&quot;)">' + a + '</button>'; }).join("") + '</div>';
+
+  const mesesDoAno = meses.filter(function(m){ return m.slice(0,4) === comissaoAnoSelecionado; });
   html += '<div class="subnav" style="flex-wrap:wrap;margin-bottom:16px;">' +
-    meses.map(function(m){ return '<button class="subtab' + (m===comissaoMesSelecionado?" active":"") + '" onclick="mudarMesComissao(&quot;' + m + '&quot;)">' + comissaoMesLabel(m) + '</button>'; }).join("") + '</div>';
+    mesesDoAno.map(function(m){ return '<button class="subtab' + (m===comissaoMesSelecionado?" active":"") + '" onclick="mudarMesComissao(&quot;' + m + '&quot;)">' + comissaoMesLabelCurto(m) + '</button>'; }).join("") + '</div>';
 
   const lista = window.__comissaoClientes.filter(function(c){ return c.mes_referencia.slice(0,7) === comissaoMesSelecionado; });
   html += '<div class="card"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>' +
@@ -621,6 +635,15 @@ async function carregarComissaoComercial(){
   if(cadastroInput) cadastroInput.value = hoje;
 }
 
+function mudarAnoComissao(ano){
+  comissaoAnoSelecionado = ano;
+  const meses = [...new Set((window.__comissaoClientes||[]).map(function(c){ return c.mes_referencia.slice(0,7); }))];
+  const mesesDoAno = meses.filter(function(m){ return m.slice(0,4) === ano; }).sort();
+  if(!comissaoMesSelecionado.startsWith(ano) && mesesDoAno.length){
+    comissaoMesSelecionado = mesesDoAno[mesesDoAno.length-1];
+  }
+  carregarComissaoComercial();
+}
 function comissaoToggleEquip(el, eq){
   const i = comissaoEquipSelecionados.indexOf(eq);
   if(i === -1){ comissaoEquipSelecionados.push(eq); el.style.background = "var(--wine)"; el.style.borderColor = "var(--wine)"; el.style.color = "#fff"; }
