@@ -578,6 +578,7 @@ function comissaoDataBR(iso){
 
 async function carregarComissaoComercial(){
   const content = document.getElementById("comercial-content");
+  content.style.maxWidth = "";
   content.innerHTML = '<p class="empty-hint">Carregando...</p>';
   const result = await sb.from("comercial_premiacao_clientes").select("*").order("data_locacao", { ascending: false });
   if(result.error){
@@ -748,6 +749,7 @@ function calcularPremioLead(equipamento){ return (equipamento === "Criodermis") 
 
 async function carregarLeadsComercial(){
   const content = document.getElementById("comercial-content");
+  content.style.maxWidth = "none";
   content.innerHTML = '<p class="empty-hint">Carregando...</p>';
   const result = await sb.from("comercial_leads").select("*").order("data");
   if(result.error){
@@ -955,6 +957,7 @@ async function confirmarPremioLead(){
 async function carregarInsumosComercial(){
 const motoristas = await getMotoristas();
   const content = document.getElementById('comercial-content');
+  content.style.maxWidth = "";
 
   let motoristaOptions = motoristas.map(function(m){ return '<option value="' + m.id + '">' + escapeHtml(m.nome) + '</option>'; }).join('');
   if(!motoristas.length){ motoristaOptions = '<option value="">Nenhum motorista cadastrado</option>'; }
@@ -1033,6 +1036,7 @@ const motoristas = await getMotoristas();
 let pcEditandoId = null;
 async function carregarPremiacaoComercial(){
   const content = document.getElementById('comercial-content');
+  content.style.maxWidth = "";
   const motoristas = await getMotoristas();
   let motoristaOptions = motoristas.map(function(m){
     return '<option value="' + m.id + '">' + escapeHtml(m.nome) + '</option>';
