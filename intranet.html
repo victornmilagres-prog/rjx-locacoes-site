@@ -513,7 +513,8 @@ async function renderComercial(container){
     '<div class="pagehead"><div class="crumb">Intranet / <b>Comercial</b></div><h1>Comercial</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Comercial</div></div>' +
     '<div class="subnav">' +
 '<button class="subtab active" id="cs-tab-insumos" onclick="selectComercialSubtab(&quot;insumos&quot;)">Controle de Insumos</button>' +
-'<button class="subtab" id="cs-tab-premiacao" onclick="selectComercialSubtab(&quot;premiacao&quot;)">Premiação</button>' +
+'<button class="subtab" id="cs-tab-comissao" onclick="selectComercialSubtab(&quot;comissao&quot;)">Premiação Comercial</button>' +
+'<button class="subtab" id="cs-tab-logistica" onclick="selectComercialSubtab(&quot;logistica&quot;)">Premiação Logística</button>' +
 '</div>' +
     '<div class="content" id="comercial-content"><p class="empty-hint">Carregando...</p></div>';
 
@@ -524,9 +525,144 @@ async function renderComercial(container){
 
 async function selectComercialSubtab(tab){
   document.getElementById('cs-tab-insumos').classList.toggle('active', tab==='insumos');
-  document.getElementById('cs-tab-premiacao').classList.toggle('active', tab==='premiacao');
+  document.getElementById('cs-tab-comissao').classList.toggle('active', tab==='comissao');
+  document.getElementById('cs-tab-logistica').classList.toggle('active', tab==='logistica');
   if(tab === 'insumos'){ await carregarInsumosComercial(); }
+  else if(tab === 'comissao'){ await carregarComissaoComercial(); }
   else { await carregarPremiacaoComercial(); }
+}
+
+
+const COMISSAO_EQUIPAMENTOS = ["Ultraformer MPT","Ultraformer III","Lavieen","Criodermis","Endolaser"];
+let comissaoMesSelecionado = null;
+let comissaoEquipSelecionados = [];
+
+function comissaoCalcularPremio(equipamentos){
+  if(equipamentos.length === 1 && equipamentos[0] === "Criodermis") return 25;
+  return 50;
+}
+function comissaoMesLabel(anoMes){
+  const p = anoMes.split("-");
+  const nomes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  return nomes[parseInt(p[1],10)-1] + " " + p[0];
+}
+function comissaoDataBR(iso){
+  if(!iso) return "-";
+  const p = iso.split("-");
+  return p[2] + "/" + p[1];
+}
+
+async function carregarComissaoComercial(){
+  const content = document.getElementById("comercial-content");
+  content.innerHTML = '<p class="empty-hint">Carregando...</p>';
+  const result = await sb.from("comercial_premiacao_clientes").select("*").order("data_locacao", { ascending: false });
+  if(result.error){
+    content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>';
+    return;
+  }
+  window.__comissaoClientes = result.data || [];
+  const hoje = premiacaoIsoHoje(0);
+  const mesAtual = hoje.slice(0,7);
+  if(!comissaoMesSelecionado) comissaoMesSelecionado = mesAtual;
+
+  let html = "";
+  html += '<div class="card form-card"><h3>Cadastrar cliente novo</h3>';
+  html += '<p class="cardsub">Só cadastre quando já tiver a data da locação marcada. O mês da premiação é o mês dessa data. R$ 50,00 por cliente (Criodermis sozinho: R$ 25,00).</p>';
+  html += '<div class="grid3"><div class="field"><label>Nome da cliente</label><input id="cm-nome" placeholder="Ex: Maria da Silva"></div><div class="field"><label>Data de cadastro</label><input type="date" id="cm-cadastro"></div><div class="field"><label>Data da locação</label><input type="date" id="cm-locacao"></div></div>';
+  html += '<div class="field" style="margin-top:12px;"><label>Equipamento</label><div id="cm-equip-checks" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">' +
+    COMISSAO_EQUIPAMENTOS.map(function(eq){ return '<div class="cm-equip-pill" data-eq="' + eq + '" onclick="comissaoToggleEquip(this,&quot;' + eq + '&quot;)" style="border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-size:12.5px;cursor:pointer;user-select:none;background:#fff;color:var(--gray);">' + eq + '</div>'; }).join("") +
+    '</div><div id="cm-premio-preview" class="cardsub" style="margin:8px 0 0;"></div></div>';
+  html += '<button class="btn btn-primary" style="margin-top:16px;" onclick="criarClienteComissao()">Adicionar cliente</button></div>';
+
+  const meses = [...new Set(window.__comissaoClientes.map(function(c){ return c.mes_referencia.slice(0,7); }))];
+  for(let i=0;i<3;i++){
+    const d = new Date(); d.setMonth(d.getMonth()+i);
+    const m = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+    if(!meses.includes(m)) meses.push(m);
+  }
+  meses.sort();
+  html += '<div class="subnav" style="flex-wrap:wrap;margin-bottom:16px;">' +
+    meses.map(function(m){ return '<button class="subtab' + (m===comissaoMesSelecionado?" active":"") + '" onclick="mudarMesComissao(&quot;' + m + '&quot;)">' + comissaoMesLabel(m) + '</button>'; }).join("") + '</div>';
+
+  const lista = window.__comissaoClientes.filter(function(c){ return c.mes_referencia.slice(0,7) === comissaoMesSelecionado; });
+  html += '<div class="card"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>' +
+    '<th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);">Nome</th>' +
+    '<th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);">Cadastro</th>' +
+    '<th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);">Locação</th>' +
+    '<th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);">Equipamento</th>' +
+    '<th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);">Status</th>' +
+    '<th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);">Prêmio</th><th></th></tr></thead><tbody>';
+  if(!lista.length){
+    html += '<tr><td colspan="7" class="empty-hint">Nenhum cliente lançado para ' + comissaoMesLabel(comissaoMesSelecionado) + ' ainda.</td></tr>';
+  } else {
+    html += lista.map(function(c){
+      const bg = c.cancelada ? "var(--alert-bg)" : "var(--ok-bg)";
+      const statusLabel = c.cancelada ? "Cancelada" : "Confirmada";
+      const statusCls = c.cancelada ? "status-wait" : "status-ok";
+      const premioTxt = c.cancelada ? "R$ 0,00" : ("R$ " + Number(c.premio).toFixed(2).replace(".",","));
+      const acao = c.cancelada
+        ? '<button class="link-btn" style="background:none;border:none;color:var(--wine);font-size:12px;text-decoration:underline;cursor:pointer;" onclick="comissaoReativar(&quot;' + c.id + '&quot;)">reativar</button>'
+        : '<button class="link-btn" style="background:none;border:none;color:var(--gray);font-size:12px;text-decoration:underline;cursor:pointer;" onclick="comissaoCancelar(&quot;' + c.id + '&quot;)">cancelar</button>';
+      return '<tr style="background:' + bg + ';"><td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(c.nome) + '</td>' +
+        '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + comissaoDataBR(c.data_cadastro) + '</td>' +
+        '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + comissaoDataBR(c.data_locacao) + '</td>' +
+        '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(c.equipamento || "-") + '</td>' +
+        '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><span class="status-pill ' + statusCls + '"><span class="dot"></span>' + statusLabel + '</span></td>' +
+        '<td style="padding:10px 12px;border-bottom:1px solid var(--line);font-weight:700;">' + premioTxt + '</td>' +
+        '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + acao + '</td></tr>';
+    }).join("");
+  }
+  const total = lista.reduce(function(acc,c){ return acc + (c.cancelada ? 0 : Number(c.premio)); }, 0);
+  html += '</tbody><tfoot><tr><td colspan="5" style="padding:14px 12px;font-weight:700;border-top:2px solid var(--ink);">Total confirmado do mês</td>' +
+    '<td colspan="2" style="padding:14px 12px;font-weight:700;border-top:2px solid var(--ink);">R$ ' + total.toFixed(2).replace(".",",") + '</td></tr></tfoot></table></div>';
+
+  content.innerHTML = html;
+  const cadastroInput = document.getElementById("cm-cadastro");
+  if(cadastroInput) cadastroInput.value = hoje;
+}
+
+function comissaoToggleEquip(el, eq){
+  const i = comissaoEquipSelecionados.indexOf(eq);
+  if(i === -1){ comissaoEquipSelecionados.push(eq); el.style.background = "var(--wine)"; el.style.borderColor = "var(--wine)"; el.style.color = "#fff"; }
+  else { comissaoEquipSelecionados.splice(i,1); el.style.background = "#fff"; el.style.borderColor = "var(--line)"; el.style.color = "var(--gray)"; }
+  const preview = document.getElementById("cm-premio-preview");
+  if(preview){
+    preview.textContent = comissaoEquipSelecionados.length ? ("Prêmio deste cadastro: R$ " + comissaoCalcularPremio(comissaoEquipSelecionados).toFixed(2).replace(".",",")) : "";
+  }
+}
+
+function mudarMesComissao(m){ comissaoMesSelecionado = m; carregarComissaoComercial(); }
+
+async function criarClienteComissao(){
+  const nome = document.getElementById("cm-nome").value.trim();
+  const cadastro = document.getElementById("cm-cadastro").value;
+  const locacao = document.getElementById("cm-locacao").value;
+  if(!nome || !cadastro || !locacao || !comissaoEquipSelecionados.length){
+    toast("Preencha nome, data de cadastro, data da locação e ao menos um equipamento.");
+    return;
+  }
+  const premio = comissaoCalcularPremio(comissaoEquipSelecionados);
+  const mesRef = locacao.slice(0,7) + "-01";
+  const insertResult = await sb.from("comercial_premiacao_clientes").insert({
+    nome: nome, data_cadastro: cadastro, data_locacao: locacao,
+    equipamento: comissaoEquipSelecionados.join(" e "), premio: premio,
+    cancelada: false, mes_referencia: mesRef, criado_por: currentUsuario.id
+  });
+  if(insertResult.error){ toast("Erro ao salvar: " + insertResult.error.message); return; }
+  comissaoEquipSelecionados = [];
+  comissaoMesSelecionado = locacao.slice(0,7);
+  toast("Cliente adicionada — prêmio de R$ " + premio.toFixed(2).replace(".",",") + " confirmado.");
+  await carregarComissaoComercial();
+}
+
+async function comissaoCancelar(id){
+  if(!confirm("Marcar como cancelada? O prêmio deste cliente vai zerar.")) return;
+  await sb.from("comercial_premiacao_clientes").update({ cancelada: true }).eq("id", id);
+  await carregarComissaoComercial();
+}
+async function comissaoReativar(id){
+  await sb.from("comercial_premiacao_clientes").update({ cancelada: false }).eq("id", id);
+  await carregarComissaoComercial();
 }
 
 async function carregarInsumosComercial(){
