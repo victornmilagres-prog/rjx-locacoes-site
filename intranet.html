@@ -135,6 +135,20 @@ const SITE_FOOTER = '<footer class="site-footer"><div class="container"><div cla
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+function toast(msg){
+  let t = document.getElementById('toast-global');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'toast-global';
+    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#17130f;color:#fff;padding:10px 18px;border-radius:6px;font-size:13px;z-index:999;opacity:0;transition:opacity .2s;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){ t.style.opacity = "0"; }, 2200);
+}
+
 
 function papelLabel(p){
   return {gerencial:'Gerencial',comercial:'Comercial',transportes:'Transportes',operacional:'Operacional',financeiro:'Financeiro'}[p] || p;
