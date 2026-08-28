@@ -759,12 +759,14 @@ async function carregarLeadsComercial(){
   html += '<div id="leads-alerta-wrap"></div>';
   html += '<div class="card form-card"><h3>Novo lead</h3>';
   html += '<p class="cardsub">Registre assim que responder o primeiro contato. O sistema conta os dias sozinho a partir daqui.</p>';
-  html += '<div class="grid3"><div class="field"><label>Nome</label><input id="ld-nome" placeholder="Ex: Renata"></div><div class="field"><label>Telefone</label><input id="ld-telefone" placeholder="21 99999-9999"></div><div class="field"><label>Equipamento</label><input id="ld-equipamento" placeholder="Ex: Ultraformer MPT"></div></div>';
-  html += '<div class="field" style="margin-top:12px;max-width:220px;"><label>Data</label><input type="date" id="ld-data"></div>';
+  html += '<div class="grid3"><div class="field"><label>Nome</label><input id="ld-nome" placeholder="Ex: Renata"></div><div class="field"><label>Telefone</label><input id="ld-telefone" placeholder="21 99999-9999"></div><div class="field"><label>Data</label><input type="date" id="ld-data"></div></div>';
+  html += '<div class="field" style="margin-top:12px;"><label>Equipamento</label><div id="ld-equip-checks" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">' +
+    COMISSAO_EQUIPAMENTOS.concat(["Outros"]).map(function(eq){ return '<div class="ld-equip-pill" data-eq="' + eq + '" onclick="leadsToggleEquip(this,&quot;' + eq + '&quot;)" style="border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-size:12.5px;cursor:pointer;user-select:none;background:#fff;color:var(--gray);">' + eq + '</div>'; }).join("") +
+    '</div><input id="ld-equip-outros" placeholder="Digite o equipamento" style="display:none;margin-top:8px;max-width:280px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;"></div>';
   html += '<button class="btn btn-primary" style="margin-top:16px;" onclick="adicionarLead()">Adicionar lead</button></div>';
-  html += '<div class="card" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr>';
+  html += '<div class="card" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
   ["","Data","Nome","Telefone","Equipamento","Etapa atual","Status","Ação","Observações","Alugou"].forEach(function(h){
-    html += '<th style="text-align:left;padding:9px 10px;font-size:10.5px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
+    html += '<th style="text-align:left;padding:12px 16px;font-size:11px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
   });
   html += '</tr></thead><tbody id="tbody-leads"></tbody></table></div>';
   content.innerHTML = html;
@@ -773,6 +775,15 @@ async function carregarLeadsComercial(){
   renderLeadsTabela();
 }
 
+let leadsEquipSelecionado = null;
+function leadsToggleEquip(el, eq){
+  document.querySelectorAll(".ld-equip-pill").forEach(function(p){ p.style.background = "#fff"; p.style.borderColor = "var(--line)"; p.style.color = "var(--gray)"; });
+  el.style.background = "var(--wine)"; el.style.borderColor = "var(--wine)"; el.style.color = "#fff";
+  leadsEquipSelecionado = eq;
+  const outros = document.getElementById("ld-equip-outros");
+  outros.style.display = (eq === "Outros") ? "block" : "none";
+  if(eq === "Outros") outros.focus();
+}
 function renderLeadsAlerta(){
   const wrap = document.getElementById("leads-alerta-wrap");
   if(!wrap) return;
@@ -800,6 +811,7 @@ function renderLeadsTabela(){
   const leads = window.__leadsAtuais || [];
   if(!leads.length){ tbody.innerHTML = '<tr><td colspan="10" class="empty-hint">Nenhum lead cadastrado ainda.</td></tr>'; return; }
   const ordenados = leads.slice().sort(function(a,b){ return a.data < b.data ? -1 : (a.data > b.data ? 1 : 0); });
+  const cellStyle = "padding:14px 16px;border-bottom:1px solid var(--line);white-space:nowrap;";
   tbody.innerHTML = ordenados.map(function(l){
     const alugouVal = l.alugou === true ? "sim" : (l.alugou === false ? "nao" : "");
     const st = leadsStatus(l);
@@ -811,28 +823,28 @@ function renderLeadsTabela(){
     } else {
       const cls = st.atrasado ? "status-wait" : "status-info";
       statusHtml = '<span class="status-pill ' + cls + '"><span class="dot"></span>' + st.dias + "/" + st.prazo + ' dias</span>';
-      acaoHtml = '<button class="btn btn-ghost btn-sm" onclick="leadsRegistrarContato(&quot;' + l.id + '&quot;,true)">Respondeu</button> <button class="btn btn-primary btn-sm" onclick="leadsRegistrarContato(&quot;' + l.id + '&quot;,false)">Não respondeu</button>';
+      acaoHtml = '<div style="display:flex;gap:6px;"><button class="btn btn-ghost btn-sm" onclick="leadsRegistrarContato(&quot;' + l.id + '&quot;,true)">Respondeu</button><button class="btn btn-primary btn-sm" onclick="leadsRegistrarContato(&quot;' + l.id + '&quot;,false)">Não respondeu</button></div>';
     }
     const bg = l.alugou === true ? "var(--ok-bg)" : (l.alugou === false ? "var(--alert-bg)" : (l.estrela ? "#fdf3d0" : "#fff"));
     return '<tr style="background:' + bg + ';">' +
-      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);"><button class="link-btn" style="background:none;border:none;cursor:pointer;font-size:16px;color:' + (l.estrela?"#c9971f":"var(--gray-soft)") + ';" onclick="leadsToggleEstrela(&quot;' + l.id + '&quot;)">' + (l.estrela?"★":"☆") + '</button></td>' +
-      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + leadsDataBR(l.data) + '</td>' +
-      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + escapeHtml(l.nome) + '</td>' +
-      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + escapeHtml(l.telefone||"") + '</td>' +
-      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + escapeHtml(l.equipamento||"") + '</td>' +
-      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);"><span class="quem" style="font-size:11px;background:var(--paper-soft);padding:3px 9px;border-radius:20px;">' + LEADS_ETAPA_LABEL[l.etapa] + '</span></td>' +
-      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + statusHtml + '</td>' +
-      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + acaoHtml + '</td>' +
-      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);"><input value="' + escapeHtml(l.obs||"") + '" placeholder="—" style="width:100%;min-width:140px;border:1px solid transparent;background:transparent;padding:4px 6px;border-radius:4px;font-size:12.5px;font-family:inherit;" onchange="leadsAtualizarObs(&quot;' + l.id + '&quot;,this.value)"></td>' +
-      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);"><select style="border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px;font-family:inherit;background:#fff;" onchange="leadsAtualizarAlugou(&quot;' + l.id + '&quot;,this.value)"><option value="" ' + (alugouVal===""?"selected":"") + '>—</option><option value="sim" ' + (alugouVal==="sim"?"selected":"") + '>Sim</option><option value="nao" ' + (alugouVal==="nao"?"selected":"") + '>Não</option></select></td>' +
+      '<td style="' + cellStyle + '"><button class="link-btn" style="background:none;border:none;cursor:pointer;font-size:18px;color:' + (l.estrela?"#c9971f":"var(--gray-soft)") + ';" onclick="leadsToggleEstrela(&quot;' + l.id + '&quot;)">' + (l.estrela?"★":"☆") + '</button></td>' +
+      '<td style="' + cellStyle + '">' + leadsDataBR(l.data) + '</td>' +
+      '<td style="' + cellStyle + '">' + escapeHtml(l.nome) + '</td>' +
+      '<td style="' + cellStyle + '">' + escapeHtml(l.telefone||"") + '</td>' +
+      '<td style="' + cellStyle + '">' + escapeHtml(l.equipamento||"") + '</td>' +
+      '<td style="' + cellStyle + '"><span class="quem" style="font-size:11px;background:var(--paper-soft);padding:4px 10px;border-radius:20px;white-space:nowrap;">' + LEADS_ETAPA_LABEL[l.etapa] + '</span></td>' +
+      '<td style="' + cellStyle + '">' + statusHtml + '</td>' +
+      '<td style="padding:14px 16px;border-bottom:1px solid var(--line);">' + acaoHtml + '</td>' +
+      '<td style="padding:14px 16px;border-bottom:1px solid var(--line);min-width:160px;"><input value="' + escapeHtml(l.obs||"") + '" placeholder="—" style="width:100%;min-width:160px;border:1px solid transparent;background:transparent;padding:6px 8px;border-radius:4px;font-size:12.5px;font-family:inherit;white-space:normal;" onchange="leadsAtualizarObs(&quot;' + l.id + '&quot;,this.value)"></td>' +
+      '<td style="' + cellStyle + '"><select style="border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:12.5px;font-family:inherit;background:#fff;" onchange="leadsAtualizarAlugou(&quot;' + l.id + '&quot;,this.value)"><option value="" ' + (alugouVal===""?"selected":"") + '>—</option><option value="sim" ' + (alugouVal==="sim"?"selected":"") + '>Sim</option><option value="nao" ' + (alugouVal==="nao"?"selected":"") + '>Não</option></select></td>' +
       "</tr>";
   }).join("");
 }
-
 async function adicionarLead(){
   const nome = document.getElementById("ld-nome").value.trim();
   const telefone = document.getElementById("ld-telefone").value.trim();
-  const equipamento = document.getElementById("ld-equipamento").value.trim();
+  let equipamento = leadsEquipSelecionado || "";
+  if(equipamento === "Outros"){ equipamento = document.getElementById("ld-equip-outros").value.trim(); }
   const data = document.getElementById("ld-data").value;
   if(!nome || !data){ toast("Preencha ao menos nome e data."); return; }
   const insertResult = await sb.from("comercial_leads").insert({
@@ -842,11 +854,10 @@ async function adicionarLead(){
   if(insertResult.error){ toast("Erro ao salvar: " + insertResult.error.message); return; }
   document.getElementById("ld-nome").value = "";
   document.getElementById("ld-telefone").value = "";
-  document.getElementById("ld-equipamento").value = "";
+  leadsEquipSelecionado = null;
   toast("Lead adicionado.");
   await carregarLeadsComercial();
 }
-
 async function leadsRegistrarContato(id, respondeu){
   const lead = (window.__leadsAtuais||[]).find(function(l){ return l.id === id; });
   if(!lead) return;
