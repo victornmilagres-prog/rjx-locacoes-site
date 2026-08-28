@@ -649,7 +649,6 @@ async function criarLocacaoPremiacao(){
   const etapasNomes = premiacaoEtapasBase(equipamento);
   const etapasRows = etapasNomes.map(function(nome, i){ return { locacao_id: locId, ordem: i+1, nome: nome }; });
   await sb.from('premiacao_etapas').insert(etapasRows);
-  await sb.from('premiacao_selfies').insert({ locacao_id: locId });
   okEl.textContent = 'Locação ' + numero + ' aberta.'; okEl.style.display = 'block';
   document.getElementById('pc-numero').value = '';
   btn.disabled = false; btn.textContent = 'Abrir locação';
@@ -867,6 +866,7 @@ async function selectTransportesSubtab(tab){
 }
 
 
+
 async function carregarPremiacaoTransportes(){
   const content = document.getElementById('transportes-content');
   content.innerHTML = '<p class="empty-hint">Carregando...</p>';
@@ -877,16 +877,26 @@ async function carregarPremiacaoTransportes(){
   }
   const locs = result.data || [];
   const idsLocs = locs.map(function(l){ return l.id; });
-  let etapasPorLoc = {}, selfiesPorLoc = {};
+  let etapasPorLoc = {};
   if(idsLocs.length){
     const rEtapas = await sb.from('premiacao_etapas').select('id,locacao_id,concluida,motorista_id').in('locacao_id', idsLocs);
     (rEtapas.data||[]).forEach(function(e){
       if(!etapasPorLoc[e.locacao_id]) etapasPorLoc[e.locacao_id] = [];
       etapasPorLoc[e.locacao_id].push(e);
     });
-    const rSelfies = await sb.from('premiacao_selfies').select('*').in('locacao_id', idsLocs);
-    (rSelfies.data||[]).forEach(function(s){ selfiesPorLoc[s.locacao_id] = s; });
   }
+
+  // dias distintos em que o motorista tem locacao (selfie e por dia, nao por locacao)
+  const diasSet = {};
+  locs.forEach(function(loc){ diasSet[loc.data_locacao] = true; });
+  const dias = Object.keys(diasSet).sort().reverse();
+
+  let selfiesPorDia = {};
+  if(dias.length){
+    const rSelfies = await sb.from('premiacao_selfies_dia').select('*').eq('motorista_id', currentUsuario.id).in('data_ref', dias);
+    (rSelfies.data||[]).forEach(function(s){ selfiesPorDia[s.data_ref] = s; });
+  }
+
   let pontos = 0, possiveis = 0;
   locs.forEach(function(loc){
     const etapas = etapasPorLoc[loc.id] || [];
@@ -894,7 +904,9 @@ async function carregarPremiacaoTransportes(){
       possiveis += 1;
       if(e.concluida && e.motorista_id === currentUsuario.id) pontos += 1;
     });
-    const s = selfiesPorLoc[loc.id];
+  });
+  dias.forEach(function(dia){
+    const s = selfiesPorDia[dia];
     possiveis += PONTOS_UNIFORME_PREMIACAO;
     if(s && s.validada === true) pontos += PONTOS_UNIFORME_PREMIACAO;
     else if(s && s.validada === false && s.motivo === 'expirada') pontos -= PONTOS_UNIFORME_PREMIACAO;
@@ -906,7 +918,33 @@ async function carregarPremiacaoTransportes(){
   html += '<div><div style="font-size:26px;font-weight:800;">' + pontos + ' pts</div><div class="cardsub" style="margin:2px 0 0;">de ' + possiveis + ' possíveis</div></div>';
   html += '<span class="status-pill ' + (pct>=80?'status-ok':'status-wait') + '" style="font-size:14px;"><span class="dot"></span>' + pct + '%</span>';
   html += '</div></div>';
-  html += '<div class="card form-card"><h3>Minhas locações</h3><p class="cardsub">A selfie de uniforme é obrigatória em cada locação. Sem ela até a data, você perde ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p>';
+
+  html += '<div class="card form-card"><h3>Selfie de uniforme do dia</h3><p class="cardsub">Uma selfie por dia cobre todas as suas locações daquele dia. Sem envio até o fim do dia, você perde ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p>';
+  html += '<div id="pt-lista-selfies-dia">';
+  if(!dias.length){
+    html += '<p class="empty-hint">Nenhuma locação atribuída a você ainda.</p>';
+  } else {
+    html += dias.map(function(dia){
+      const s = selfiesPorDia[dia] || {};
+      let statusLabel, statusCls, acaoHtml = '';
+      if(s.validada === true){ statusLabel = 'Validada (+' + PONTOS_UNIFORME_PREMIACAO + ')'; statusCls = 'status-ok'; }
+      else if(s.validada === false && s.motivo === 'expirada'){ statusLabel = 'Prazo expirado (-' + PONTOS_UNIFORME_PREMIACAO + ')'; statusCls = 'status-wait'; }
+      else if(s.validada === false && s.motivo === 'reprovada'){
+        statusLabel = 'IA reprovou'; statusCls = 'status-wait';
+        acaoHtml = '<button class="btn btn-primary" style="margin-top:8px;" onclick="iniciarSelfiePremiacao(&quot;' + dia + '&quot;)">Tentar de novo</button>';
+      } else if(s.enviada){ statusLabel = 'Aguardando validação'; statusCls = 'status-info'; }
+      else {
+        statusLabel = 'Selfie pendente'; statusCls = 'status-wait';
+        acaoHtml = '<button class="btn btn-primary" style="margin-top:8px;" onclick="iniciarSelfiePremiacao(&quot;' + dia + '&quot;)">Tirar selfie do uniforme</button>';
+      }
+      return '<div class="card" style="padding:12px 14px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center;">' +
+        '<b>' + premiacaoDataBR(dia) + '</b>' +
+        '<span class="status-pill ' + statusCls + '"><span class="dot"></span>' + statusLabel + '</span></div>' + acaoHtml + '</div>';
+    }).join('');
+  }
+  html += '</div></div>';
+
+  html += '<div class="card form-card"><h3>Minhas locações</h3>';
   html += '<div id="pt-lista-locacoes">';
   if(!locs.length){
     html += '<p class="empty-hint">Nenhuma locação atribuída a você ainda.</p>';
@@ -916,32 +954,16 @@ async function carregarPremiacaoTransportes(){
       const etapas = etapasPorLoc[loc.id] || [];
       const feitas = etapas.filter(function(e){ return e.concluida; }).length;
       const total = etapas.length;
-      const s = selfiesPorLoc[loc.id] || {};
-      let statusLabel, statusCls, acaoHtml = '';
-      if(s.validada === true){ statusLabel = 'Validada (+' + PONTOS_UNIFORME_PREMIACAO + ')'; statusCls = 'status-ok'; }
-      else if(s.validada === false && s.motivo === 'expirada'){ statusLabel = 'Prazo expirado (-' + PONTOS_UNIFORME_PREMIACAO + ')'; statusCls = 'status-wait'; }
-      else if(s.validada === false && s.motivo === 'reprovada'){
-        statusLabel = 'IA reprovou'; statusCls = 'status-wait';
-        acaoHtml = '<button class="btn btn-primary" style="margin-top:8px;" onclick="iniciarSelfiePremiacao(&quot;' + loc.id + '&quot;)">Tentar de novo</button>';
-      } else if(s.enviada){ statusLabel = 'Aguardando validação'; statusCls = 'status-info'; }
-      else {
-        statusLabel = 'Selfie pendente'; statusCls = 'status-wait';
-        acaoHtml = '<button class="btn btn-primary" style="margin-top:8px;" onclick="iniciarSelfiePremiacao(&quot;' + loc.id + '&quot;)">Tirar selfie do uniforme</button>';
-      }
-      return '<div class="card" style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
-        '<div><b>Locação #' + escapeHtml(loc.numero) + '</b><div style="font-size:12px;color:var(--gray);">' + eq.label + ' - ' + premiacaoDataBR(loc.data_locacao) + ' - ' + (loc.status==='aberta'?'em andamento':'finalizada') + '</div></div>' +
-        '<span class="status-pill ' + statusCls + '"><span class="dot"></span>' + statusLabel + '</span></div>' +
-        '<div style="font-size:12px;color:var(--gray);margin-top:6px;">' + feitas + '/' + total + ' etapas (marcadas pelo Operacional)</div>' + acaoHtml + '</div>';
+      return '<div class="card" style="padding:12px 14px;margin-bottom:8px;"><b>Locação #' + escapeHtml(loc.numero) + '</b><div style="font-size:12px;color:var(--gray);">' + eq.label + ' - ' + premiacaoDataBR(loc.data_locacao) + ' - ' + (loc.status==='aberta'?'em andamento':'finalizada') + ' - ' + feitas + '/' + total + ' etapas</div></div>';
     }).join('');
   }
   html += '</div></div>';
   content.innerHTML = html;
 }
 
-
 let premiacaoSelfieAlvo = null;
-function iniciarSelfiePremiacao(locId){
-  premiacaoSelfieAlvo = locId;
+function iniciarSelfiePremiacao(dataRef){
+  premiacaoSelfieAlvo = dataRef;
   let input = document.getElementById('premiacao-input-camera');
   if(!input){
     input = document.createElement('input');
@@ -964,7 +986,7 @@ async function onPremiacaoSelfieFile(e){
   const file = e.target.files && e.target.files[0];
   e.target.value = '';
   if(!file || !premiacaoSelfieAlvo) return;
-  const locId = premiacaoSelfieAlvo;
+  const dataRef = premiacaoSelfieAlvo;
   const getGeo = function(){
     return new Promise(function(resolve){
       if(!navigator.geolocation){ resolve(null); return; }
@@ -977,11 +999,12 @@ async function onPremiacaoSelfieFile(e){
   };
   const dataUrl = await premiacaoFileToDataURL(file);
   const geo = await getGeo();
-  await sb.from('premiacao_selfies').update({
+  await sb.from('premiacao_selfies_dia').upsert({
+    motorista_id: currentUsuario.id, data_ref: dataRef,
     enviada: true, validada: null, motivo: null,
     geo_lat: geo ? geo.lat : null, geo_lng: geo ? geo.lng : null,
     enviada_em: new Date().toISOString()
-  }).eq('locacao_id', locId);
+  }, { onConflict: 'motorista_id,data_ref' });
   await carregarPremiacaoTransportes();
   try {
     const resp = await fetch('/api/validar-selfie', {
@@ -991,14 +1014,15 @@ async function onPremiacaoSelfieFile(e){
     const json = await resp.json();
     if(json && typeof json.aprovado === 'boolean'){
       if(json.aprovado){
-        await sb.from('premiacao_selfies').update({ validada: true, motivo: null, validada_em: new Date().toISOString() }).eq('locacao_id', locId);
+        await sb.from('premiacao_selfies_dia').update({ validada: true, motivo: null, validada_em: new Date().toISOString() }).eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef);
       } else {
-        await sb.from('premiacao_selfies').update({ validada: false, motivo: 'reprovada', validada_em: new Date().toISOString() }).eq('locacao_id', locId);
+        await sb.from('premiacao_selfies_dia').update({ validada: false, motivo: 'reprovada', validada_em: new Date().toISOString() }).eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef);
       }
     }
   } catch(err){}
   await carregarPremiacaoTransportes();
 }
+
 
 function expandCartuchos(list, duplicados){
   const dup = duplicados || [];
@@ -1338,32 +1362,47 @@ async function carregarPremiacaoOperacional(isGestor){
   }
   const locs = result.data || [];
   const idsLocs = locs.map(function(l){ return l.id; });
-  let etapasPorLoc = {}, selfiesPorLoc = {};
+  let etapasPorLoc = {};
   if(idsLocs.length){
     const rEtapas = await sb.from('premiacao_etapas').select('id,locacao_id,ordem,nome,concluida,motorista_id').in('locacao_id', idsLocs).order('ordem');
     (rEtapas.data || []).forEach(function(e){
       if(!etapasPorLoc[e.locacao_id]) etapasPorLoc[e.locacao_id] = [];
       etapasPorLoc[e.locacao_id].push(e);
     });
-    const rSelfies = await sb.from('premiacao_selfies').select('*').in('locacao_id', idsLocs);
-    (rSelfies.data || []).forEach(function(s){ selfiesPorLoc[s.locacao_id] = s; });
   }
+
+  // pares distintos (motorista, dia) que precisam de selfie
+  const paresSet = {};
+  const paresList = [];
+  locs.forEach(function(loc){
+    const chave = loc.motorista_id + '|' + loc.data_locacao;
+    if(!paresSet[chave]){ paresSet[chave] = true; paresList.push({ motorista_id: loc.motorista_id, data_ref: loc.data_locacao }); }
+  });
+  let selfiesPorPar = {};
+  if(paresList.length){
+    const motoristaIds = [...new Set(paresList.map(function(p){ return p.motorista_id; }))];
+    const rSelfies = await sb.from('premiacao_selfies_dia').select('*').in('motorista_id', motoristaIds);
+    (rSelfies.data || []).forEach(function(s){
+      selfiesPorPar[s.motorista_id + '|' + s.data_ref] = s;
+    });
+  }
+
   let html = '';
-  html += '<div class="card" style="background:var(--paper-soft);"><p class="cardsub" style="margin:0;">Cada etapa do manual vale <b>1 ponto</b> (11 etapas em equipamentos com insumo, 8 nos demais). A selfie de uniforme vale <b>' + PONTOS_UNIFORME_PREMIACAO + ' pontos</b> por locação, enviada pelo motorista na aba de Transportes e validada por IA. Sem envio até a data da locação, ele perde os ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p></div>';
-  html += '<div class="card form-card"><h3>Selfies das locações</h3><p class="cardsub">Quem envia é o motorista. Use o botão para expirar quem não enviou até a data da locação.</p>';
+  html += '<div class="card" style="background:var(--paper-soft);"><p class="cardsub" style="margin:0;">Cada etapa do manual vale <b>1 ponto</b> (11 etapas em equipamentos com insumo, 8 nos demais). A selfie de uniforme vale <b>' + PONTOS_UNIFORME_PREMIACAO + ' pontos por dia</b> (cobre todas as locações daquele dia), enviada pelo motorista na aba de Transportes e validada por IA. Sem envio até o fim do dia, ele perde os ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p></div>';
+  html += '<div class="card form-card"><h3>Selfies do dia</h3><p class="cardsub">Quem envia é o motorista. Use o botão para expirar quem não enviou até o fim do dia.</p>';
   html += '<div id="op-lista-selfies">';
-  if(!locs.length){
+  if(!paresList.length){
     html += '<p class="empty-hint">Nenhuma locação registrada.</p>';
   } else {
-    html += locs.map(function(loc){
-      const s = selfiesPorLoc[loc.id] || {};
+    html += paresList.sort(function(a,b){ return b.data_ref.localeCompare(a.data_ref); }).map(function(par){
+      const s = selfiesPorPar[par.motorista_id + '|' + par.data_ref] || {};
       let label, cls;
       if(s.validada === true){ label = 'Validada (+' + PONTOS_UNIFORME_PREMIACAO + ')'; cls = 'status-ok'; }
       else if(s.validada === false && s.motivo === 'expirada'){ label = 'Prazo expirado (-' + PONTOS_UNIFORME_PREMIACAO + ')'; cls = 'status-wait'; }
       else if(s.validada === false && s.motivo === 'reprovada'){ label = 'IA reprovou - reenviar'; cls = 'status-wait'; }
       else if(s.enviada){ label = 'Aguardando validação'; cls = 'status-info'; }
       else { label = 'Selfie pendente'; cls = 'status-wait'; }
-      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;"><span>#' + escapeHtml(loc.numero) + ' - ' + escapeHtml(motoristaNome[loc.motorista_id] || '-') + ' - ' + premiacaoDataBR(loc.data_locacao) + '</span><span class="status-pill ' + cls + '"><span class="dot"></span>' + label + '</span></div>';
+      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;"><span>' + escapeHtml(motoristaNome[par.motorista_id] || '-') + ' - ' + premiacaoDataBR(par.data_ref) + '</span><span class="status-pill ' + cls + '"><span class="dot"></span>' + label + '</span></div>';
     }).join('');
   }
   html += '</div>';
@@ -1398,12 +1437,14 @@ async function carregarPremiacaoOperacional(isGestor){
       dados[resp].possiveis += 1;
       if(e.concluida) dados[resp].pontos += 1;
     });
-    const s = selfiesPorLoc[loc.id];
-    const resp2 = loc.motorista_id;
-    if(!dados[resp2]) dados[resp2] = { nome: motoristaNome[resp2] || '-', pontos: 0, possiveis: 0 };
-    dados[resp2].possiveis += PONTOS_UNIFORME_PREMIACAO;
-    if(s && s.validada === true) dados[resp2].pontos += PONTOS_UNIFORME_PREMIACAO;
-    else if(s && s.validada === false && s.motivo === 'expirada') dados[resp2].pontos -= PONTOS_UNIFORME_PREMIACAO;
+  });
+  paresList.forEach(function(par){
+    const s = selfiesPorPar[par.motorista_id + '|' + par.data_ref];
+    const resp = par.motorista_id;
+    if(!dados[resp]) dados[resp] = { nome: motoristaNome[resp] || '-', pontos: 0, possiveis: 0 };
+    dados[resp].possiveis += PONTOS_UNIFORME_PREMIACAO;
+    if(s && s.validada === true) dados[resp].pontos += PONTOS_UNIFORME_PREMIACAO;
+    else if(s && s.validada === false && s.motivo === 'expirada') dados[resp].pontos -= PONTOS_UNIFORME_PREMIACAO;
   });
   const ranking = Object.values(dados).filter(function(r){ return r.possiveis > 0; }).sort(function(a,b){ return (b.pontos/b.possiveis) - (a.pontos/a.possiveis); });
   html += '<div class="card form-card" style="margin-top:20px;"><h3>Ranking do mês</h3>';
@@ -1448,14 +1489,20 @@ async function finalizarLocacaoPremiacao(locId, feitas, total){
 
 async function virarDiaPremiacao(){
   const hoje = premiacaoIsoHoje(0);
-  const result = await sb.from('premiacao_locacoes').select('id,data_locacao').lt('data_locacao', hoje);
+  const result = await sb.from('premiacao_locacoes').select('motorista_id,data_locacao').lt('data_locacao', hoje);
   const locs = result.data || [];
+  const paresSet = {};
+  const pares = [];
+  locs.forEach(function(loc){
+    const chave = loc.motorista_id + '|' + loc.data_locacao;
+    if(!paresSet[chave]){ paresSet[chave] = true; pares.push({ motorista_id: loc.motorista_id, data_ref: loc.data_locacao }); }
+  });
   let n = 0;
-  for(const loc of locs){
-    const sResult = await sb.from('premiacao_selfies').select('validada,motivo').eq('locacao_id', loc.id).single();
+  for(const par of pares){
+    const sResult = await sb.from('premiacao_selfies_dia').select('validada,motivo').eq('motorista_id', par.motorista_id).eq('data_ref', par.data_ref).maybeSingle();
     const s = sResult.data;
-    if(s && s.validada !== true && s.motivo !== 'expirada'){
-      await sb.from('premiacao_selfies').update({ validada: false, motivo: 'expirada', enviada: false, validada_em: new Date().toISOString() }).eq('locacao_id', loc.id);
+    if(!s || (s.validada !== true && s.motivo !== 'expirada')){
+      await sb.from('premiacao_selfies_dia').upsert({ motorista_id: par.motorista_id, data_ref: par.data_ref, validada: false, motivo: 'expirada', enviada: false, validada_em: new Date().toISOString() }, { onConflict: 'motorista_id,data_ref' });
       n++;
     }
   }
