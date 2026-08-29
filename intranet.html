@@ -768,7 +768,7 @@ async function carregarLeadsComercial(){
   html += '<button class="btn btn-primary" style="margin-top:16px;" onclick="adicionarLead()">Adicionar lead</button></div>';
   html += '<div class="card" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
   ["","Data","Nome","Telefone","Equipamento","Etapa atual","Status","Ação","Observações","Alugou"].forEach(function(h){
-    html += '<th style="text-align:left;padding:12px 16px;font-size:11px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
+    html += '<th style="text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
   });
   html += '</tr></thead><tbody id="tbody-leads"></tbody></table></div>';
   content.innerHTML = html;
@@ -813,7 +813,7 @@ function renderLeadsTabela(){
   const leads = window.__leadsAtuais || [];
   if(!leads.length){ tbody.innerHTML = '<tr><td colspan="10" class="empty-hint">Nenhum lead cadastrado ainda.</td></tr>'; return; }
   const ordenados = leads.slice().sort(function(a,b){ return a.data < b.data ? -1 : (a.data > b.data ? 1 : 0); });
-  const cellStyle = "padding:14px 16px;border-bottom:1px solid var(--line);white-space:nowrap;";
+  const cellStyle = "padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:12.5px;";
   tbody.innerHTML = ordenados.map(function(l){
     const alugouVal = l.alugou === true ? "sim" : (l.alugou === false ? "nao" : "");
     const st = leadsStatus(l);
@@ -821,11 +821,11 @@ function renderLeadsTabela(){
     if(!st.relevante){ statusHtml = '<span class="status-pill status-wait"><span class="dot"></span>—</span>'; acaoHtml = "-"; }
     else if(!st.aguardando){
       statusHtml = '<span class="status-pill status-ok"><span class="dot"></span>Em conversa</span>';
-      acaoHtml = '<button class="btn btn-ghost btn-sm" onclick="leadsMarcarParado(&quot;' + l.id + '&quot;)">Parou de responder</button>';
+      acaoHtml = '<button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:11px;" onclick="leadsMarcarParado(&quot;' + l.id + '&quot;)">Parou de responder</button>';
     } else {
       const cls = st.atrasado ? "status-wait" : "status-info";
       statusHtml = '<span class="status-pill ' + cls + '"><span class="dot"></span>' + st.dias + "/" + st.prazo + ' dias</span>';
-      acaoHtml = '<div style="display:flex;gap:6px;"><button class="btn btn-ghost btn-sm" onclick="leadsRegistrarContato(&quot;' + l.id + '&quot;,true)">Respondeu</button><button class="btn btn-primary btn-sm" onclick="leadsRegistrarContato(&quot;' + l.id + '&quot;,false)">Não respondeu</button></div>';
+      acaoHtml = '<div style="display:flex;flex-direction:column;gap:4px;min-width:110px;"><button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:11px;" onclick="leadsRegistrarContato(&quot;' + l.id + '&quot;,true)">Respondeu</button><button class="btn btn-primary btn-sm" style="padding:4px 8px;font-size:11px;" onclick="leadsRegistrarContato(&quot;' + l.id + '&quot;,false)">Não respondeu</button></div>';
     }
     const bg = l.alugou === true ? "var(--ok-bg)" : (l.alugou === false ? "var(--alert-bg)" : (l.estrela ? "#fdf3d0" : "#fff"));
     return '<tr style="background:' + bg + ';">' +
@@ -836,8 +836,8 @@ function renderLeadsTabela(){
       '<td style="' + cellStyle + '">' + escapeHtml(l.equipamento||"") + '</td>' +
       '<td style="' + cellStyle + '"><span class="quem" style="font-size:11px;background:var(--paper-soft);padding:4px 10px;border-radius:20px;white-space:nowrap;">' + LEADS_ETAPA_LABEL[l.etapa] + '</span></td>' +
       '<td style="' + cellStyle + '">' + statusHtml + '</td>' +
-      '<td style="padding:14px 16px;border-bottom:1px solid var(--line);">' + acaoHtml + '</td>' +
-      '<td style="padding:14px 16px;border-bottom:1px solid var(--line);min-width:160px;"><input value="' + escapeHtml(l.obs||"") + '" placeholder="—" style="width:100%;min-width:160px;border:1px solid transparent;background:transparent;padding:6px 8px;border-radius:4px;font-size:12.5px;font-family:inherit;white-space:normal;" onchange="leadsAtualizarObs(&quot;' + l.id + '&quot;,this.value)"></td>' +
+      '<td style="padding:7px 10px;border-bottom:1px solid var(--line);">' + acaoHtml + '</td>' +
+      '<td style="padding:7px 10px;border-bottom:1px solid var(--line);min-width:110px;"><input value="' + escapeHtml(l.obs||"") + '" placeholder="—" style="width:100%;min-width:110px;border:1px solid transparent;background:transparent;padding:4px 6px;border-radius:4px;font-size:12.5px;font-family:inherit;white-space:normal;" onchange="leadsAtualizarObs(&quot;' + l.id + '&quot;,this.value)"></td>' +
       '<td style="' + cellStyle + '"><select style="border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:12.5px;font-family:inherit;background:#fff;" onchange="leadsAtualizarAlugou(&quot;' + l.id + '&quot;,this.value)"><option value="" ' + (alugouVal===""?"selected":"") + '>—</option><option value="sim" ' + (alugouVal==="sim"?"selected":"") + '>Sim</option><option value="nao" ' + (alugouVal==="nao"?"selected":"") + '>Não</option></select></td>' +
       "</tr>";
   }).join("");
