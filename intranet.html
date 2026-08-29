@@ -1283,6 +1283,9 @@ async function renderTransportes(container){
     '<div class="subnav">' +
 '<button class="subtab active" id="ts-tab-insumos" onclick="selectTransportesSubtab(&quot;insumos&quot;)">Meus controles</button>' +
 '<button class="subtab" id="ts-tab-premiacao" onclick="selectTransportesSubtab(&quot;premiacao&quot;)">Premiação</button>' +
+'<button class="subtab" id="ts-tab-historico" onclick="selectTransportesSubtab(&quot;historico&quot;)">Meu Histórico</button>' +
+'<button class="subtab" id="ts-tab-explicacao" onclick="selectTransportesSubtab(&quot;explicacao&quot;)">Como funciona a pontuação</button>' +
+'<button class="subtab" id="ts-tab-manual" onclick="selectTransportesSubtab(&quot;manual&quot;)">Manual de Entrega</button>' +
 '</div>' +
     '<div class="content" id="transportes-content"><p class="empty-hint">Carregando...</p></div>';
   
@@ -1292,8 +1295,14 @@ async function renderTransportes(container){
 async function selectTransportesSubtab(tab){
   document.getElementById('ts-tab-insumos').classList.toggle('active', tab==='insumos');
   document.getElementById('ts-tab-premiacao').classList.toggle('active', tab==='premiacao');
+  document.getElementById('ts-tab-historico').classList.toggle('active', tab==='historico');
+  document.getElementById('ts-tab-explicacao').classList.toggle('active', tab==='explicacao');
+  document.getElementById('ts-tab-manual').classList.toggle('active', tab==='manual');
   if(tab === 'insumos'){ await carregarControlesTransportes(); }
-  else { await carregarPremiacaoTransportes(); }
+  else if(tab === 'premiacao'){ await carregarPremiacaoTransportes(); }
+  else if(tab === 'historico'){ await carregarHistoricoTransportes(); }
+  else if(tab === 'explicacao'){ carregarExplicacaoTransportes(); }
+  else { carregarManualTransportes(); }
 }
 
 
@@ -2363,6 +2372,167 @@ async function togglePremiacaoAtraso(locId, checked){
   await sb.from("premiacao_locacoes").update({ atraso: checked, atualizado_em: new Date().toISOString() }).eq("id", locId);
   toast(checked ? "Atraso marcado — pontos da locação zerados." : "Atraso desmarcado.");
   await carregarPremiacaoOperacional(true);
+}
+const PRAZO_CONTESTACAO_DIAS = 3;
+function tsDiasEntre(iso1, iso2){ const d1 = new Date(iso1); const d2 = new Date(iso2); return Math.round((d2-d1)/86400000); }
+
+async function carregarHistoricoTransportes(){
+  const content = document.getElementById("transportes-content");
+  content.innerHTML = '<p class="empty-hint">Carregando...</p>';
+  const rLoc = await sb.from("premiacao_locacoes").select("id,numero,equipamento,data_locacao,status,atraso,atualizado_em").eq("motorista_id", currentUsuario.id).eq("status","fechada").order("atualizado_em", { ascending:false });
+  if(rLoc.error){ content.innerHTML = '<p class="empty-hint">Erro: ' + escapeHtml(rLoc.error.message) + '</p>'; return; }
+  const locs = rLoc.data || [];
+  const ids = locs.map(function(l){ return l.id; });
+  const rEtapas = ids.length ? await sb.from("premiacao_etapas").select("locacao_id,ordem,nome,concluida").in("locacao_id", ids).order("ordem") : { data: [] };
+  const rContest = ids.length ? await sb.from("premiacao_contestacoes").select("*").in("locacao_id", ids) : { data: [] };
+  window.__tsHistLocs = locs;
+  window.__tsHistEtapas = rEtapas.data || [];
+  window.__tsHistContest = rContest.data || [];
+  window.__tsHistExpandido = window.__tsHistExpandido || {};
+  tsRenderHistorico();
+}
+
+function tsRenderHistorico(){
+  const content = document.getElementById("transportes-content");
+  const locs = window.__tsHistLocs || [];
+  let html = '<div class="card" style="padding:22px;">';
+  if(!locs.length){ html += '<p class="empty-hint">Nenhuma locação fechada ainda.</p>'; }
+  else {
+    html += locs.map(function(l){
+      const etapas = (window.__tsHistEtapas||[]).filter(function(e){ return e.locacao_id === l.id; });
+      const nFeitas = etapas.filter(function(e){ return e.concluida; }).length;
+      const pts = l.atraso ? 0 : nFeitas;
+      const contest = (window.__tsHistContest||[]).find(function(c){ return c.locacao_id === l.id; });
+      const aberto = !!window.__tsHistExpandido[l.id];
+      let contestBadge = "";
+      if(contest){
+        const map = { pendente:["status-wait","Contestação enviada"], aceita:["status-ok","Contestação aceita"], rejeitada:["status-wait","Contestação rejeitada"], reaberta:["status-wait","Reaberta"] };
+        const m = map[contest.status] || ["status-wait", contest.status];
+        contestBadge = '<span class="status-pill ' + m[0] + '"><span class="dot"></span>' + m[1] + '</span>';
+      }
+      let corpo = '<div style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;" onclick="tsToggleHistorico(&quot;' + l.id + '&quot;)">' +
+        '<span style="width:14px;color:var(--gray-soft);">' + (aberto?"▾":"▸") + '</span>' +
+        '<b style="flex:1;">#' + escapeHtml(String(l.numero||"")) + " " + escapeHtml(l.equipamento||"") + '</b>' +
+        (l.atraso ? '<span class="status-pill status-wait"><span class="dot"></span>Atraso</span>' : "") +
+        contestBadge +
+        '<span style="font-weight:700;">' + pts + " / " + etapas.length + ' pts</span></div>';
+      if(aberto){
+        corpo += '<div style="padding:0 16px 16px;">';
+        corpo += etapas.map(function(e){
+          return '<div style="display:flex;gap:10px;padding:6px 0;font-size:13px;border-bottom:1px solid var(--paper-soft);"><span style="width:16px;color:' + (e.concluida?"var(--ok)":"var(--gray-soft)") + ';">' + (e.concluida?"✓":"○") + '</span><span>' + e.ordem + ". " + escapeHtml(e.nome) + '</span></div>';
+        }).join("");
+        if(contest){
+          corpo += '<div style="margin-top:10px;padding:10px 12px;background:var(--paper-soft);border-radius:6px;font-size:12.5px;"><b>Sua contestação:</b> ' + escapeHtml(contest.texto) + '</div>';
+        } else {
+          const dias = tsDiasEntre(l.atualizado_em, new Date().toISOString());
+          if(dias <= PRAZO_CONTESTACAO_DIAS){
+            corpo += '<button class="btn btn-ghost" style="margin-top:12px;" onclick="tsAbrirContestacao(&quot;' + l.id + '&quot;)">Contestar esta locação</button>';
+            corpo += '<div class="cardsub" style="margin-top:6px;">Prazo pra contestar: mais ' + (PRAZO_CONTESTACAO_DIAS - dias) + ' dia(s).</div>';
+          } else {
+            corpo += '<div class="cardsub">Prazo de ' + PRAZO_CONTESTACAO_DIAS + ' dias pra contestar já passou.</div>';
+          }
+        }
+        corpo += "</div>";
+      }
+      return '<div style="border-bottom:1px solid var(--line);">' + corpo + "</div>";
+    }).join("");
+  }
+  html += "</div>";
+  content.innerHTML = html;
+}
+
+function tsToggleHistorico(id){
+  window.__tsHistExpandido[id] = !window.__tsHistExpandido[id];
+  tsRenderHistorico();
+}
+
+function tsAbrirContestacao(locId){
+  let overlay = document.getElementById("ts-contest-overlay");
+  if(overlay) overlay.remove();
+  overlay = document.createElement("div");
+  overlay.id = "ts-contest-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  overlay.innerHTML = '<div class="card form-card" style="max-width:440px;width:92%;margin:0;"><h3>Contestar locação</h3>' +
+    '<p class="cardsub">Explique o que você acha que foi marcado errado. O Operacional vai receber um alerta.</p>' +
+    '<textarea id="ts-contest-texto" rows="4" style="width:100%;margin-top:10px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;" placeholder="Ex: Não atrasei, o EstoqueNOW caiu no meio da entrega..."></textarea>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;"><button class="btn btn-ghost" onclick="tsFecharContestacao()">Cancelar</button><button class="btn btn-primary" onclick="tsEnviarContestacao(&quot;' + locId + '&quot;)">Enviar contestação</button></div></div>';
+  document.body.appendChild(overlay);
+}
+function tsFecharContestacao(){ const o = document.getElementById("ts-contest-overlay"); if(o) o.remove(); }
+async function tsEnviarContestacao(locId){
+  const texto = document.getElementById("ts-contest-texto").value.trim();
+  if(!texto){ toast("Escreva o que você acha que está errado."); return; }
+  const r = await sb.from("premiacao_contestacoes").insert({ locacao_id: locId, motorista_id: currentUsuario.id, texto: texto });
+  if(r.error){ toast("Erro: " + r.error.message); return; }
+  tsFecharContestacao();
+  toast("Contestação enviada ao Operacional.");
+  await carregarHistoricoTransportes();
+}
+function carregarExplicacaoTransportes(){
+  const content = document.getElementById("transportes-content");
+  let html = '<div class="card" style="padding:22px;">';
+  html += '<h3 style="font-size:16px;">Como funciona a pontuação</h3>';
+  html += '<p class="cardsub">Cada etapa da locação vale 1 ponto. A selfie de uniforme do dia soma +5 pontos quando validada (ou -5 se reprovada ou expirar sem enviar).</p>';
+  html += '<div style="margin-top:10px;padding:12px 14px;background:var(--paper-soft);border-radius:8px;font-size:13px;">Quem marca as etapas é o <b>Operacional/Comercial</b>, a partir das fotos, vídeos, localização e assinaturas que você manda nos grupos do WhatsApp. Você só acompanha aqui — se achar que uma etapa foi marcada errada, pode <b>contestar</b> no seu histórico em até 3 dias depois da locação fechar.</div>';
+  html += '<div style="margin-top:10px;padding:12px 14px;background:var(--alert-bg);border:1px solid #e8cabd;border-radius:8px;font-size:13px;"><b style="color:var(--alert);">Atraso em alguma etapa:</b> se uma locação tiver atraso registrado, você perde <b>todos os pontos daquela locação</b> — fica só com o ponto da selfie do dia, se validada.</div>';
+  html += '<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--gray-soft);font-weight:700;margin:18px 0 6px;">Ultraformer MPT e Criodermis 2.0 — 13 etapas, 13 pontos</div>';
+  PREMIACAO_ETAPAS_COM_INSUMOS.forEach(function(nome, i){
+    html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;"><span>' + (i+1) + ". " + escapeHtml(nome) + '</span><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:var(--ok-bg);color:var(--ok);">+1 pt</span></div>';
+  });
+  html += '<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--gray-soft);font-weight:700;margin:18px 0 6px;">Lavieen e Endolaser Pioon 1470 — 10 etapas, 10 pontos</div>';
+  PREMIACAO_ETAPAS_SEM_INSUMOS.forEach(function(nome, i){
+    html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;"><span>' + (i+1) + ". " + escapeHtml(nome) + '</span><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:var(--ok-bg);color:var(--ok);">+1 pt</span></div>';
+  });
+  html += "</div>";
+  content.innerHTML = html;
+}
+function carregarManualTransportes(){
+  const content = document.getElementById("transportes-content");
+  let html = '<div style="background:var(--wine);color:#fff;padding:24px 22px;border-radius:8px;margin-bottom:20px;"><div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#e8c9c9;margin-bottom:6px;">RJX Baiense Locações</div><h2 style="font-size:24px;">Manual de Entrega e Retirada</h2><div style="font-size:13px;color:#e8c9c9;margin-top:6px;">Guia rápido pra motoristas — segue essa ordem sempre</div></div>';
+  const secoes = [
+    { num:1, titulo:"Véspera e retirada no escritório", passos:[
+      'No dia anterior, confira o frete postado pela <b>Yasmin</b> no grupo e dê o "OK".',
+      'Ao retirar o equipamento na empresa (no mesmo dia ou na véspera), tire uma <b>foto</b> do equipamento e poste no grupo Operacional: "Equipamento retirado para entrega".'
+    ]},
+    { num:2, titulo:"Entrega na clínica", passos:[
+      'Ao sair, poste no grupo Transportes <b>"A caminho da entrega"</b> e envie sua localização em tempo real.',
+      'Chegue <b>30 min antes</b> do horário de montagem do sistema — o equipamento precisa estar montado e funcionando no horário indicado, independente do início da locação.',
+      'Monte o equipamento, tire <b>foto</b> do equipamento montado e grave <b>vídeo</b> dele funcionando.',
+      'Endolaser e Lavieen: poste no grupo Transportes a foto + vídeo + <b>"Equipamento montado"</b>.',
+      'Ultraformer e Criodermis: antes de colher assinaturas, preencha o <b>Controle de Insumos inicial</b> (ver diferenças por equipamento abaixo).',
+      'Colha assinatura(s): checklist de entrega no sistema, contrato (se necessário) e do Controle de Insumos (quando houver).',
+      'No app <b>EstoqueNOW</b>, vá em Logística e marque a locação como "Entregue".'
+    ]},
+    { num:3, titulo:"Retirada na clínica", passos:[
+      'Pelo menos <b>1h antes</b> do horário de retirada, poste no grupo + localização em tempo real: "A caminho da retirada" — ou, se já estiver próximo da clínica, "Próximo da retirada".',
+      'Tire <b>foto</b> do equipamento e grave <b>vídeo</b> dele funcionando (mesmo processo da entrega).',
+      'Preencha o <b>Controle de Insumos final</b> (Ultraformer e Criodermis) e solicite o comprovante de pagamento à doutora.',
+      'Colha assinatura do Controle de Insumos, quando houver (ver diferenças por equipamento).',
+      'Poste no grupo Transportes: foto + vídeo + <b>"Locação finalizada"</b> + Controle de Insumos.',
+      'Poste no grupo Financeiro: Controle de Insumos (se houver) + comprovante de pagamento.',
+      'No aplicativo <b>EstoqueNOW</b>, marque o equipamento como retirado.'
+    ]},
+    { num:4, titulo:"Retorno ao escritório (quando indicado)", passos:[
+      'Confira no grupo Operacional se o equipamento deve retornar ao escritório ou ficar na casa/próxima locação.',
+      'Se for retornar: siga direto para o escritório.',
+      'Ao chegar, tire <b>foto</b> do equipamento e poste no grupo Operacional: "Equipamento entregue para higienização". Processo encerrado.'
+    ]}
+  ];
+  secoes.forEach(function(s){
+    html += '<div style="margin-bottom:22px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="width:30px;height:30px;border-radius:50%;border:2px solid var(--wine);color:var(--wine);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">' + s.num + '</span><h3 style="font-size:15px;text-transform:uppercase;letter-spacing:.3px;">' + s.titulo + '</h3></div>';
+    s.passos.forEach(function(p){
+      html += '<div style="background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--wine);border-radius:6px;padding:12px 14px;margin:0 0 8px 15px;font-size:13.5px;line-height:1.5;">' + p + "</div>";
+    });
+    html += "</div>";
+  });
+  html += '<div style="margin-bottom:22px;"><h3 style="font-size:17px;margin-bottom:10px;">Diferenças por equipamento</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">';
+  html += '<div style="border-radius:8px;padding:16px 18px;border-top:4px solid #a83246;background:var(--paper);"><h4 style="font-size:15px;margin-bottom:8px;">Ultraformer MPT</h4><ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--ink-soft);"><li>Controle de insumos no início e no fim.</li><li>Foto da tela com os disparos de cada cartucho: Linear 1,5/2,0/3,0/4,5/6,0mm e Booster 1,5/3,0/4,5mm.</li><li>Motorista preenche sozinho no app.</li></ul></div>';
+  html += '<div style="border-radius:8px;padding:16px 18px;border-top:4px solid #2c7a7a;background:var(--paper);"><h4 style="font-size:15px;margin-bottom:8px;">Criodermis 2.0</h4><ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--ink-soft);"><li>Controle de insumos no início e no fim.</li><li>Quantidade de manta e cinta entregues/deixadas.</li><li>Fotos direto no aplicativo.</li></ul></div>';
+  html += '<div style="border-radius:8px;padding:16px 18px;border-top:4px solid #c9761f;background:var(--paper);"><h4 style="font-size:15px;margin-bottom:8px;">Endolaser</h4><ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--ink-soft);"><li>Sem controle de insumos.</li><li>Assinatura de checklist/contrato só na entrega.</li><li>Na retirada: só foto e vídeo, sem assinatura.</li></ul></div>';
+  html += '<div style="border-radius:8px;padding:16px 18px;border-top:4px solid #3f8f7a;background:var(--paper);"><h4 style="font-size:15px;margin-bottom:8px;">Lavieen</h4><ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--ink-soft);"><li>Sem controle de insumos.</li><li>Testar a manopla no livro de teste — na entrega E na retirada.</li><li>Assinatura de checklist/contrato só na entrega. Na retirada, não assina nada.</li></ul></div>';
+  html += "</div></div>";
+  html += '<div style="background:#221a15;color:#e8ddd2;padding:16px 20px;border-radius:8px;font-size:13px;text-align:center;">Dúvidas? Fale com a <b>Yasmin</b> (Comercial) antes de prosseguir sem seguir o processo.</div>';
+  content.innerHTML = html;
 }
 async function togglePremiacaoEtapa(etapaId, locId, checked){
   const updates = { concluida: checked };
