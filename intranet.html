@@ -1826,18 +1826,28 @@ async function carregarManutencoesOperacional(){
   content.innerHTML = '<p class="empty-hint">Carregando...</p>';
   const rEquip = await sb.from("operacional_manutencoes").select("*").order("renovacao");
   const rHist = await sb.from("operacional_manutencoes_historico").select("*").order("criado_em", { ascending:false });
+  const rCorr = await sb.from("operacional_manutencoes_corretivas").select("*").order("criado_em", { ascending:false });
   if(rEquip.error){ content.innerHTML = '<p class="empty-hint">Erro: ' + escapeHtml(rEquip.error.message) + '</p>'; return; }
   window.__opManutEquip = rEquip.data || [];
   window.__opManutHist = rHist.data || [];
+  window.__opManutCorr = rCorr.data || [];
 
   let html = '<div id="op-manut-alerta"></div>';
     html += '<div class="card form-card"><h3>Novo equipamento</h3>';
   html += '<p class="cardsub">Cadastre a última manutenção feita e a data de renovação. O mês de cotação é calculado automaticamente (1 mês antes da renovação).</p>';
-  html += '<button class="btn btn-primary" id="om-toggle-btn" onclick="opManutToggleForm()">Adicionar equipamento</button>';
+    html += '<div style="display:flex;gap:10px;"><button class="btn btn-primary" id="om-toggle-btn" onclick="opManutToggleForm()">Manutenção Preventiva</button><button class="btn btn-primary" id="omc-toggle-btn" onclick="opManutCorrToggleForm()">Manutenção Corretiva</button></div>';
   html += '<div id="om-form-fields" style="display:none;margin-top:16px;">';
   html += '<div class="grid4"><div class="field"><label>Equipamento</label><input id="om-nome" placeholder="Ex: Endolaser"></div><div class="field"><label>Nº de série</label><input id="om-serie" placeholder="Ex: PNA23A7598"></div><div class="field"><label>Última manutenção</label><input type="date" id="om-data"></div><div class="field"><label>Renovação (próxima)</label><input type="date" id="om-renovacao"></div></div>';
   html += '<div style="display:flex;gap:8px;margin-top:16px;"><button class="btn btn-ghost" onclick="opManutToggleForm()">Cancelar</button><button class="btn btn-primary" onclick="opManutAdicionar()">Salvar equipamento</button></div>';
+  html += '</div>';
+  html += '<div id="omc-form-fields" style="display:none;margin-top:16px;">';
+  html += '<div class="grid4"><div class="field"><label>Equipamento</label><input id="omc-nome" placeholder="Ex: Endolaser"></div><div class="field"><label>Nº de série</label><input id="omc-serie" placeholder="Ex: PNA23A7598"></div><div class="field"><label>Data da ocorrência</label><input type="date" id="omc-data"></div><div class="field"><label>Valor (R$)</label><input id="omc-valor" placeholder="Ex: 350,00"></div></div>';
+  html += '<div class="grid4" style="margin-top:12px;"><div class="field"><label>Quem realizou</label><input id="omc-quem" placeholder="Ex: TechCal Manutenções"></div></div>';
+  html += '<div class="field" style="margin-top:12px;"><label>Descrição do que foi feito</label><textarea id="omc-descricao" rows="3" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;" placeholder="Ex: Troca da lente de contato, equipamento apresentava superaquecimento."></textarea></div>';
+  html += '<div class="grid4" style="margin-top:12px;"><div class="field"><label>Foto do laudo</label><input type="file" id="omc-laudo"></div><div class="field"><label>NFe</label><input type="file" id="omc-nfe"></div></div>';
+  html += '<div style="display:flex;gap:8px;margin-top:16px;"><button class="btn btn-ghost" onclick="opManutCorrToggleForm()">Cancelar</button><button class="btn btn-primary" id="omc-salvar-btn" onclick="opManutCorrSalvar()">Salvar manutenção corretiva</button></div>';
   html += '</div></div>';
+
 html += '<div class="card" style="margin-bottom:24px;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
   ["Equipamento","Nº de série","Última manutenção","Renovação","Cotar","Status","Ação"].forEach(function(h){
     html += '<th style="text-align:left;padding:10px 12px;font-size:10.5px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
@@ -1850,10 +1860,18 @@ html += '<div class="card" style="margin-bottom:24px;overflow-x:auto;"><table st
     html += '<th style="text-align:left;padding:10px 12px;font-size:10.5px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
   });
   html += '</tr></thead><tbody id="op-manut-hist-tbody"></tbody></table></div>';
+  html += '<div class="card form-card" style="margin-top:24px;"><h3>Manutenções Corretivas</h3><p class="cardsub">Reparos feitos fora do calendário preventivo, lançados após a ocorrência.</p></div>';
+  html += '<div class="card" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
+  ["Equipamento","Nº de série","Data","Valor","Realizado por","Descrição","Anexos"].forEach(function(h){
+    html += '<th style="text-align:left;padding:10px 12px;font-size:10.5px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
+  });
+  html += '</tr></thead><tbody id="omc-tbody"></tbody></table></div>';
+
   content.innerHTML = html;
   opManutRenderAlerta();
   opManutRenderTabela();
   opManutRenderHistorico();
+  opManutCorrRenderTabela();
 }
 
 function opManutRenderAlerta(){
@@ -1936,6 +1954,60 @@ function opManutToggleForm(){
     document.getElementById("om-renovacao").value = "";
   }
 }
+
+function opManutCorrToggleForm(){
+  const fields = document.getElementById("omc-form-fields");
+  const btn = document.getElementById("omc-toggle-btn");
+  const abrir = fields.style.display === "none";
+  fields.style.display = abrir ? "block" : "none";
+  btn.style.display = abrir ? "none" : "inline-block";
+  if(!abrir){
+    ["omc-nome","omc-serie","omc-data","omc-valor","omc-quem","omc-descricao"].forEach(function(id){ document.getElementById(id).value = ""; });
+  }
+}
+
+async function opManutCorrSalvar(){
+  const nome = document.getElementById("omc-nome").value.trim();
+  const serie = document.getElementById("omc-serie").value.trim();
+  const data = document.getElementById("omc-data").value;
+  const valor = document.getElementById("omc-valor").value.trim();
+  const quem = document.getElementById("omc-quem").value.trim();
+  const descricao = document.getElementById("omc-descricao").value.trim();
+  const laudoFile = document.getElementById("omc-laudo").files[0];
+  const nfeFile = document.getElementById("omc-nfe").files[0];
+  if(!nome || !data){ toast("Preencha ao menos equipamento e data da ocorrência."); return; }
+  const btn = document.getElementById("omc-salvar-btn");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  const laudoUrl = await opUploadArquivo(laudoFile);
+  const nfeUrl = await opUploadArquivo(nfeFile);
+  const r = await sb.from("operacional_manutencoes_corretivas").insert({
+    nome:nome, serie:serie, data:data, valor:valor, quem:quem, descricao:descricao,
+    laudo_path: laudoUrl, nfe_path: nfeUrl, criado_por: currentUsuario.id
+  });
+  if(r.error){ toast("Erro: " + r.error.message); btn.disabled = false; btn.textContent = "Salvar manutenção corretiva"; return; }
+  toast("Manutenção corretiva registrada.");
+  await carregarManutencoesOperacional();
+}
+
+function opManutCorrRenderTabela(){
+  const tbody = document.getElementById("omc-tbody");
+  const lista = window.__opManutCorr || [];
+  if(!lista.length){ tbody.innerHTML = '<tr><td colspan="7" class="empty-hint">Nenhuma manutenção corretiva registrada ainda.</td></tr>'; return; }
+  tbody.innerHTML = lista.map(function(h){
+    const anexos = [
+      h.laudo_path ? '<a href="' + h.laudo_path + '" target="_blank" rel="noopener" style="color:var(--wine);text-decoration:underline;font-size:12.5px;">📄 Laudo</a>' : "",
+      h.nfe_path ? '<a href="' + h.nfe_path + '" target="_blank" rel="noopener" style="color:var(--wine);text-decoration:underline;font-size:12.5px;">🧾 NFe</a>' : ""
+    ].filter(Boolean).join(" &nbsp; ");
+    return '<tr><td style="padding:10px 12px;border-bottom:1px solid var(--line);"><b>' + escapeHtml(h.nome) + '</b></td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(h.serie||"—") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + opDataBR(h.data) + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">R$ ' + escapeHtml(h.valor||"") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(h.quem||"") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);max-width:260px;white-space:normal;">' + escapeHtml(h.descricao||"—") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + (anexos || "—") + '</td></tr>';
+  }).join("");
+}
+
 async function opManutAdicionar(){
   const nome = document.getElementById("om-nome").value.trim();
   const serie = document.getElementById("om-serie").value.trim();
