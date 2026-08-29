@@ -170,27 +170,31 @@ const PREMIACAO_EQUIP = {
   lavieen: { label: 'Laser Lavieen', insumos: false }
 };
 const PREMIACAO_ETAPAS_COM_INSUMOS = [
-  'Retirou equipamento na empresa',
-  'A caminho da entrega',
+  'Retirou equipamento na empresa + foto',
+  'A caminho da entrega + localização',
   'Equipamento montado (foto + vídeo)',
   'Preencheu Controle de Insumos inicial',
-  'Colheu assinatura de entrega',
+  'Colheu assinatura de entrega (insumos + EstoqueNOW)',
   'Marcou "Entregue" no EstoqueNOW',
-  'A caminho da retirada',
+  'A caminho da retirada + localização',
   'Equipamento retirado (foto + vídeo)',
   'Preencheu Controle de Insumos final',
   'Colheu assinatura de fechamento',
-  'Marcou retirado no EstoqueNOW'
+  'Enviou foto do comprovante + total de insumos (financeiro)',
+  'Marcou retirado no EstoqueNOW',
+  'Entregou equipamento na empresa + foto'
 ];
 const PREMIACAO_ETAPAS_SEM_INSUMOS = [
-  'Retirou equipamento na empresa',
-  'A caminho da entrega',
+  'Retirou equipamento na empresa + foto',
+  'A caminho da entrega + localização',
   'Equipamento montado (foto + vídeo)',
-  'Colheu assinatura de entrega',
+  'Colheu assinatura de entrega (EstoqueNOW)',
   'Marcou "Entregue" no EstoqueNOW',
-  'A caminho da retirada',
+  'A caminho da retirada + localização',
   'Equipamento retirado (foto + vídeo)',
-  'Marcou retirado no EstoqueNOW'
+  'Enviou foto do comprovante (financeiro)',
+  'Marcou retirado no EstoqueNOW',
+  'Entregou equipamento na empresa + foto'
 ];
 function premiacaoEtapasBase(equip){
   const info = PREMIACAO_EQUIP[equip];
@@ -1087,7 +1091,7 @@ async function carregarListaAbertasComercial(){
   const motoristas = await getMotoristas();
   const motoristaNome = {};
   motoristas.forEach(function(m){ motoristaNome[m.id] = m.nome; });
-  const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status').eq('status','aberta').order('data_locacao');
+  const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status,atraso').eq('status','aberta').order('data_locacao');
   if(result.error){ wrap.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>'; return; }
   const rows = result.data || [];
   if(!rows.length){ wrap.innerHTML = '<p class="empty-hint">Nenhuma locação aberta no momento.</p>'; return; }
@@ -2246,7 +2250,7 @@ async function carregarPremiacaoOperacional(isGestor){
   const motoristas = await getMotoristas();
   const motoristaNome = {};
   motoristas.forEach(function(m){ motoristaNome[m.id] = m.nome; });
-  const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status').order('data_locacao', { ascending: false });
+  const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status,atraso').order('data_locacao', { ascending: false });
   if(result.error){
     content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>';
     return;
@@ -2313,7 +2317,7 @@ async function carregarPremiacaoOperacional(isGestor){
       const total = etapas.length;
       const etapasHtml = etapas.map(function(e){
         return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px;"><input type="checkbox" ' + (e.concluida?'checked':'') + ' ' + (loc.status==='fechada'?'disabled':'') + ' onchange="togglePremiacaoEtapa(&quot;' + e.id + '&quot;,&quot;' + loc.id + '&quot;,this.checked)"> <span style="flex:1;">' + e.ordem + '. ' + escapeHtml(e.nome) + '</span>' + (e.concluida ? '<span class="quem" style="font-size:11px;color:var(--gray);">' + escapeHtml(motoristaNome[e.motorista_id] || '') + '</span>' : '') + '</div>';
-      }).join('');
+      }).join('') + '<div style="margin-top:12px;padding:12px 14px;border:1px dashed var(--alert);border-radius:6px;background:#fdf5f2;display:flex;align-items:center;gap:10px;"><input type="checkbox" id="atraso-' + loc.id + '" ' + (loc.atraso ? 'checked' : '') + ' onchange="togglePremiacaoAtraso(&quot;' + loc.id + '&quot;, this.checked)"><label for="atraso-' + loc.id + '" style="font-weight:600;color:var(--alert);cursor:pointer;">Teve atraso em alguma etapa</label></div>';
       return '<div class="card" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;"><div><b>Locação #' + escapeHtml(loc.numero) + '</b><div style="font-size:12px;color:var(--gray);">' + eq.label + ' - ' + escapeHtml(motoristaNome[loc.motorista_id]||'-') + '</div></div><span style="font-size:12px;color:var(--gray);">' + feitas + '/' + total + ' etapas</span></div><div style="margin-top:8px;">' + etapasHtml + '</div>' +
         (loc.status==='aberta' ? '<button class="btn btn-primary" style="margin-top:10px;" onclick="finalizarLocacaoPremiacao(&quot;' + loc.id + '&quot;,' + feitas + ',' + total + ')">Finalizar locação' + (feitas<total?' (' + (total-feitas) + ' pendente' + ((total-feitas)>1?'s':'') + ')':'') + '</button>' : '') + '</div>';
     }).join('');
@@ -2326,7 +2330,7 @@ async function carregarPremiacaoOperacional(isGestor){
       const resp = e.motorista_id || loc.motorista_id;
       if(!dados[resp]) dados[resp] = { nome: motoristaNome[resp] || '-', pontos: 0, possiveis: 0 };
       dados[resp].possiveis += 1;
-      if(e.concluida) dados[resp].pontos += 1;
+      if(e.concluida && !loc.atraso) dados[resp].pontos += 1;
     });
   });
   paresList.forEach(function(par){
@@ -2355,6 +2359,11 @@ async function carregarPremiacaoOperacional(isGestor){
   document.getElementById('btn-virar-dia-premiacao').addEventListener('click', virarDiaPremiacao);
 }
 
+async function togglePremiacaoAtraso(locId, checked){
+  await sb.from("premiacao_locacoes").update({ atraso: checked, atualizado_em: new Date().toISOString() }).eq("id", locId);
+  toast(checked ? "Atraso marcado — pontos da locação zerados." : "Atraso desmarcado.");
+  await carregarPremiacaoOperacional(true);
+}
 async function togglePremiacaoEtapa(etapaId, locId, checked){
   const updates = { concluida: checked };
   if(checked){
