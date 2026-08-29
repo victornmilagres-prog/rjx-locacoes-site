@@ -1766,13 +1766,376 @@ return { first: first, last: last, label: label };
 }
 
 async function renderOperacional(container){
-  const isGestor = (currentUsuario.papel === 'gerencial' || currentUsuario.papel === 'operacional');
   container.innerHTML =
     '<div class="pagehead"><div class="crumb">Intranet / <b>Operacional</b></div><h1>Operacional</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Operacional</div></div>' +
-    '<div class="subnav"><button class="subtab active">Campanha de Premiação</button></div>' +
+    '<div class="subnav">' +
+    '<button class="subtab active" id="op-tab-equip" onclick="selectOperacionalSubtab(&quot;equip&quot;)">Equipamentos</button>' +
+    '<button class="subtab" id="op-tab-manut" onclick="selectOperacionalSubtab(&quot;manut&quot;)">Manutenções</button>' +
+    '<button class="subtab" id="op-tab-seguros" onclick="selectOperacionalSubtab(&quot;seguros&quot;)">Seguros</button>' +
+    '<button class="subtab" id="op-tab-premiacao" onclick="selectOperacionalSubtab(&quot;premiacao&quot;)">Premiação Logística</button>' +
+    '</div>' +
     '<div class="content" id="operacional-content"><p class="empty-hint">Carregando...</p></div>';
-  await carregarPremiacaoOperacional(isGestor);
+  await carregarEquipamentosOperacional();
 }
+
+async function selectOperacionalSubtab(tab){
+  document.getElementById("op-tab-equip").classList.toggle("active", tab==="equip");
+  document.getElementById("op-tab-manut").classList.toggle("active", tab==="manut");
+  document.getElementById("op-tab-seguros").classList.toggle("active", tab==="seguros");
+  document.getElementById("op-tab-premiacao").classList.toggle("active", tab==="premiacao");
+  const isGestor = (currentUsuario.papel === "gerencial" || currentUsuario.papel === "operacional");
+  if(tab === "equip"){ await carregarEquipamentosOperacional(); }
+  else if(tab === "manut"){ await carregarManutencoesOperacional(); }
+  else if(tab === "seguros"){ await carregarSegurosOperacional(); }
+  else { await carregarPremiacaoOperacional(isGestor); }
+}
+
+async function carregarEquipamentosOperacional(){
+  const content = document.getElementById("operacional-content");
+  content.innerHTML = '<div class="card" style="padding:40px 24px;text-align:center;color:var(--gray);"><h3 style="margin-bottom:8px;">🚧 Em construção</h3><p class="cardsub" style="margin:0;">Essa aba ainda está sendo desenvolvida.</p></div>';
+}
+
+// ================== MANUTENCOES ==================
+
+function opDataBR(iso){ if(!iso) return "-"; const p = iso.split("-"); return p[2] + "/" + p[1] + "/" + p[0]; }
+function opMesAnoLabel(iso){
+  const nomes = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  const p = iso.split("-");
+  return nomes[parseInt(p[1],10)-1] + "/" + p[0];
+}
+function opSomaMeses(iso, n){
+  const p = iso.split("-").map(Number);
+  const dt = new Date(p[0], p[1]-1+n, p[2]);
+  return dt.getFullYear() + "-" + String(dt.getMonth()+1).padStart(2,"0") + "-" + String(dt.getDate()).padStart(2,"0");
+}
+function opMesesEntre(hoje, alvo){
+  const a = hoje.split("-").map(Number), b = alvo.split("-").map(Number);
+  return (b[0]-a[0])*12 + (b[1]-a[1]);
+}
+function opStatusDe(renovacao){
+  const hoje = premiacaoIsoHoje(0);
+  const meses = opMesesEntre(hoje, renovacao);
+  if(meses <= 0) return { cls:"vermelho", label:"No mês da renovação" };
+  if(meses <= 2) return { cls:"amarelo", label: meses + " mes(es) pra renovar" };
+  return { cls:"verde", label: meses + " mes(es) pra renovar" };
+}
+const OP_STATUS_CLASS = { verde:"status-ok", amarelo:"status-wait", vermelho:"status-wait", cotacao:"status-info" };
+
+async function carregarManutencoesOperacional(){
+  const content = document.getElementById("operacional-content");
+  content.innerHTML = '<p class="empty-hint">Carregando...</p>';
+  const rEquip = await sb.from("operacional_manutencoes").select("*").order("renovacao");
+  const rHist = await sb.from("operacional_manutencoes_historico").select("*").order("criado_em", { ascending:false });
+  if(rEquip.error){ content.innerHTML = '<p class="empty-hint">Erro: ' + escapeHtml(rEquip.error.message) + '</p>'; return; }
+  window.__opManutEquip = rEquip.data || [];
+  window.__opManutHist = rHist.data || [];
+
+  let html = '<div id="op-manut-alerta"></div>';
+  html += '<div class="card form-card"><h3>Novo equipamento</h3>';
+  html += '<p class="cardsub">Cadastre a última manutenção feita e a data de renovação. O mês de cotação é calculado automaticamente (1 mês antes da renovação).</p>';
+  html += '<div class="grid4"><div class="field"><label>Equipamento</label><input id="om-nome" placeholder="Ex: Endolaser"></div><div class="field"><label>Nº de série</label><input id="om-serie" placeholder="Ex: PNA23A7598"></div><div class="field"><label>Última manutenção</label><input type="date" id="om-data"></div><div class="field"><label>Renovação (próxima)</label><input type="date" id="om-renovacao"></div></div>';
+  html += '<button class="btn btn-primary" style="margin-top:16px;" onclick="opManutAdicionar()">Adicionar equipamento</button></div>';
+  html += '<div class="card" style="margin-bottom:24px;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
+  ["Equipamento","Nº de série","Última manutenção","Renovação","Cotar","Status","Ação"].forEach(function(h){
+    html += '<th style="text-align:left;padding:10px 12px;font-size:10.5px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
+  });
+  html += '</tr></thead><tbody id="op-manut-tbody"></tbody></table></div>';
+  html += '<div class="card form-card"><h3>Manutenções realizadas</h3><p class="cardsub">Histórico do que já foi feito. Busque por equipamento, quem realizou, ou anexos.</p>';
+  html += '<input class="field" id="om-busca" placeholder="Buscar..." style="max-width:320px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;" oninput="opManutRenderHistorico()"></div>';
+  html += '<div class="card" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
+  ["Equipamento","Data","Valor","Realizado por","Próxima manutenção","Anexos"].forEach(function(h){
+    html += '<th style="text-align:left;padding:10px 12px;font-size:10.5px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
+  });
+  html += '</tr></thead><tbody id="op-manut-hist-tbody"></tbody></table></div>';
+  content.innerHTML = html;
+  opManutRenderAlerta();
+  opManutRenderTabela();
+  opManutRenderHistorico();
+}
+
+function opManutRenderAlerta(){
+  const wrap = document.getElementById("op-manut-alerta");
+  const equip = window.__opManutEquip || [];
+  const emCotacao = equip.filter(function(e){ return e.status === "em_cotacao"; });
+  const proximos = equip.filter(function(e){ return e.status !== "em_cotacao"; })
+    .map(function(e){ return { e:e, meses: opMesesEntre(premiacaoIsoHoje(0), e.renovacao) }; })
+    .filter(function(x){ return x.meses <= 1; })
+    .sort(function(a,b){ return a.meses - b.meses; });
+  if(!emCotacao.length && !proximos.length){
+    wrap.innerHTML = '<div class="card" style="padding:14px 18px;margin-bottom:20px;color:var(--gray);font-size:13px;">✅ Nenhuma manutenção precisando de atenção agora.</div>';
+    return;
+  }
+  wrap.innerHTML = '<div class="card" style="padding:16px 18px;margin-bottom:20px;background:var(--alert-bg);border-color:#e8cabd;"><h3 style="color:var(--alert);font-size:16px;">🔔 ' + (emCotacao.length+proximos.length) + ' equipamento(s) pra realizar</h3>' +
+    '<p class="cardsub" style="color:#7a5c14;">Faltando 1 mês ou menos, ou já em cotação.</p>' +
+    emCotacao.map(function(e){ return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ecd3c8;"><b>' + escapeHtml(e.nome) + '</b><span class="status-pill status-info"><span class="dot"></span>Em cotação</span></div>'; }).join("") +
+    proximos.map(function(x){ const st = opStatusDe(x.e.renovacao); return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ecd3c8;"><div><b>' + escapeHtml(x.e.nome) + '</b> — renovação em ' + opDataBR(x.e.renovacao) + '</div><span class="status-pill ' + OP_STATUS_CLASS[st.cls] + '"><span class="dot"></span>' + st.label + '</span></div>'; }).join("") +
+    '</div>';
+}
+
+function opManutRenderTabela(){
+  const tbody = document.getElementById("op-manut-tbody");
+  const equip = window.__opManutEquip || [];
+  if(!equip.length){ tbody.innerHTML = '<tr><td colspan="7" class="empty-hint">Nenhum equipamento cadastrado ainda.</td></tr>'; return; }
+  tbody.innerHTML = equip.map(function(e){
+    const cotar = opMesAnoLabel(opSomaMeses(e.renovacao, -1));
+    let statusHtml, acaoHtml;
+    if(e.status === "em_cotacao"){
+      statusHtml = '<span class="status-pill status-info"><span class="dot"></span>Em cotação</span>';
+      acaoHtml = '<button class="btn btn-primary btn-sm" onclick="opManutAbrirModal(&quot;' + e.id + '&quot;)">Finalizar</button>';
+    } else {
+      const st = opStatusDe(e.renovacao);
+      statusHtml = '<span class="status-pill ' + OP_STATUS_CLASS[st.cls] + '"><span class="dot"></span>' + st.label + '</span>';
+      const meses = opMesesEntre(premiacaoIsoHoje(0), e.renovacao);
+      acaoHtml = meses <= 1 ? '<button class="btn btn-primary btn-sm" onclick="opManutIniciarCotacao(&quot;' + e.id + '&quot;)">Realizar manutenção</button>' : "-";
+    }
+    return '<tr><td style="padding:10px 12px;border-bottom:1px solid var(--line);"><b>' + escapeHtml(e.nome) + '</b></td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(e.serie||"—") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + opDataBR(e.ultima_manutencao) + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + opDataBR(e.renovacao) + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + cotar + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + statusHtml + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + acaoHtml + '</td></tr>';
+  }).join("");
+}
+
+function opManutRenderHistorico(){
+  const tbody = document.getElementById("op-manut-hist-tbody");
+  const busca = (document.getElementById("om-busca").value || "").toLowerCase();
+  const hist = window.__opManutHist || [];
+  const filtrado = hist.filter(function(h){
+    return !busca || [h.nome, h.quem, h.laudo_path, h.nfe_path].some(function(v){ return (v||"").toLowerCase().includes(busca); });
+  });
+  if(!filtrado.length){ tbody.innerHTML = '<tr><td colspan="6" class="empty-hint">Nenhum registro encontrado.</td></tr>'; return; }
+  tbody.innerHTML = filtrado.map(function(h){
+    const anexos = [
+      h.laudo_path ? '<a href="' + h.laudo_path + '" target="_blank" rel="noopener" style="color:var(--wine);text-decoration:underline;font-size:12.5px;">📄 Laudo</a>' : "",
+      h.nfe_path ? '<a href="' + h.nfe_path + '" target="_blank" rel="noopener" style="color:var(--wine);text-decoration:underline;font-size:12.5px;">🧾 NFe</a>' : ""
+    ].filter(Boolean).join(" &nbsp; ");
+    return '<tr><td style="padding:10px 12px;border-bottom:1px solid var(--line);"><b>' + escapeHtml(h.nome) + '</b></td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + opDataBR(h.data) + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">R$ ' + escapeHtml(h.valor||"") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(h.quem||"") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + opDataBR(h.proxima) + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + (anexos || "—") + '</td></tr>';
+  }).join("");
+}
+
+async function opManutAdicionar(){
+  const nome = document.getElementById("om-nome").value.trim();
+  const serie = document.getElementById("om-serie").value.trim();
+  const data = document.getElementById("om-data").value;
+  const renovacao = document.getElementById("om-renovacao").value;
+  if(!nome || !data || !renovacao){ toast("Preencha equipamento, última manutenção e renovação."); return; }
+  const r = await sb.from("operacional_manutencoes").insert({ nome:nome, serie:serie, ultima_manutencao:data, renovacao:renovacao, criado_por: currentUsuario.id });
+  if(r.error){ toast("Erro: " + r.error.message); return; }
+  toast("Equipamento adicionado.");
+  await carregarManutencoesOperacional();
+}
+
+async function opManutIniciarCotacao(id){
+  await sb.from("operacional_manutencoes").update({ status:"em_cotacao", atualizado_em: new Date().toISOString() }).eq("id", id);
+  toast("Equipamento em cotação.");
+  await carregarManutencoesOperacional();
+}
+
+function opManutAbrirModal(id){
+  const eq = (window.__opManutEquip||[]).find(function(e){ return e.id === id; });
+  if(!eq) return;
+  let overlay = document.getElementById("op-modal-overlay");
+  if(overlay) overlay.remove();
+  overlay = document.createElement("div");
+  overlay.id = "op-modal-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  overlay.innerHTML =
+    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;"><h3>Finalizar manutenção — ' + escapeHtml(eq.nome) + '</h3>' +
+    '<p class="cardsub">Isso atualiza a próxima renovação e entra no histórico.</p>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Valor da manutenção (R$)</label><input id="om-m-valor" placeholder="Ex: 850,00"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Quem realizou</label><input id="om-m-quem" placeholder="Ex: TechCal Manutenções"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Data da ocorrência</label><input type="date" id="om-m-data" value="' + premiacaoIsoHoje(0) + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Data da próxima manutenção</label><input type="date" id="om-m-proxima" value="' + opSomaMeses(premiacaoIsoHoje(0), 12) + '"></div>' +
+    '<div class="field" style="margin-bottom:6px;"><label>Laudo técnico</label><input type="file" id="om-m-laudo"></div>' +
+    '<div class="field" style="margin-bottom:14px;"><label>NFe</label><input type="file" id="om-m-nfe"></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" id="om-m-salvar" onclick="opManutConfirmar(&quot;' + id + '&quot;)">Salvar manutenção</button></div></div>';
+  document.body.appendChild(overlay);
+}
+function opFecharModal(){ const o = document.getElementById("op-modal-overlay"); if(o) o.remove(); }
+
+async function opUploadArquivo(file){
+  if(!file) return null;
+  const path = Date.now() + "_" + Math.random().toString(36).slice(2) + "_" + file.name;
+  const up = await sb.storage.from("manutencoes").upload(path, file);
+  if(up.error){ toast("Erro ao enviar arquivo: " + up.error.message); return null; }
+  const pub = sb.storage.from("manutencoes").getPublicUrl(path);
+  return pub.data.publicUrl;
+}
+
+async function opManutConfirmar(id){
+  const valor = document.getElementById("om-m-valor").value.trim();
+  const quem = document.getElementById("om-m-quem").value.trim();
+  const data = document.getElementById("om-m-data").value;
+  const proxima = document.getElementById("om-m-proxima").value;
+  const laudoFile = document.getElementById("om-m-laudo").files[0];
+  const nfeFile = document.getElementById("om-m-nfe").files[0];
+  if(!valor || !quem || !data || !proxima){ toast("Preencha todos os campos."); return; }
+  const btn = document.getElementById("om-m-salvar");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  const eq = (window.__opManutEquip||[]).find(function(e){ return e.id === id; });
+  const laudoUrl = await opUploadArquivo(laudoFile);
+  const nfeUrl = await opUploadArquivo(nfeFile);
+  await sb.from("operacional_manutencoes_historico").insert({
+    nome: eq.nome, data:data, valor:valor, quem:quem, proxima:proxima,
+    laudo_path: laudoUrl, nfe_path: nfeUrl, criado_por: currentUsuario.id
+  });
+  await sb.from("operacional_manutencoes").update({ ultima_manutencao:data, renovacao:proxima, status:"normal", atualizado_em: new Date().toISOString() }).eq("id", id);
+  opFecharModal();
+  toast("Manutenção registrada — próxima renovação em " + opDataBR(proxima) + ".");
+  await carregarManutencoesOperacional();
+}
+// ================== SEGUROS ==================
+
+async function carregarSegurosOperacional(){
+  const content = document.getElementById("operacional-content");
+  content.innerHTML = '<p class="empty-hint">Carregando...</p>';
+  const r = await sb.from("operacional_seguros").select("*").order("renovacao");
+  if(r.error){ content.innerHTML = '<p class="empty-hint">Erro: ' + escapeHtml(r.error.message) + '</p>'; return; }
+  window.__opSeguros = r.data || [];
+
+  let html = '<div id="op-seg-alerta"></div>';
+  html += '<div class="card form-card"><h3>Novo seguro</h3>';
+  html += '<p class="cardsub">Cadastre a apólice atual. O mês de cotação é calculado automaticamente (1 mês antes da renovação).</p>';
+  html += '<div class="grid4"><div class="field"><label>Equipamento</label><input id="sg-nome" placeholder="Ex: Endolaser"></div><div class="field"><label>Nº de série</label><input id="sg-serie" placeholder="Ex: PNA23A7598"></div><div class="field"><label>Nº da apólice</label><input id="sg-apolice" placeholder="Ex: 1"></div><div class="field"><label>Corretora</label><input id="sg-corretora" placeholder="Ex: Harlane"></div></div>';
+  html += '<div class="grid4" style="margin-top:12px;"><div class="field"><label>Data (contratação)</label><input type="date" id="sg-data"></div><div class="field"><label>Renovação (próxima)</label><input type="date" id="sg-renovacao"></div><div class="field"><label>Valor</label><input id="sg-valor" placeholder="Ex: 1.703,16"></div><div class="field"><label>Parcela</label><input id="sg-parcela" placeholder="Ex: 243,31"></div></div>';
+  html += '<button class="btn btn-primary" style="margin-top:16px;" onclick="opSegAdicionar()">Adicionar seguro</button></div>';
+  html += '<div class="card" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
+  ["Equipamento","Nº de série","Nº apólice","Data","Renovação","Cotar","Valor","Parcela","Corretora","Status","Ação"].forEach(function(h){
+    html += '<th style="text-align:left;padding:10px 12px;font-size:10.5px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
+  });
+  html += '</tr></thead><tbody id="op-seg-tbody"></tbody></table></div>';
+  content.innerHTML = html;
+  opSegRenderAlerta();
+  opSegRenderTabela();
+}
+
+function opSegRenderAlerta(){
+  const wrap = document.getElementById("op-seg-alerta");
+  const seguros = window.__opSeguros || [];
+  const emCotacao = seguros.filter(function(s){ return s.status === "em_cotacao"; });
+  const proximos = seguros.filter(function(s){ return s.status !== "em_cotacao"; })
+    .map(function(s){ return { s:s, meses: opMesesEntre(premiacaoIsoHoje(0), s.renovacao) }; })
+    .filter(function(x){ return x.meses <= 1; })
+    .sort(function(a,b){ return a.meses - b.meses; });
+  if(!emCotacao.length && !proximos.length){
+    wrap.innerHTML = '<div class="card" style="padding:14px 18px;margin-bottom:20px;color:var(--gray);font-size:13px;">✅ Nenhum seguro precisando de atenção agora.</div>';
+    return;
+  }
+  wrap.innerHTML = '<div class="card" style="padding:16px 18px;margin-bottom:20px;background:var(--alert-bg);border-color:#e8cabd;"><h3 style="color:var(--alert);font-size:16px;">🔔 ' + (emCotacao.length+proximos.length) + ' seguro(s) pra renovar</h3>' +
+    '<p class="cardsub" style="color:#7a5c14;">Faltando 1 mês ou menos, ou já em cotação.</p>' +
+    emCotacao.map(function(s){ return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ecd3c8;"><b>' + escapeHtml(s.nome) + '</b><span class="status-pill status-info"><span class="dot"></span>Em cotação</span></div>'; }).join("") +
+    proximos.map(function(x){ const st = opStatusDe(x.s.renovacao); return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ecd3c8;"><div><b>' + escapeHtml(x.s.nome) + '</b> — renovação em ' + opDataBR(x.s.renovacao) + '</div><span class="status-pill ' + OP_STATUS_CLASS[st.cls] + '"><span class="dot"></span>' + st.label + '</span></div>'; }).join("") +
+    '</div>';
+}
+
+function opSegRenderTabela(){
+  const tbody = document.getElementById("op-seg-tbody");
+  const seguros = window.__opSeguros || [];
+  if(!seguros.length){ tbody.innerHTML = '<tr><td colspan="11" class="empty-hint">Nenhum seguro cadastrado ainda.</td></tr>'; return; }
+  tbody.innerHTML = seguros.map(function(s){
+    const cotar = opMesAnoLabel(opSomaMeses(s.renovacao, -1));
+    let statusHtml, acaoHtml;
+    if(s.status === "em_cotacao"){
+      statusHtml = '<span class="status-pill status-info"><span class="dot"></span>Em cotação</span>';
+      acaoHtml = '<button class="btn btn-primary btn-sm" onclick="opSegAbrirModalFinalizar(&quot;' + s.id + '&quot;)">Finalizar</button>';
+    } else {
+      const st = opStatusDe(s.renovacao);
+      statusHtml = '<span class="status-pill ' + OP_STATUS_CLASS[st.cls] + '"><span class="dot"></span>' + st.label + '</span>';
+      const meses = opMesesEntre(premiacaoIsoHoje(0), s.renovacao);
+      acaoHtml = meses <= 1 ? '<button class="btn btn-primary btn-sm" onclick="opSegIniciarCotacao(&quot;' + s.id + '&quot;)">Renovar seguro</button>' : "-";
+    }
+    const excluirHtml = '<button title="Excluir seguro" onclick="opSegExcluir(&quot;' + s.id + '&quot;)" style="background:none;border:1px solid var(--alert);color:var(--alert);border-radius:6px;width:26px;height:26px;font-size:13px;font-weight:700;cursor:pointer;line-height:1;">✕</button>';
+    return '<tr><td style="padding:10px 12px;border-bottom:1px solid var(--line);"><b>' + escapeHtml(s.nome) + '</b></td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(s.serie||"—") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(s.apolice||"—") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + opDataBR(s.data) + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + opDataBR(s.renovacao) + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + cotar + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">R$ ' + escapeHtml(s.valor||"") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">R$ ' + escapeHtml(s.parcela||"") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(s.corretora||"") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + statusHtml + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><div style="display:flex;align-items:center;gap:8px;">' + excluirHtml + acaoHtml + '</div></td></tr>';
+  }).join("");
+}
+
+async function opSegAdicionar(){
+  const nome = document.getElementById("sg-nome").value.trim();
+  const serie = document.getElementById("sg-serie").value.trim();
+  const apolice = document.getElementById("sg-apolice").value.trim();
+  const corretora = document.getElementById("sg-corretora").value.trim();
+  const data = document.getElementById("sg-data").value;
+  const renovacao = document.getElementById("sg-renovacao").value;
+  const valor = document.getElementById("sg-valor").value.trim();
+  const parcela = document.getElementById("sg-parcela").value.trim();
+  if(!nome || !data || !renovacao){ toast("Preencha ao menos equipamento, data e renovação."); return; }
+  const r = await sb.from("operacional_seguros").insert({ nome:nome, serie:serie, apolice:apolice, corretora:corretora, data:data, renovacao:renovacao, valor:valor, parcela:parcela, criado_por: currentUsuario.id });
+  if(r.error){ toast("Erro: " + r.error.message); return; }
+  toast("Seguro adicionado.");
+  await carregarSegurosOperacional();
+}
+
+async function opSegIniciarCotacao(id){
+  await sb.from("operacional_seguros").update({ status:"em_cotacao", atualizado_em: new Date().toISOString() }).eq("id", id);
+  toast("Seguro em cotação.");
+  await carregarSegurosOperacional();
+}
+
+function opSegAbrirModalFinalizar(id){
+  const s = (window.__opSeguros||[]).find(function(x){ return x.id === id; });
+  if(!s) return;
+  let overlay = document.getElementById("op-modal-overlay");
+  if(overlay) overlay.remove();
+  overlay = document.createElement("div");
+  overlay.id = "op-modal-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  overlay.innerHTML =
+    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;"><h3>Finalizar renovação — ' + escapeHtml(s.nome) + '</h3>' +
+    '<p class="cardsub">Dados da nova apólice contratada.</p>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Nome do equipamento</label><input id="sg-f-nome" value="' + escapeHtml(s.nome) + '" readonly style="background:var(--paper-soft);"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Nº de série</label><input id="sg-f-serie" value="' + escapeHtml(s.serie||"") + '" readonly style="background:var(--paper-soft);"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Corretora</label><input id="sg-f-corretora" value="' + escapeHtml(s.corretora||"") + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Nº da apólice</label><input id="sg-f-apolice" placeholder="Ex: 1"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Data (contratação)</label><input type="date" id="sg-f-data" value="' + premiacaoIsoHoje(0) + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Renovação (próxima)</label><input type="date" id="sg-f-renovacao" value="' + opSomaMeses(premiacaoIsoHoje(0), 12) + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Valor</label><input id="sg-f-valor" placeholder="Ex: 1.703,16"></div>' +
+    '<div class="field" style="margin-bottom:14px;"><label>Parcela</label><input id="sg-f-parcela" placeholder="Ex: 243,31"></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" onclick="opSegConfirmarFinalizar(&quot;' + id + '&quot;)">Salvar renovação</button></div></div>';
+  document.body.appendChild(overlay);
+}
+async function opSegConfirmarFinalizar(id){
+  const corretora = document.getElementById("sg-f-corretora").value.trim();
+  const apolice = document.getElementById("sg-f-apolice").value.trim();
+  const data = document.getElementById("sg-f-data").value;
+  const renovacao = document.getElementById("sg-f-renovacao").value;
+  const valor = document.getElementById("sg-f-valor").value.trim();
+  const parcela = document.getElementById("sg-f-parcela").value.trim();
+  if(!corretora || !apolice || !data || !renovacao){ toast("Preencha corretora, apólice, data e renovação."); return; }
+  const updates = { corretora:corretora, apolice:apolice, data:data, renovacao:renovacao, status:"normal", atualizado_em: new Date().toISOString() };
+  if(valor) updates.valor = valor;
+  if(parcela) updates.parcela = parcela;
+  await sb.from("operacional_seguros").update(updates).eq("id", id);
+  opFecharModal();
+  toast("Seguro renovado — próxima renovação em " + opDataBR(renovacao) + ".");
+  await carregarSegurosOperacional();
+}
+async function opSegExcluir(id){
+  const s = (window.__opSeguros||[]).find(function(x){ return x.id === id; });
+  if(!s) return;
+  const ok = confirm('Tem certeza que deseja excluir o seguro de "' + s.nome + '"?\n\nUma vez apagado, não será mais possível recuperar.');
+  if(!ok) return;
+  await sb.from("operacional_seguros").delete().eq("id", id);
+  toast("Seguro excluído.");
+  await carregarSegurosOperacional();
+}
+
 
 let opTabAtual = 'aberta';
 function mudarTabOperacionalPremiacao(t){ opTabAtual = t; carregarPremiacaoOperacional(true); }
