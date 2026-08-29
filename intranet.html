@@ -2283,7 +2283,7 @@ async function carregarPremiacaoOperacional(isGestor){
   }
 
   let html = '';
-  html += '<div class="card" style="background:var(--paper-soft);"><p class="cardsub" style="margin:0;">Cada etapa do manual vale <b>1 ponto</b> (11 etapas em equipamentos com insumo, 8 nos demais). A selfie de uniforme vale <b>' + PONTOS_UNIFORME_PREMIACAO + ' pontos por dia</b> (cobre todas as locações daquele dia), enviada pelo motorista na aba de Transportes e validada por IA. Sem envio até o fim do dia, ele perde os ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p></div>';
+  html += '<div class="card" style="background:var(--paper-soft);"><p class="cardsub" style="margin:0;">Cada etapa do manual vale <b>1 ponto</b> (13 etapas em equipamentos com insumo, 10 nos demais. Marcar atraso numa etapa zera os pontos daquela locação). A selfie de uniforme vale <b>' + PONTOS_UNIFORME_PREMIACAO + ' pontos por dia</b> (cobre todas as locações daquele dia), enviada pelo motorista na aba de Transportes e validada por IA. Sem envio até o fim do dia, ele perde os ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p></div>';
   html += '<div class="card form-card"><h3>Selfies do dia</h3><p class="cardsub">Quem envia é o motorista. Use o botão para expirar quem não enviou até o fim do dia.</p>';
   html += '<div id="op-lista-selfies">';
   if(!paresList.length){
