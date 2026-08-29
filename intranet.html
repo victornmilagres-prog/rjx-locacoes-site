@@ -116,6 +116,116 @@ html,body{margin:0;background:#dedcc8;font-family:'Source Sans 3',-apple-system,
   .nav-label{display:none;}
   .grid2{grid-template-columns:1fr;}
 }
+
+/* ===== Premiacao Logistica: metricas, etapas, premio, contestacao ===== */
+.metrics{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:22px;}
+.metric{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:16px 18px;}
+.metric .num{font-family:Fraunces,serif; font-size:26px; font-weight:600;}
+.metric .lbl{font-size:11.5px; color:var(--gray); text-transform:uppercase; letter-spacing:.3px; margin-top:2px;}
+.metric.atraso{border-color:#e8cabd; background:var(--alert-bg);}
+.metric.atraso .num{color:var(--alert);}
+
+.locacao-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;}
+.locacao-head h3{font-size:17px;}
+.locacao-sub{color:var(--gray); font-size:12.5px; margin-bottom:14px;}
+.progresso-barra{height:6px; border-radius:4px; background:var(--paper-soft); overflow:hidden; margin-bottom:14px;}
+.progresso-fill{height:100%; background:var(--ok);}
+
+.etapa-row{display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--line);}
+.etapa-row:last-child{border-bottom:none;}
+.etapa-row.feita .etapa-label{color:var(--gray-soft);}
+.etapa-check{width:18px; height:18px; accent-color:var(--wine); flex-shrink:0;}
+.etapa-num{color:var(--gray-soft); font-size:12.5px; width:18px; flex-shrink:0;}
+.etapa-label{flex:1; font-size:13.5px;}
+.etapa-pts{font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; white-space:nowrap; background:var(--ok-bg); color:var(--ok);}
+.etapa-quem{font-size:12px; color:var(--gray); width:70px; text-align:right; flex-shrink:0;}
+
+.atraso-box{margin-top:10px; padding:14px 16px; border:1px dashed #e8cabd; border-radius:8px; background:#fdf8f5; display:flex; align-items:center; gap:12px;}
+.atraso-box input{width:18px; height:18px; accent-color:var(--alert);}
+.atraso-box label{font-size:13.5px; font-weight:600; color:var(--alert); cursor:pointer;}
+
+.ver-link{font-size:12px; color:var(--wine); text-decoration:underline; cursor:pointer; background:none; border:none;}
+
+/* premio / leaderboard */
+.premio-card{padding:20px 22px; margin-bottom:22px;}
+.premio-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+.premio-head h3{font-size:16px;}
+.premio-valor{font-family:Fraunces,serif; font-size:15px; color:var(--gold); font-weight:600;}
+.premio-barra{height:14px; border-radius:8px; background:var(--paper-soft); overflow:hidden; position:relative; margin:10px 0 8px;}
+.premio-fill{height:100%; background:var(--ok); transition:width .3s;}
+.premio-fill.abaixo{background:var(--wait);}
+.premio-meta-marca{position:absolute; top:0; bottom:0; width:2px; background:var(--ink);}
+.premio-rodape{display:flex; justify-content:space-between; font-size:12px; color:var(--gray);}
+.premio-status{font-size:12.5px; font-weight:700; padding:4px 11px; border-radius:20px; display:inline-flex; align-items:center; gap:5px;}
+
+.lider-row{display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line);}
+.lider-row:last-child{border-bottom:none;}
+.lider-nome{width:100px; font-size:13.5px; font-weight:600; flex-shrink:0;}
+.lider-barra-wrap{flex:1; height:10px; background:var(--paper-soft); border-radius:6px; overflow:hidden; position:relative;}
+.lider-barra-fill{height:100%; background:var(--ok);}
+.lider-barra-fill.abaixo{background:var(--wait);}
+.lider-meta-marca{position:absolute; top:0; bottom:0; width:2px; background:var(--ink);}
+.lider-pct{width:80px; text-align:right; font-size:12.5px; font-weight:700; color:var(--gray); flex-shrink:0;}
+
+/* contestacoes */
+.contest-alert{padding:16px 18px; margin-bottom:20px; background:var(--alert-bg); border:1px solid #e8cabd;}
+.contest-alert h3{color:var(--alert); font-size:16px;}
+.contest-row{display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid #ecd3c8; gap:10px;}
+.contest-row:last-child{border-bottom:none;}
+.contest-badge{font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px;}
+.contest-pendente{background:var(--status-wait-bg, #f7ecd9); color:var(--wait);}
+.contest-aceita{background:var(--ok-bg); color:var(--ok);}
+.contest-rejeitada{background:var(--alert-bg); color:var(--alert);}
+
+.modal-overlay{position:fixed; inset:0; background:rgba(23,19,15,.45); display:flex; align-items:center; justify-content:center; z-index:200;}
+.modal-box{max-width:520px; width:92%; margin:0; max-height:85vh; overflow-y:auto;}
+textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:6px; font-size:13.5px; font-family:inherit;}
+
+/* sininho de alerta na sidebar */
+.badge-alerta{background:var(--wine); color:#fff; font-size:10.5px; font-weight:700; border-radius:20px; padding:1px 7px; min-width:16px; text-align:center; display:inline-block; margin-left:6px;}
+
+/* resumo pessoal (transportes) */
+.resumo{display:flex; align-items:center; gap:18px; padding:18px 20px; margin-bottom:14px; background:linear-gradient(135deg,#221a15,#17130f); border-radius:10px; color:#f1ebe1;}
+.resumo .pontos{font-family:Fraunces,serif; font-size:36px; font-weight:600; color:#fff;}
+.resumo .pontos-lbl{font-size:11px; color:var(--gold); text-transform:uppercase; letter-spacing:.5px;}
+.resumo .divisor{width:1px; align-self:stretch; background:rgba(255,255,255,.15);}
+.resumo .mini{font-size:12px; color:#d8cfc2;}
+.resumo .mini b{color:#fff; font-size:15px; display:block; font-family:Fraunces,serif; font-weight:600;}
+
+/* historico expansivel (transportes) */
+.hist-row{border-bottom:1px solid var(--line);}
+.hist-row:last-child{border-bottom:none;}
+.hist-cab{display:flex; align-items:center; gap:10px; padding:12px; cursor:pointer;}
+.hist-cab:hover{background:var(--paper-soft);}
+.hist-cab b{flex:1; font-size:13.5px;}
+.hist-detalhe{padding:0 16px 16px; display:none;}
+.hist-detalhe.aberto{display:block;}
+.hist-etapa-ro{display:flex; align-items:center; gap:10px; padding:6px 0; font-size:13px; border-bottom:1px solid var(--paper-soft);}
+.hist-etapa-ro:last-child{border-bottom:none;}
+.hist-etapa-ro .ico{width:16px; text-align:center; flex-shrink:0;}
+.hist-etapa-ro.feita .ico{color:var(--ok);}
+.hist-etapa-ro.nfeita .ico{color:var(--gray-soft);}
+.hist-etapa-ro.nfeita .lbl{color:var(--gray-soft);}
+
+/* manual de entrega */
+.manual-header{background:var(--wine); color:#fff; padding:24px 22px; border-radius:10px; margin-bottom:20px;}
+.manual-header .kicker{font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#e8c9c9; margin-bottom:6px;}
+.manual-header h2{font-size:24px; font-family:Fraunces,serif;}
+.manual-header .sub{font-size:13px; color:#e8c9c9; margin-top:6px;}
+.manual-secao{margin-bottom:22px;}
+.manual-secao-titulo{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+.manual-num{width:30px; height:30px; border-radius:50%; border:2px solid var(--wine); color:var(--wine); display:flex; align-items:center; justify-content:center; font-weight:700; font-family:Fraunces,serif; flex-shrink:0;}
+.manual-secao-titulo h3{font-size:15px; text-transform:uppercase; letter-spacing:.3px;}
+.manual-step{background:var(--paper); border:1px solid var(--line); border-left:3px solid var(--wine); border-radius:6px; padding:12px 14px; margin:0 0 8px 15px; font-size:13.5px; line-height:1.5;}
+.manual-diferencas-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:10px;}
+.manual-equip-card{border-radius:8px; padding:16px 18px; border-top:4px solid; background:var(--paper);}
+.manual-equip-card h4{font-size:15px; margin-bottom:8px;}
+.manual-equip-card ul{margin:0; padding-left:18px; font-size:12.5px; line-height:1.6; color:var(--ink-soft);}
+.manual-equip-mpt{border-color:#a83246;}
+.manual-equip-crio{border-color:#2c7a7a;}
+.manual-equip-endo{border-color:#c9761f;}
+.manual-equip-lav{border-color:#3f8f7a;}
+.manual-footer{background:#221a15; color:#e8ddd2; padding:16px 20px; border-radius:10px; font-size:13px; text-align:center; margin-top:20px;}
 </style>
 </head>
 <body>
@@ -342,7 +452,7 @@ function renderShell(){
     const el = document.createElement('div');
     if(m.enabled){
       el.className = 'mod-link';
-      el.textContent = m.label;
+      el.innerHTML = escapeHtml(m.label) + (m.id === 'operacional' ? '<span id="badge-sidebar-operacional"></span>' : '');
       el.dataset.mod = m.id;
       el.addEventListener('click', function(){ selectModule(m.id); });
     } else {
@@ -351,6 +461,7 @@ function renderShell(){
     }
     sidebar.appendChild(el);
   });
+  atualizarBadgeContestacoesSidebar();
 
   if(firstEnabled){ selectModule(firstEnabled.id); }
 }
@@ -1310,7 +1421,7 @@ async function selectTransportesSubtab(tab){
 async function carregarPremiacaoTransportes(){
   const content = document.getElementById('transportes-content');
   content.innerHTML = '<p class="empty-hint">Carregando...</p>';
-  const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,data_locacao,status').eq('motorista_id', currentUsuario.id).order('data_locacao', { ascending: false });
+  const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,data_locacao,status,atraso').eq('motorista_id', currentUsuario.id).order('data_locacao', { ascending: false });
   if(result.error){
     content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>';
     return;
@@ -1399,6 +1510,19 @@ async function carregarPremiacaoTransportes(){
   }
   html += '</div></div>';
   content.innerHTML = html;
+  const locsFechadasTransp = (result.data||[]).filter(function(l){ return l.status === "fechada"; });
+  const locIdsTransp = locsFechadasTransp.map(function(l){ return l.id; });
+  const rEtapasTransp = locIdsTransp.length ? await sb.from("premiacao_etapas").select("locacao_id,concluida").in("locacao_id", locIdsTransp) : { data: [] };
+  const etapasTransp = rEtapasTransp.data || [];
+  const possiveisTransp = locsFechadasTransp.reduce(function(a,l){ return a + etapasTransp.filter(function(e){ return e.locacao_id===l.id; }).length; }, 0);
+  const ganhosTransp = locsFechadasTransp.reduce(function(a,l){ return a + (l.atraso ? 0 : etapasTransp.filter(function(e){ return e.locacao_id===l.id && e.concluida; }).length); }, 0);
+  const pctTransp = possiveisTransp ? Math.round((ganhosTransp/possiveisTransp)*100) : 0;
+  const ganhandoTransp = pctTransp >= 80;
+  const premioCardHtml = '<div class="card premio-card"><div class="premio-head"><h3>🏆 Prêmio Logística</h3><span class="premio-valor">R$ 500,00</span></div>' +
+    '<p class="cardsub" style="margin-bottom:2px;">Bate 80% das metas do mês pra ganhar.</p>' +
+    '<div class="premio-barra"><div class="premio-fill ' + (ganhandoTransp?"":"abaixo") + '" style="width:' + Math.min(pctTransp,100) + '%;"></div><div class="premio-meta-marca" style="left:80%;"></div></div>' +
+    '<div class="premio-rodape"><span>' + ganhosTransp + " / " + possiveisTransp + " pontos (" + pctTransp + '%)</span><span class="premio-status ' + (ganhandoTransp?"status-ok":"status-wait") + '">' + (ganhandoTransp ? "🏆 Ganhando o prêmio" : ("Faltam " + (80-pctTransp) + " pontos percentuais")) + "</span></div></div>";
+  content.insertAdjacentHTML("afterbegin", premioCardHtml);
 }
 
 let premiacaoSelfieAlvo = null;
@@ -2260,6 +2384,9 @@ async function carregarPremiacaoOperacional(isGestor){
   const motoristaNome = {};
   motoristas.forEach(function(m){ motoristaNome[m.id] = m.nome; });
   const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status,atraso').order('data_locacao', { ascending: false });
+  const rContest = await sb.from('premiacao_contestacoes').select('*').order('criado_em', { ascending:false });
+  window.__opContestacoes = rContest.data || [];
+  atualizarBadgeContestacoesSidebar();
   if(result.error){
     content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>';
     return;
@@ -2319,7 +2446,28 @@ async function carregarPremiacaoOperacional(isGestor){
   if(!locsFiltradas.length){
     html += '<p class="empty-hint">Nenhuma locação ' + (opTabAtual==='aberta'?'aberta':'fechada') + '.</p>';
   } else {
-    html += locsFiltradas.map(function(loc){
+    if(opTabAtual === 'fechada'){
+      const pendentes = (window.__opContestacoes||[]).filter(function(c){ return c.status === 'pendente'; });
+      if(pendentes.length){
+        html += '<div class="card contest-alert"><h3>🔔 ' + pendentes.length + ' contestação(ões) pendente(s)</h3>';
+        pendentes.forEach(function(c){
+          const locC = locsFiltradas.find(function(l){ return l.id === c.locacao_id; }) || {};
+          html += '<div class="contest-row"><div><b>' + escapeHtml(locC.equipamento||'') + '</b> — Locação #' + (locC.numero||'') + '</div><button class="btn btn-primary btn-sm" onclick="abrirModalContestacao(&quot;' + c.id + '&quot;)">Ver contestação</button></div>';
+        });
+        html += '</div>';
+      }
+      const resolvidas = (window.__opContestacoes||[]).filter(function(c){ return c.status === 'aceita' || c.status === 'rejeitada' || c.status === 'reaberta'; });
+      if(resolvidas.length){
+        html += '<div class="card form-card"><h3 style="font-size:15px;">Contestações já resolvidas</h3>';
+        resolvidas.forEach(function(c){
+          const locR = locsFiltradas.find(function(l){ return l.id === c.locacao_id; }) || {};
+          const map = { aceita:['status-ok','Aceita — pontuação ajustada'], rejeitada:['status-wait','Rejeitada'], reaberta:['status-wait','Reaberta pra correção'] };
+          const mm = map[c.status] || ['status-wait', c.status];
+          html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);"><div><b>' + escapeHtml(locR.equipamento||'') + '</b> — #' + (locR.numero||'') + '</div><span class="status-pill ' + mm[0] + '"><span class="dot"></span>' + mm[1] + '</span></div>';
+        });
+        html += '</div>';
+      }
+    }    html += locsFiltradas.map(function(loc){
       const eq = PREMIACAO_EQUIP[loc.equipamento] || { label: loc.equipamento };
       const etapas = etapasPorLoc[loc.id] || [];
       const feitas = etapas.filter(function(e){ return e.concluida; }).length;
@@ -2351,20 +2499,20 @@ async function carregarPremiacaoOperacional(isGestor){
     else if(s && s.validada === false && s.motivo === 'expirada') dados[resp].pontos -= PONTOS_UNIFORME_PREMIACAO;
   });
   const ranking = Object.values(dados).filter(function(r){ return r.possiveis > 0; }).sort(function(a,b){ return (b.pontos/b.possiveis) - (a.pontos/a.possiveis); });
-  html += '<div class="card form-card" style="margin-top:20px;"><h3>Ranking do mês</h3>';
   if(!ranking.length){
-    html += '<p class="empty-hint">Sem dados ainda.</p>';
+    html += '<div class="card form-card" style="margin-top:20px;"><h3 style="font-size:16px;">🏆 Quem está ganhando o Prêmio Logística</h3><p class="empty-hint">Sem dados ainda.</p></div>';
   } else {
-    html += '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr><th style="text-align:left;padding:8px 4px;border-bottom:1px solid var(--line);">Motorista</th><th style="text-align:left;padding:8px 4px;border-bottom:1px solid var(--line);">Pontos</th><th style="text-align:left;padding:8px 4px;border-bottom:1px solid var(--line);">%</th></tr></thead><tbody>';
+    html += '<div class="card premio-card" style="margin-top:20px;"><div class="premio-head"><h3>🏆 Quem está ganhando o Prêmio Logística</h3><span class="premio-valor">R$ 500,00</span></div>';
+    html += '<p class="cardsub" style="margin-bottom:10px;">Precisa bater 80% das metas do mês. Pode ganhar mais de um motorista.</p>';
     html += ranking.map(function(r){
       const pct = Math.round((r.pontos/r.possiveis)*100);
-      const naMeta = pct >= 80;
-      return '<tr><td style="padding:8px 4px;border-bottom:1px solid var(--line);">' + escapeHtml(r.nome) + '</td><td style="padding:8px 4px;border-bottom:1px solid var(--line);">' + r.pontos + ' / ' + r.possiveis + '</td><td style="padding:8px 4px;border-bottom:1px solid var(--line);"><span class="status-pill ' + (naMeta?'status-ok':'status-wait') + '"><span class="dot"></span>' + pct + '%</span></td></tr>';
+      const ganhando = pct >= 80;
+      return '<div class="lider-row"><span class="lider-nome">' + escapeHtml(r.nome) + '</span>' +
+        '<div class="lider-barra-wrap"><div class="lider-barra-fill ' + (ganhando?"":"abaixo") + '" style="width:' + Math.min(pct,100) + '%;"></div><div class="lider-meta-marca" style="left:80%;"></div></div>' +
+        '<span class="lider-pct">' + pct + '% ' + (ganhando?"🏆":"") + '</span></div>';
     }).join('');
-    html += '</tbody></table>';
-  }
-  html += '</div>';
-  content.innerHTML = html;
+    html += '</div>';
+  }  content.innerHTML = html;
   document.getElementById('btn-virar-dia-premiacao').addEventListener('click', virarDiaPremiacao);
 }
 
@@ -2533,6 +2681,69 @@ function carregarManualTransportes(){
   html += "</div></div>";
   html += '<div style="background:#221a15;color:#e8ddd2;padding:16px 20px;border-radius:8px;font-size:13px;text-align:center;">Dúvidas? Fale com a <b>Yasmin</b> (Comercial) antes de prosseguir sem seguir o processo.</div>';
   content.innerHTML = html;
+}
+async function abrirModalContestacao(contestId){
+  const c = (window.__opContestacoes||[]).find(function(x){ return x.id === contestId; });
+  if(!c) return;
+  const rEtapas = await sb.from("premiacao_etapas").select("id,ordem,nome,concluida").eq("locacao_id", c.locacao_id).order("ordem");
+  const etapas = rEtapas.data || [];
+  const rLoc = await sb.from("premiacao_locacoes").select("numero,equipamento,atraso").eq("id", c.locacao_id).maybeSingle();
+  const loc = rLoc.data || {};
+  let overlay = document.getElementById("op-contest-modal");
+  if(overlay) overlay.remove();
+  overlay = document.createElement("div");
+  overlay.id = "op-contest-modal";
+  overlay.className = "modal-overlay";
+  let etapasHtml = etapas.map(function(e){
+    return '<div class="etapa-row" style="padding:6px 0;"><input type="checkbox" class="etapa-check" id="cxop-' + e.id + '" ' + (e.concluida?"checked":"") + '><span class="etapa-label" style="font-size:13px;">' + e.ordem + ". " + escapeHtml(e.nome) + "</span></div>";
+  }).join("");
+  overlay.innerHTML = '<div class="card form-card modal-box"><h3>Contestação — #' + (loc.numero||"") + " " + escapeHtml(loc.equipamento||"") + '</h3>' +
+    '<p class="cardsub">' + escapeHtml(c.texto) + '</p>' +
+    '<div style="display:flex;align-items:center;gap:10px;margin:14px 0 10px;"><input type="checkbox" id="cxop-atraso" ' + (loc.atraso?"checked":"") + '><label for="cxop-atraso" style="font-weight:600;color:var(--alert);">Teve atraso em alguma etapa</label></div>' +
+    etapasHtml +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;">' +
+    '<button class="btn btn-ghost btn-sm" onclick="rejeitarContestacaoOp(&quot;' + c.id + '&quot;)">Rejeitar contestação</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="reabrirLocacaoOp(&quot;' + c.id + '&quot;,&quot;' + c.locacao_id + '&quot;)">Reabrir locação</button>' +
+    '<button class="btn btn-primary btn-sm" onclick="salvarAjusteContestacaoOp(&quot;' + c.id + '&quot;,&quot;' + c.locacao_id + '&quot;)">Salvar ajustes</button>' +
+    "</div></div>";
+  document.body.appendChild(overlay);
+}
+function fecharModalContestacao(){ const o = document.getElementById("op-contest-modal"); if(o) o.remove(); }
+
+async function rejeitarContestacaoOp(contestId){
+  await sb.from("premiacao_contestacoes").update({ status:"rejeitada", resolvido_em: new Date().toISOString(), resolvido_por: currentUsuario.id }).eq("id", contestId);
+  fecharModalContestacao();
+  toast("Contestação rejeitada — nada muda na locação.");
+  await carregarPremiacaoOperacional(true);
+}
+async function reabrirLocacaoOp(contestId, locId){
+  await sb.from("premiacao_locacoes").update({ status:"aberta" }).eq("id", locId);
+  await sb.from("premiacao_contestacoes").update({ status:"reaberta", resolvido_em: new Date().toISOString(), resolvido_por: currentUsuario.id }).eq("id", contestId);
+  fecharModalContestacao();
+  toast("Locação reaberta pra correção.");
+  await carregarPremiacaoOperacional(true);
+}
+async function salvarAjusteContestacaoOp(contestId, locId){
+  const atraso = document.getElementById("cxop-atraso").checked;
+  const checks = Array.from(document.querySelectorAll('[id^="cxop-"]')).filter(function(el){ return el.id !== "cxop-atraso"; });
+  for(const chk of checks){
+    const etapaId = chk.id.replace("cxop-", "");
+    await sb.from("premiacao_etapas").update({ concluida: chk.checked }).eq("id", etapaId);
+  }
+  await sb.from("premiacao_locacoes").update({ atraso: atraso }).eq("id", locId);
+  await sb.from("premiacao_contestacoes").update({ status:"aceita", resolvido_em: new Date().toISOString(), resolvido_por: currentUsuario.id }).eq("id", contestId);
+  fecharModalContestacao();
+  toast("Ajustes salvos — pontuação atualizada, sem precisar reabrir.");
+  await carregarPremiacaoOperacional(true);
+}
+
+async function atualizarBadgeContestacoesSidebar(){
+  try {
+    const r = await sb.from("premiacao_contestacoes").select("id").eq("status","pendente");
+    const n = (r.data||[]).length;
+    const el = document.getElementById("badge-sidebar-operacional");
+    if(el) el.innerHTML = n > 0 ? ('<span class="badge-alerta">' + n + "</span>") : "";
+  } catch(e) {}
 }
 async function togglePremiacaoEtapa(etapaId, locId, checked){
   const updates = { concluida: checked };
