@@ -1831,11 +1831,14 @@ async function carregarManutencoesOperacional(){
   window.__opManutHist = rHist.data || [];
 
   let html = '<div id="op-manut-alerta"></div>';
-  html += '<div class="card form-card"><h3>Novo equipamento</h3>';
+    html += '<div class="card form-card"><h3>Novo equipamento</h3>';
   html += '<p class="cardsub">Cadastre a última manutenção feita e a data de renovação. O mês de cotação é calculado automaticamente (1 mês antes da renovação).</p>';
+  html += '<button class="btn btn-primary" id="om-toggle-btn" onclick="opManutToggleForm()">Adicionar equipamento</button>';
+  html += '<div id="om-form-fields" style="display:none;margin-top:16px;">';
   html += '<div class="grid4"><div class="field"><label>Equipamento</label><input id="om-nome" placeholder="Ex: Endolaser"></div><div class="field"><label>Nº de série</label><input id="om-serie" placeholder="Ex: PNA23A7598"></div><div class="field"><label>Última manutenção</label><input type="date" id="om-data"></div><div class="field"><label>Renovação (próxima)</label><input type="date" id="om-renovacao"></div></div>';
-  html += '<button class="btn btn-primary" style="margin-top:16px;" onclick="opManutAdicionar()">Adicionar equipamento</button></div>';
-  html += '<div class="card" style="margin-bottom:24px;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
+  html += '<div style="display:flex;gap:8px;margin-top:16px;"><button class="btn btn-ghost" onclick="opManutToggleForm()">Cancelar</button><button class="btn btn-primary" onclick="opManutAdicionar()">Salvar equipamento</button></div>';
+  html += '</div></div>';
+html += '<div class="card" style="margin-bottom:24px;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
   ["Equipamento","Nº de série","Última manutenção","Renovação","Cotar","Status","Ação"].forEach(function(h){
     html += '<th style="text-align:left;padding:10px 12px;font-size:10.5px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
   });
@@ -1920,6 +1923,19 @@ function opManutRenderHistorico(){
   }).join("");
 }
 
+function opManutToggleForm(){
+  const fields = document.getElementById("om-form-fields");
+  const btn = document.getElementById("om-toggle-btn");
+  const abrir = fields.style.display === "none";
+  fields.style.display = abrir ? "block" : "none";
+  btn.style.display = abrir ? "none" : "inline-block";
+  if(!abrir){
+    document.getElementById("om-nome").value = "";
+    document.getElementById("om-serie").value = "";
+    document.getElementById("om-data").value = "";
+    document.getElementById("om-renovacao").value = "";
+  }
+}
 async function opManutAdicionar(){
   const nome = document.getElementById("om-nome").value.trim();
   const serie = document.getElementById("om-serie").value.trim();
@@ -2001,12 +2017,15 @@ async function carregarSegurosOperacional(){
   window.__opSeguros = r.data || [];
 
   let html = '<div id="op-seg-alerta"></div>';
-  html += '<div class="card form-card"><h3>Novo seguro</h3>';
+    html += '<div class="card form-card"><h3>Novo seguro</h3>';
   html += '<p class="cardsub">Cadastre a apólice atual. O mês de cotação é calculado automaticamente (1 mês antes da renovação).</p>';
+  html += '<button class="btn btn-primary" id="sg-toggle-btn" onclick="opSegToggleForm()">Adicionar seguro</button>';
+  html += '<div id="sg-form-fields" style="display:none;margin-top:16px;">';
   html += '<div class="grid4"><div class="field"><label>Equipamento</label><input id="sg-nome" placeholder="Ex: Endolaser"></div><div class="field"><label>Nº de série</label><input id="sg-serie" placeholder="Ex: PNA23A7598"></div><div class="field"><label>Nº da apólice</label><input id="sg-apolice" placeholder="Ex: 1"></div><div class="field"><label>Corretora</label><input id="sg-corretora" placeholder="Ex: Harlane"></div></div>';
   html += '<div class="grid4" style="margin-top:12px;"><div class="field"><label>Data (contratação)</label><input type="date" id="sg-data"></div><div class="field"><label>Renovação (próxima)</label><input type="date" id="sg-renovacao"></div><div class="field"><label>Valor</label><input id="sg-valor" placeholder="Ex: 1.703,16"></div><div class="field"><label>Parcela</label><input id="sg-parcela" placeholder="Ex: 243,31"></div></div>';
-  html += '<button class="btn btn-primary" style="margin-top:16px;" onclick="opSegAdicionar()">Adicionar seguro</button></div>';
-  html += '<div class="card" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
+  html += '<div style="display:flex;gap:8px;margin-top:16px;"><button class="btn btn-ghost" onclick="opSegToggleForm()">Cancelar</button><button class="btn btn-primary" onclick="opSegAdicionar()">Salvar seguro</button></div>';
+  html += '</div></div>';
+html += '<div class="card" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
   ["Equipamento","Nº de série","Nº apólice","Data","Renovação","Cotar","Valor","Parcela","Corretora","Status","Ação"].forEach(function(h){
     html += '<th style="text-align:left;padding:10px 12px;font-size:10.5px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
   });
@@ -2066,6 +2085,16 @@ function opSegRenderTabela(){
   }).join("");
 }
 
+function opSegToggleForm(){
+  const fields = document.getElementById("sg-form-fields");
+  const btn = document.getElementById("sg-toggle-btn");
+  const abrir = fields.style.display === "none";
+  fields.style.display = abrir ? "block" : "none";
+  btn.style.display = abrir ? "none" : "inline-block";
+  if(!abrir){
+    ["sg-nome","sg-serie","sg-apolice","sg-corretora","sg-data","sg-renovacao","sg-valor","sg-parcela"].forEach(function(id){ document.getElementById(id).value = ""; });
+  }
+}
 async function opSegAdicionar(){
   const nome = document.getElementById("sg-nome").value.trim();
   const serie = document.getElementById("sg-serie").value.trim();
