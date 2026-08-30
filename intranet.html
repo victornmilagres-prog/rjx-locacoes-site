@@ -2419,7 +2419,22 @@ async function carregarPremiacaoOperacional(isGestor){
   }
 
   let html = '';
-  html += '<div class="card" style="background:var(--paper-soft);"><p class="cardsub" style="margin:0;">Cada etapa do manual vale <b>1 ponto</b> (13 etapas em equipamentos com insumo, 10 nos demais. Marcar atraso numa etapa zera os pontos daquela locação). A selfie de uniforme vale <b>' + PONTOS_UNIFORME_PREMIACAO + ' pontos por dia</b> (cobre todas as locações daquele dia), enviada pelo motorista na aba de Transportes e validada por IA. Sem envio até o fim do dia, ele perde os ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p></div>';
+  const hojeMet = premiacaoIsoHoje(0);
+  const mesAtualMet = hojeMet.slice(0,7);
+  const locsMesMet = (result.data||[]).filter(function(l){ return (l.data_locacao||"").slice(0,7) === mesAtualMet; });
+  const locIdsMesMet = locsMesMet.map(function(l){ return l.id; });
+  const rEtapasMet = locIdsMesMet.length ? await sb.from("premiacao_etapas").select("concluida").in("locacao_id", locIdsMesMet) : { data: [] };
+  const pontosDistribuidosMet = (rEtapasMet.data||[]).filter(function(e){ return e.concluida; }).length;
+  const rSelfiesMet = await sb.from("premiacao_selfies_dia").select("id").eq("validada", true).like("data_ref", mesAtualMet + "-%");
+  const selfiesValidadasMet = (rSelfiesMet.data||[]).length;
+  const locacoesComAtrasoMet = locsMesMet.filter(function(l){ return l.atraso; }).length;
+  html += '<div class="metrics">' +
+    '<div class="metric"><div class="num">' + locsMesMet.length + '</div><div class="lbl">Locações no mês</div></div>' +
+    '<div class="metric"><div class="num">' + pontosDistribuidosMet + '</div><div class="lbl">Pontos distribuídos</div></div>' +
+    '<div class="metric"><div class="num">' + selfiesValidadasMet + '</div><div class="lbl">Selfies validadas</div></div>' +
+    '<div class="metric atraso"><div class="num">' + locacoesComAtrasoMet + '</div><div class="lbl">Locações com atraso</div></div>' +
+    '</div>';
+  if(opTabAtual !== "explicacao"){ html += '<div class="card" style="background:var(--paper-soft);"><p class="cardsub" style="margin:0;">Cada etapa do manual vale <b>1 ponto</b> (13 etapas em equipamentos com insumo, 10 nos demais. Marcar atraso numa etapa zera os pontos daquela locação). A selfie de uniforme vale <b>' + PONTOS_UNIFORME_PREMIACAO + ' pontos por dia</b> (cobre todas as locações daquele dia), enviada pelo motorista na aba de Transportes e validada por IA. Sem envio até o fim do dia, ele perde os ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p></div>'; }
   html += '<div class="card form-card"><h3>Selfies do dia</h3><p class="cardsub">Quem envia é o motorista. Use o botão para expirar quem não enviou até o fim do dia.</p>';
   html += '<div id="op-lista-selfies">';
   if(!paresList.length){
@@ -2441,6 +2456,20 @@ async function carregarPremiacaoOperacional(isGestor){
   html += '<div class="subnav" style="margin:20px 0 12px;">';
   html += '<button class="subtab' + (opTabAtual==='aberta'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;aberta&quot;)">Locações abertas</button>';
   html += '<button class="subtab' + (opTabAtual==='fechada'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;fechada&quot;)">Locações fechadas</button>';
+  html += '<button class="subtab' + (opTabAtual==='explicacao'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;explicacao&quot;)">Como funciona a pontuação</button>';
+  if(opTabAtual === "explicacao"){
+    html += '<div class="card form-card"><h3>Como funciona a pontuação</h3>';
+    html += '<p class="cardsub">Toda etapa concluída de uma locação vale 1 ponto. A selfie de uniforme do dia soma +5 pontos quando validada (ou -5 se reprovada ou expirar sem enviar).</p>';
+    html += '<div style="margin-top:14px;padding:12px 14px;background:var(--info-bg);border-radius:8px;font-size:13px;"><b>Prêmio Logística — R$ 500,00:</b> os motoristas que baterem 80% dos pontos possíveis no mês ganham.</div>';
+    html += '<div style="margin-top:10px;padding:12px 14px;background:var(--alert-bg);border:1px solid #e8cabd;border-radius:8px;font-size:13px;"><b style="color:var(--alert);">Atraso em alguma etapa:</b> zera todos os pontos daquela locação — fica só com a selfie do dia, se validada.</div>';
+    html += '<div style="font-size:10.5px;text-transform:uppercase;color:var(--gray-soft);font-weight:700;margin:20px 0 6px;">Ultraformer MPT e Criodermis 2.0 — 13 etapas, 13 pontos</div>';
+    html += PREMIACAO_ETAPAS_COM_INSUMOS.map(function(nome,i){ return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;"><span>' + (i+1) + ". " + escapeHtml(nome) + '</span><span class="etapa-pts">+1 pt</span></div>'; }).join("");
+    html += '<div style="font-size:10.5px;text-transform:uppercase;color:var(--gray-soft);font-weight:700;margin:20px 0 6px;">Lavieen e Endolaser Pioon 1470 — 10 etapas, 10 pontos</div>';
+    html += PREMIACAO_ETAPAS_SEM_INSUMOS.map(function(nome,i){ return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;"><span>' + (i+1) + ". " + escapeHtml(nome) + '</span><span class="etapa-pts">+1 pt</span></div>'; }).join("");
+    html += "</div>";
+    content.innerHTML = html;
+    return;
+  }
   html += '</div>';
   const locsFiltradas = locs.filter(function(l){ return l.status === opTabAtual; });
   if(!locsFiltradas.length){
