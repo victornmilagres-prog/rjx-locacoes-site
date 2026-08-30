@@ -65,8 +65,10 @@ html,body{margin:0;background:#dedcc8;font-family:'Source Sans 3',-apple-system,
 .pagehead h1{font-family:'Fraunces',Georgia,serif;font-size:23px;margin:4px 0 0;font-weight:600;}
 .pagehead .sub{font-size:13px;color:var(--gray);margin-top:3px;}
 .subnav{background:var(--paper);border-bottom:1px solid var(--line);padding:0 32px;display:flex;gap:4px;}
-.subtab{font-weight:700;font-size:13px;color:var(--gray);background:none;border:none;padding:13px 14px;cursor:pointer;border-bottom:3px solid transparent;font-family:inherit;}
-.subtab.active{color:var(--wine);border-bottom-color:var(--wine);}
+.subnav{flex-wrap:wrap;gap:8px;border-bottom:none !important;padding:0 0 4px;}
+.subtab{font-weight:600;font-size:13px;color:var(--gray);background:#fff;border:1px solid var(--line);padding:9px 18px;border-radius:24px;cursor:pointer;font-family:inherit;}
+.subtab.active{background:var(--wine);border-color:var(--wine);color:#fff;}
+.subtab:hover{border-color:var(--wine);}
 .content{padding:28px 32px 60px;max-width:920px;}
 
 .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);}
@@ -2434,7 +2436,7 @@ async function carregarPremiacaoOperacional(isGestor){
     '<div class="metric"><div class="num">' + selfiesValidadasMet + '</div><div class="lbl">Selfies validadas</div></div>' +
     '<div class="metric atraso"><div class="num">' + locacoesComAtrasoMet + '</div><div class="lbl">Locações com atraso</div></div>' +
     '</div>';
-  if(opTabAtual !== "explicacao"){ html += '<div class="card" style="background:var(--paper-soft);"><p class="cardsub" style="margin:0;">Cada etapa do manual vale <b>1 ponto</b> (13 etapas em equipamentos com insumo, 10 nos demais. Marcar atraso numa etapa zera os pontos daquela locação). A selfie de uniforme vale <b>' + PONTOS_UNIFORME_PREMIACAO + ' pontos por dia</b> (cobre todas as locações daquele dia), enviada pelo motorista na aba de Transportes e validada por IA. Sem envio até o fim do dia, ele perde os ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p></div>'; }
+  if(opTabAtual === "aberta"){ 
   html += '<div class="card form-card"><h3>Selfies do dia</h3><p class="cardsub">Quem envia é o motorista. Use o botão para expirar quem não enviou até o fim do dia.</p>';
   html += '<div id="op-lista-selfies">';
   if(!paresList.length){
@@ -2454,7 +2456,7 @@ async function carregarPremiacaoOperacional(isGestor){
   html += '</div>';
   html += '<button class="btn btn-ghost" style="margin-top:12px;" id="btn-virar-dia-premiacao">Simular virada do dia</button></div>';
   html += '<div class="subnav" style="margin:20px 0 12px;">';
-  html += '<button class="subtab' + (opTabAtual==='aberta'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;aberta&quot;)">Locações abertas</button>';
+   }html += '<button class="subtab' + (opTabAtual==='aberta'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;aberta&quot;)">Locações abertas</button>';
   html += '<button class="subtab' + (opTabAtual==='fechada'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;fechada&quot;)">Locações fechadas</button>';
   html += '<button class="subtab' + (opTabAtual==='explicacao'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;explicacao&quot;)">Como funciona a pontuação</button>';
   if(opTabAtual === "explicacao"){
@@ -2501,6 +2503,16 @@ async function carregarPremiacaoOperacional(isGestor){
       const etapas = etapasPorLoc[loc.id] || [];
       const feitas = etapas.filter(function(e){ return e.concluida; }).length;
       const total = etapas.length;
+      if(loc.status === "fechada"){
+        const ptsC = loc.atraso ? 0 : feitas;
+        return '<div style="display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;">' +
+          '<span style="width:40px;color:var(--gray-soft);font-size:12px;">#' + escapeHtml(String(loc.numero||"")) + '</span>' +
+          '<b style="flex:1;min-width:140px;">' + escapeHtml(eq.label||loc.equipamento||"") + '</b>' +
+          '<span style="width:110px;font-size:13px;color:var(--gray);">' + escapeHtml(motoristaNome[loc.motorista_id]||"") + '</span>' +
+          '<span style="width:60px;font-size:13px;">' + feitas + "/" + total + '</span>' +
+          (loc.atraso ? '<span class="status-pill status-wait"><span class="dot"></span>Atraso</span>' : '<span class="status-pill status-ok"><span class="dot"></span>OK</span>') +
+          '<b style="width:70px;text-align:right;">' + ptsC + " pts</b></div>";
+      }
       const etapasHtml = etapas.map(function(e){
         return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px;"><input type="checkbox" ' + (e.concluida?'checked':'') + ' ' + (loc.status==='fechada'?'disabled':'') + ' onchange="togglePremiacaoEtapa(&quot;' + e.id + '&quot;,&quot;' + loc.id + '&quot;,this.checked)"> <span style="flex:1;">' + e.ordem + '. ' + escapeHtml(e.nome) + '</span>' + (e.concluida ? '<span class="quem" style="font-size:11px;color:var(--gray);">' + escapeHtml(motoristaNome[e.motorista_id] || '') + '</span>' : '') + '</div>';
       }).join('') + '<div style="margin-top:12px;padding:12px 14px;border:1px dashed var(--alert);border-radius:6px;background:#fdf5f2;display:flex;align-items:center;gap:10px;"><input type="checkbox" id="atraso-' + loc.id + '" ' + (loc.atraso ? 'checked' : '') + ' onchange="togglePremiacaoAtraso(&quot;' + loc.id + '&quot;, this.checked)"><label for="atraso-' + loc.id + '" style="font-weight:600;color:var(--alert);cursor:pointer;">Teve atraso em alguma etapa</label></div>';
