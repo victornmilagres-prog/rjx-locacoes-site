@@ -2436,27 +2436,7 @@ async function carregarPremiacaoOperacional(isGestor){
     '<div class="metric"><div class="num">' + selfiesValidadasMet + '</div><div class="lbl">Selfies validadas</div></div>' +
     '<div class="metric atraso"><div class="num">' + locacoesComAtrasoMet + '</div><div class="lbl">Locações com atraso</div></div>' +
     '</div>';
-  if(opTabAtual === "aberta"){ 
-  html += '<div class="card form-card"><h3>Selfies do dia</h3><p class="cardsub">Quem envia é o motorista. Use o botão para expirar quem não enviou até o fim do dia.</p>';
-  html += '<div id="op-lista-selfies">';
-  if(!paresList.length){
-    html += '<p class="empty-hint">Nenhuma locação registrada.</p>';
-  } else {
-    html += paresList.sort(function(a,b){ return b.data_ref.localeCompare(a.data_ref); }).map(function(par){
-      const s = selfiesPorPar[par.motorista_id + '|' + par.data_ref] || {};
-      let label, cls;
-      if(s.validada === true){ label = 'Validada (+' + PONTOS_UNIFORME_PREMIACAO + ')'; cls = 'status-ok'; }
-      else if(s.validada === false && s.motivo === 'expirada'){ label = 'Prazo expirado (-' + PONTOS_UNIFORME_PREMIACAO + ')'; cls = 'status-wait'; }
-      else if(s.validada === false && s.motivo === 'reprovada'){ label = 'IA reprovou - reenviar'; cls = 'status-wait'; }
-      else if(s.enviada){ label = 'Aguardando validação'; cls = 'status-info'; }
-      else { label = 'Selfie pendente'; cls = 'status-wait'; }
-      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;"><span>' + escapeHtml(motoristaNome[par.motorista_id] || '-') + ' - ' + premiacaoDataBR(par.data_ref) + '</span><span class="status-pill ' + cls + '"><span class="dot"></span>' + label + '</span></div>';
-    }).join('');
-  }
-  html += '</div>';
-  html += '<button class="btn btn-ghost" style="margin-top:12px;" id="btn-virar-dia-premiacao">Simular virada do dia</button></div>';
-  html += '<div class="subnav" style="margin:20px 0 12px;">';
-   }html += '<button class="subtab' + (opTabAtual==='aberta'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;aberta&quot;)">Locações abertas</button>';
+  html += '<button class="subtab' + (opTabAtual==='aberta'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;aberta&quot;)">Locações abertas</button>';
   html += '<button class="subtab' + (opTabAtual==='fechada'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;fechada&quot;)">Locações fechadas</button>';
   html += '<button class="subtab' + (opTabAtual==='explicacao'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;explicacao&quot;)">Como funciona a pontuação</button>';
   if(opTabAtual === "explicacao"){
