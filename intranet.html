@@ -2591,7 +2591,7 @@ async function tsCarregarHistoricoInner(){
 }
 
 function tsRenderHistorico(){
-  const content = document.getElementById("transportes-content");
+  const content = document.getElementById("ts-prem-content");
   const locs = window.__tsHistLocs || [];
   let html = '<div class="card" style="padding:22px;">';
   if(!locs.length){ html += '<p class="empty-hint">Nenhuma locação fechada ainda.</p>'; }
