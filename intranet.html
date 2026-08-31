@@ -1991,7 +1991,9 @@ async function carregarManutencoesOperacional(){
   html += '<div style="display:flex;gap:8px;margin-top:16px;"><button class="btn btn-ghost" onclick="opManutToggleForm()">Cancelar</button><button class="btn btn-primary" onclick="opManutAdicionar()">Salvar equipamento</button></div>';
   html += '</div>';
   html += '<div id="omc-form-fields" style="display:none;margin-top:16px;">';
-  html += '<div class="grid4"><div class="field"><label>Equipamento</label><input id="omc-nome" placeholder="Ex: Endolaser"></div><div class="field"><label>Nº de série</label><input id="omc-serie" placeholder="Ex: PNA23A7598"></div><div class="field"><label>Data da ocorrência</label><input type="date" id="omc-data"></div><div class="field"><label>Valor (R$)</label><input id="omc-valor" placeholder="Ex: 350,00"></div></div>';
+  html += '<div class="grid4"><div class="field"><label>Equipamento</label><select id="omc-nome-select" onchange="opManutCorrSelecionaEquip(this.value)" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;"><option value="">Selecione...</option>' +
+  (window.__opManutEquip||[]).map(function(eqo){ return '<option value="' + eqo.id + '">' + escapeHtml(eqo.nome) + '</option>'; }).join('') +
+  '<option value="__outro__">Outro (não está na lista)</option></select><input type="hidden" id="omc-nome"></div><div class="field"><label>Nº de série</label><input id="omc-serie" placeholder="Ex: PNA23A7598" readonly style="background:var(--paper-soft);"></div><div class="field"><label>Data da ocorrência</label><input type="date" id="omc-data"></div><div class="field"><label>Valor (R$)</label><input id="omc-valor" placeholder="Ex: 350,00"></div></div>';
   html += '<div class="grid4" style="margin-top:12px;"><div class="field"><label>Quem realizou</label><input id="omc-quem" placeholder="Ex: TechCal Manutenções"></div></div>';
   html += '<div class="field" style="margin-top:12px;"><label>Descrição do que foi feito</label><textarea id="omc-descricao" rows="3" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;" placeholder="Ex: Troca da lente de contato, equipamento apresentava superaquecimento."></textarea></div>';
   html += '<div class="grid4" style="margin-top:12px;"><div class="field"><label>Foto do laudo</label><input type="file" id="omc-laudo"></div><div class="field"><label>NFe</label><input type="file" id="omc-nfe"></div></div>';
@@ -2065,7 +2067,7 @@ function opManutRenderTabela(){
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + opDataBR(e.renovacao) + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + cotar + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + statusHtml + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + acaoHtml + '</td></tr>';
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><div style="display:flex;align-items:center;gap:8px;"><button title="Excluir equipamento" onclick="opManutExcluir(&quot;' + e.id + '&quot;)" style="background:none;border:1px solid var(--alert);color:var(--alert);border-radius:6px;width:26px;height:26px;font-size:13px;font-weight:700;cursor:pointer;line-height:1;flex-shrink:0;">✕</button>' + acaoHtml + '</div></td></tr>';
   }).join("");
 }
 
@@ -2112,10 +2114,35 @@ function opManutCorrToggleForm(){
   fields.style.display = abrir ? "block" : "none";
   btn.style.display = abrir ? "none" : "inline-block";
   if(!abrir){
-    ["omc-nome","omc-serie","omc-data","omc-valor","omc-quem","omc-descricao"].forEach(function(id){ document.getElementById(id).value = ""; });
+    ["omc-serie","omc-data","omc-valor","omc-quem","omc-descricao"].forEach(function(id){ document.getElementById(id).value = ""; });
+    document.getElementById("omc-nome-select").value = "";
+    document.getElementById("omc-nome").type = "hidden";
+    document.getElementById("omc-nome").value = "";
+    document.getElementById("omc-serie").readOnly = true;
+    document.getElementById("omc-serie").style.background = "var(--paper-soft)";
   }
 }
 
+function opManutCorrSelecionaEquip(id){
+  const nomeInput = document.getElementById("omc-nome");
+  const serieInput = document.getElementById("omc-serie");
+  if(id === "__outro__"){
+    nomeInput.type = "text";
+    nomeInput.placeholder = "Nome do equipamento";
+    nomeInput.style.cssText = "width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;margin-top:8px;";
+    nomeInput.value = "";
+    serieInput.readOnly = false;
+    serieInput.style.background = "";
+    serieInput.value = "";
+  } else {
+    const eq = (window.__opManutEquip||[]).find(function(e){ return e.id === id; });
+    nomeInput.type = "hidden";
+    nomeInput.value = eq ? eq.nome : "";
+    serieInput.readOnly = true;
+    serieInput.style.background = "var(--paper-soft)";
+    serieInput.value = eq ? (eq.serie||"") : "";
+  }
+}
 async function opManutCorrSalvar(){
   const nome = document.getElementById("omc-nome").value.trim();
   const serie = document.getElementById("omc-serie").value.trim();
@@ -2170,6 +2197,15 @@ async function opManutAdicionar(){
   await carregarManutencoesOperacional();
 }
 
+async function opManutExcluir(id){
+  const eq = (window.__opManutEquip||[]).find(function(e){ return e.id === id; });
+  if(!eq) return;
+  const ok = confirm('Tem certeza que deseja excluir o equipamento "' + eq.nome + '"?\n\nUma vez apagado, não será mais possível recuperar.');
+  if(!ok) return;
+  await sb.from("operacional_manutencoes").delete().eq("id", id);
+  toast("Equipamento excluído.");
+  await carregarManutencoesOperacional();
+}
 async function opManutIniciarCotacao(id){
   await sb.from("operacional_manutencoes").update({ status:"em_cotacao", atualizado_em: new Date().toISOString() }).eq("id", id);
   toast("Equipamento em cotação.");
