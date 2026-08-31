@@ -421,11 +421,11 @@ async function boot(){
 function moduleList(){
   const papel = currentUsuario.papel;
   const mods = [];
-      mods.push({ id:'gerencial', label:'Gerencial', enabled: true });
+      mods.push({ id:'gerencial', label:'Gerencial', enabled: papel === 'gerencial' });
   mods.push({ id:'comercial', label:'Comercial', enabled: papel === 'comercial' || papel === 'gerencial' });
   mods.push({ id:'transportes', label:'Transportes', enabled: papel === 'transportes' || papel === 'gerencial' });
   mods.push({ id:'financeiro', label:'Financeiro', enabled:false, soon:true });
-  mods.push({ id:'operacional', label:'Operacional', enabled: papel === 'operacional' || papel === 'gerencial' || papel === 'transportes' });
+  mods.push({ id:'operacional', label:'Operacional', enabled: papel === 'operacional' || papel === 'gerencial' });
   mods.push({ id:'cadastros', label:'Cadastros', enabled:false, soon:true });
   return mods;
 }
@@ -468,6 +468,9 @@ function renderShell(){
 }
 
 function selectModule(modId){
+  const permMods = moduleList();
+  const permitido = permMods.find(function(m){ return m.id === modId; });
+  if(!permitido || !permitido.enabled){ const fb = permMods.find(function(m){ return m.enabled; }); modId = fb ? fb.id : modId; }
   document.querySelectorAll('.mod-link[data-mod]').forEach(function(l){ l.classList.toggle('active', l.dataset.mod === modId); });
   const mainArea = document.getElementById('main-area');
   if(modId === 'gerencial'){ renderGerencial(mainArea); }
