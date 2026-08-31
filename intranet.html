@@ -69,7 +69,7 @@ html,body{margin:0;background:#dedcc8;font-family:'Source Sans 3',-apple-system,
 .subtab{font-weight:600;font-size:13px;color:var(--gray);background:#fff;border:1px solid var(--line);padding:9px 18px;border-radius:24px;cursor:pointer;font-family:inherit;}
 .subtab.active{background:var(--wine);border-color:var(--wine);color:#fff;}
 .subtab:hover{border-color:var(--wine);}
-.content{padding:28px 32px 60px;max-width:920px;}
+.content{padding:28px 32px 60px;max-width:1300px;margin:0 auto;}
 
 .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);}
 .form-card{padding:26px;margin-bottom:24px;}
@@ -1396,8 +1396,6 @@ async function renderTransportes(container){
     '<div class="subnav">' +
 '<button class="subtab active" id="ts-tab-insumos" onclick="selectTransportesSubtab(&quot;insumos&quot;)">Meus controles</button>' +
 '<button class="subtab" id="ts-tab-premiacao" onclick="selectTransportesSubtab(&quot;premiacao&quot;)">Premiação</button>' +
-'<button class="subtab" id="ts-tab-historico" onclick="selectTransportesSubtab(&quot;historico&quot;)">Meu Histórico</button>' +
-'<button class="subtab" id="ts-tab-explicacao" onclick="selectTransportesSubtab(&quot;explicacao&quot;)">Como funciona a pontuação</button>' +
 '<button class="subtab" id="ts-tab-manual" onclick="selectTransportesSubtab(&quot;manual&quot;)">Manual de Entrega</button>' +
 '</div>' +
     '<div class="content" id="transportes-content"><p class="empty-hint">Carregando...</p></div>';
@@ -1408,20 +1406,34 @@ async function renderTransportes(container){
 async function selectTransportesSubtab(tab){
   document.getElementById('ts-tab-insumos').classList.toggle('active', tab==='insumos');
   document.getElementById('ts-tab-premiacao').classList.toggle('active', tab==='premiacao');
-  document.getElementById('ts-tab-historico').classList.toggle('active', tab==='historico');
-  document.getElementById('ts-tab-explicacao').classList.toggle('active', tab==='explicacao');
   document.getElementById('ts-tab-manual').classList.toggle('active', tab==='manual');
   if(tab === 'insumos'){ await carregarControlesTransportes(); }
   else if(tab === 'premiacao'){ await carregarPremiacaoTransportes(); }
-  else if(tab === 'historico'){ await carregarHistoricoTransportes(); }
-  else if(tab === 'explicacao'){ carregarExplicacaoTransportes(); }
   else { carregarManualTransportes(); }
 }
 
 
 
 async function carregarPremiacaoTransportes(){
-  const content = document.getElementById('transportes-content');
+  const content = document.getElementById("transportes-content");
+  window.__tsPremSubtab = window.__tsPremSubtab || "locacoes";
+  let shell = '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">' +
+    '<button class="subtab' + (window.__tsPremSubtab==="locacoes"?" active":"") + '" onclick="tsSelectPremSubtab(&quot;locacoes&quot;)">Minhas Locações</button>' +
+    '<button class="subtab' + (window.__tsPremSubtab==="historico"?" active":"") + '" onclick="tsSelectPremSubtab(&quot;historico&quot;)">Meu Histórico</button>' +
+    '<button class="subtab' + (window.__tsPremSubtab==="explicacao"?" active":"") + '" onclick="tsSelectPremSubtab(&quot;explicacao&quot;)">Como funciona a pontuação</button>' +
+    "</div>" +
+    '<div id="ts-prem-content"><p class="empty-hint">Carregando...</p></div>';
+  content.innerHTML = shell;
+  if(window.__tsPremSubtab === "historico"){ await tsCarregarHistoricoInner(); }
+  else if(window.__tsPremSubtab === "explicacao"){ tsCarregarExplicacaoInner(); }
+  else { await tsCarregarLocacoesInner(); }
+}
+function tsSelectPremSubtab(tab){
+  window.__tsPremSubtab = tab;
+  carregarPremiacaoTransportes();
+}
+async function tsCarregarLocacoesInner(){
+  const content = document.getElementById('ts-prem-content');
   content.innerHTML = '<p class="empty-hint">Carregando...</p>';
   const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,data_locacao,status,atraso').eq('motorista_id', currentUsuario.id).order('data_locacao', { ascending: false });
   if(result.error){
@@ -1571,7 +1583,7 @@ async function onPremiacaoSelfieFile(e){
     geo_lat: geo ? geo.lat : null, geo_lng: geo ? geo.lng : null,
     enviada_em: new Date().toISOString()
   }, { onConflict: 'motorista_id,data_ref' });
-  await carregarPremiacaoTransportes();
+  await tsCarregarLocacoesInner();
   try {
     const resp = await fetch('/api/validar-selfie', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1586,7 +1598,7 @@ async function onPremiacaoSelfieFile(e){
       }
     }
   } catch(err){}
-  await carregarPremiacaoTransportes();
+  await tsCarregarLocacoesInner();
 }
 
 
@@ -2436,6 +2448,7 @@ async function carregarPremiacaoOperacional(isGestor){
     '<div class="metric"><div class="num">' + selfiesValidadasMet + '</div><div class="lbl">Selfies validadas</div></div>' +
     '<div class="metric atraso"><div class="num">' + locacoesComAtrasoMet + '</div><div class="lbl">Locações com atraso</div></div>' +
     '</div>';
+  html += '%%RANKING_PLACEHOLDER%%';
   html += '<button class="subtab' + (opTabAtual==='aberta'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;aberta&quot;)">Locações abertas</button>';
   html += '<button class="subtab' + (opTabAtual==='fechada'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;fechada&quot;)">Locações fechadas</button>';
   html += '<button class="subtab' + (opTabAtual==='explicacao'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;explicacao&quot;)">Como funciona a pontuação</button>';
@@ -2535,20 +2548,22 @@ async function carregarPremiacaoOperacional(isGestor){
     else if(s && s.validada === false && s.motivo === 'expirada') dados[resp].pontos -= PONTOS_UNIFORME_PREMIACAO;
   });
   const ranking = Object.values(dados).filter(function(r){ return r.possiveis > 0; }).sort(function(a,b){ return (b.pontos/b.possiveis) - (a.pontos/a.possiveis); });
+  let rankingHtml = "";
   if(!ranking.length){
-    html += '<div class="card form-card" style="margin-top:20px;"><h3 style="font-size:16px;">🏆 Quem está ganhando o Prêmio Logística</h3><p class="empty-hint">Sem dados ainda.</p></div>';
+    rankingHtml += '<div class="card form-card" style="margin-top:20px;"><h3 style="font-size:16px;">🏆 Quem está ganhando o Prêmio Logística</h3><p class="empty-hint">Sem dados ainda.</p></div>';
   } else {
-    html += '<div class="card premio-card" style="margin-top:20px;"><div class="premio-head"><h3>🏆 Quem está ganhando o Prêmio Logística</h3><span class="premio-valor">R$ 500,00</span></div>';
-    html += '<p class="cardsub" style="margin-bottom:10px;">Precisa bater 80% das metas do mês. Pode ganhar mais de um motorista.</p>';
-    html += ranking.map(function(r){
+    rankingHtml += '<div class="card premio-card" style="margin-top:20px;"><div class="premio-head"><h3>🏆 Quem está ganhando o Prêmio Logística</h3><span class="premio-valor">R$ 500,00</span></div>';
+    rankingHtml += '<p class="cardsub" style="margin-bottom:10px;">Precisa bater 80% das metas do mês. Pode ganhar mais de um motorista.</p>';
+    rankingHtml += ranking.map(function(r){
       const pct = Math.round((r.pontos/r.possiveis)*100);
       const ganhando = pct >= 80;
       return '<div class="lider-row"><span class="lider-nome">' + escapeHtml(r.nome) + '</span>' +
         '<div class="lider-barra-wrap"><div class="lider-barra-fill ' + (ganhando?"":"abaixo") + '" style="width:' + Math.min(pct,100) + '%;"></div><div class="lider-meta-marca" style="left:80%;"></div></div>' +
         '<span class="lider-pct">' + pct + '% ' + (ganhando?"🏆":"") + '</span></div>';
     }).join('');
-    html += '</div>';
-  }  content.innerHTML = html;
+    rankingHtml += '</div>';
+  }  html = html.replace("%%RANKING_PLACEHOLDER%%", rankingHtml);
+  content.innerHTML = html;
   document.getElementById('btn-virar-dia-premiacao').addEventListener('click', virarDiaPremiacao);
 }
 
@@ -2560,8 +2575,8 @@ async function togglePremiacaoAtraso(locId, checked){
 const PRAZO_CONTESTACAO_DIAS = 3;
 function tsDiasEntre(iso1, iso2){ const d1 = new Date(iso1); const d2 = new Date(iso2); return Math.round((d2-d1)/86400000); }
 
-async function carregarHistoricoTransportes(){
-  const content = document.getElementById("transportes-content");
+async function tsCarregarHistoricoInner(){
+  const content = document.getElementById("ts-prem-content");
   content.innerHTML = '<p class="empty-hint">Carregando...</p>';
   const rLoc = await sb.from("premiacao_locacoes").select("id,numero,equipamento,data_locacao,status,atraso,atualizado_em").eq("motorista_id", currentUsuario.id).eq("status","fechada").order("atualizado_em", { ascending:false });
   if(rLoc.error){ content.innerHTML = '<p class="empty-hint">Erro: ' + escapeHtml(rLoc.error.message) + '</p>'; return; }
@@ -2650,10 +2665,10 @@ async function tsEnviarContestacao(locId){
   if(r.error){ toast("Erro: " + r.error.message); return; }
   tsFecharContestacao();
   toast("Contestação enviada ao Operacional.");
-  await carregarHistoricoTransportes();
+  await tsCarregarHistoricoInner();
 }
-function carregarExplicacaoTransportes(){
-  const content = document.getElementById("transportes-content");
+function tsCarregarExplicacaoInner(){
+  const content = document.getElementById("ts-prem-content");
   let html = '<div class="card" style="padding:22px;">';
   html += '<h3 style="font-size:16px;">Como funciona a pontuação</h3>';
   html += '<p class="cardsub">Cada etapa da locação vale 1 ponto. A selfie de uniforme do dia soma +5 pontos quando validada (ou -5 se reprovada ou expirar sem enviar).</p>';
