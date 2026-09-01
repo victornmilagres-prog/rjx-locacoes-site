@@ -1485,13 +1485,7 @@ async function tsCarregarLocacoesInner(){
   });
   const pct = possiveis > 0 ? Math.round((pontos/possiveis)*100) : 0;
   let html = '';
-  const resumoCardHtml = '<div class="resumo">' +
-      '<div><div class="pontos">' + pontos + '</div><div class="pontos-lbl">Pontos este mês</div></div>' +
-      '<div class="divisor"></div>' +
-      '<div class="mini"><b>' + locsFechadasTransp.length + '</b>Locações fechadas</div>' +
-      '<div class="mini"><b>' + locsFechadasTransp.filter(function(l){ return l.atraso; }).length + '</b>Com atraso</div>' +
-      '<div class="mini"><b>' + selfiesValidasCount + '</b>Selfies validadas</div>' +
-      '</div>';
+  
 
   html += '<div class="card form-card"><h3>Selfie de uniforme do dia</h3><p class="cardsub">Uma selfie por dia cobre todas as suas locações daquele dia. Sem envio até o fim do dia, você perde ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p>';
   html += '<div id="pt-lista-selfies-dia">';
@@ -1534,6 +1528,13 @@ async function tsCarregarLocacoesInner(){
   html += '</div></div>';
   content.innerHTML = html;
   const locsFechadasTransp = (result.data||[]).filter(function(l){ return l.status === "fechada"; });
+  const resumoCardHtml = '<div class="resumo">' +
+      '<div><div class="pontos">' + pontos + '</div><div class="pontos-lbl">Pontos este mês</div></div>' +
+      '<div class="divisor"></div>' +
+      '<div class="mini"><b>' + locsFechadasTransp.length + '</b>Locações fechadas</div>' +
+      '<div class="mini"><b>' + locsFechadasTransp.filter(function(l){ return l.atraso; }).length + '</b>Com atraso</div>' +
+      '<div class="mini"><b>' + selfiesValidasCount + '</b>Selfies validadas</div>' +
+      '</div>';
   const locIdsTransp = locsFechadasTransp.map(function(l){ return l.id; });
   const rEtapasTransp = locIdsTransp.length ? await sb.from("premiacao_etapas").select("locacao_id,concluida").in("locacao_id", locIdsTransp) : { data: [] };
   const etapasTransp = rEtapasTransp.data || [];
