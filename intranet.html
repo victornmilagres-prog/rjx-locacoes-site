@@ -396,7 +396,7 @@ async function doSetPassword(){
 /* ================= BOOT ================= */
 async function boot(){
   const hash = window.location.hash || '';
-  const isRecoveryLink = hash.indexOf('type=invite') !== -1 || hash.indexOf('type=recovery') !== -1;
+  const isRecoveryLink = hash.indexOf('access_token=') !== -1 && (hash.indexOf('type=invite') !== -1 || hash.indexOf('type=recovery') !== -1 || hash.indexOf('type=signup') !== -1 || hash.indexOf('type=magiclink') !== -1 || hash.indexOf('type=email_change') !== -1);
   const sessionResult = await sb.auth.getSession();
   const session = sessionResult.data.session;
   if(!session){ screenLogin(); return; }
