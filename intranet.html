@@ -2772,9 +2772,9 @@ async function carregarPremiacaoOperacional(isGestor){
         });
         html += '</div>';
       }
-    }    window.__opLocacoes = locs; window.__opEtapasPorLoc = etapasPorLoc; window.__opMotoristaNome = motoristaNome;
-  window.__opLocsAbertasExp = window.__opLocsAbertasExp || {};
+    }    window.__opLocsAbertasExp = window.__opLocsAbertasExp || {};
   if(opTabAtual === "aberta"){
+    window.__opLocacoes = locs; window.__opEtapasPorLoc = etapasPorLoc; window.__opMotoristaNome = motoristaNome;
     html += locsFiltradas.map(function(loc){
       const eq = PREMIACAO_EQUIP[loc.equipamento] || { label: loc.equipamento };
       const etapas = etapasPorLoc[loc.id] || [];
