@@ -565,8 +565,12 @@ async function criarUsuario(){
   const btn = document.getElementById('btn-criar-usuario');
   btn.disabled = true; btn.textContent = 'Convidando...';
   try{
-    await apiCall('POST', { nome: nome, email: email, papel: papel });
-    okEl.textContent = 'Convite enviado para ' + email + '!';
+    const resultadoConvite = await apiCall('POST', { nome: nome, email: email, papel: papel });
+    if(resultadoConvite && resultadoConvite.linkManual){
+      okEl.innerHTML = 'Limite de e-mail do sistema atingido. Copie o link abaixo e envie voc\u00ea mesmo pra ' + escapeHtml(email) + ':<br><div style="display:flex;gap:8px;margin-top:8px;"><input readonly id="link-manual-convite" value="' + resultadoConvite.linkManual + '" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;" onclick="this.select()"><button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById(&quot;link-manual-convite&quot;).value); toast(&quot;Link copiado!&quot;);">Copiar</button></div>';
+    } else {
+      okEl.textContent = 'Convite enviado para ' + email + '!';
+    }
     okEl.style.display = 'block';
     document.getElementById('nu-nome').value='';
     document.getElementById('nu-email').value='';
