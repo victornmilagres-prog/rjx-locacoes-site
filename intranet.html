@@ -1978,8 +1978,8 @@ async function carregarManutencoesOperacional(){
   const content = document.getElementById("operacional-content");
   content.innerHTML = '<p class="empty-hint">Carregando...</p>';
   const rEquip = await sb.from("operacional_manutencoes").select("*").order("renovacao");
-  const rHist = await sb.from("operacional_manutencoes_historico").select("*").order("criado_em", { ascending:false });
-  const rCorr = await sb.from("operacional_manutencoes_corretivas").select("*").order("criado_em", { ascending:false });
+  const rHist = await sb.from("operacional_manutencoes_historico").select("*").order("data", { ascending:false });
+  const rCorr = await sb.from("operacional_manutencoes_corretivas").select("*").order("data", { ascending:false });
   if(rEquip.error){ content.innerHTML = '<p class="empty-hint">Erro: ' + escapeHtml(rEquip.error.message) + '</p>'; return; }
   window.__opManutEquip = rEquip.data || [];
   window.__opManutHist = rHist.data || [];
@@ -2094,7 +2094,7 @@ function opManutRenderHistorico(){
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(h.quem||"") + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + opDataBR(h.proxima) + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + (anexos || "—") + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><button title="Editar" onclick="opManutHistAbrirModalEditar(&quot;' + h.id + '&quot;)" style="background:none;border:1px solid var(--line);color:var(--gray);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;line-height:1;">⚙️</button></td></tr>';
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><div style="display:flex;gap:6px;"><button title="Excluir" onclick="opManutHistExcluir(&quot;' + h.id + '&quot;)" style="background:none;border:1px solid var(--alert);color:var(--alert);border-radius:6px;width:26px;height:26px;font-size:12px;cursor:pointer;line-height:1;">✕</button><button title="Editar" onclick="opManutHistAbrirModalEditar(&quot;' + h.id + '&quot;)" style="background:none;border:1px solid var(--line);color:var(--gray);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;line-height:1;">⚙️</button></div></td></tr>';
   }).join("");
 }
 
@@ -2187,7 +2187,7 @@ function opManutCorrRenderTabela(){
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(h.quem||"") + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);max-width:260px;white-space:normal;">' + escapeHtml(h.descricao||"—") + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + (anexos || "—") + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><button title="Editar" onclick="opManutCorrHistAbrirModalEditar(&quot;' + h.id + '&quot;)" style="background:none;border:1px solid var(--line);color:var(--gray);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;line-height:1;">⚙️</button></td></tr>';
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><div style="display:flex;gap:6px;"><button title="Excluir" onclick="opManutCorrHistExcluir(&quot;' + h.id + '&quot;)" style="background:none;border:1px solid var(--alert);color:var(--alert);border-radius:6px;width:26px;height:26px;font-size:12px;cursor:pointer;line-height:1;">✕</button><button title="Editar" onclick="opManutCorrHistAbrirModalEditar(&quot;' + h.id + '&quot;)" style="background:none;border:1px solid var(--line);color:var(--gray);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;line-height:1;">⚙️</button></div></td></tr>';
   }).join("");
 }
 
@@ -2240,6 +2240,20 @@ async function opManutExcluir(id){
   toast("Equipamento excluído.");
   await carregarManutencoesOperacional();
 }
+async function opManutHistExcluir(id){
+  const ok = confirm("Tem certeza que deseja excluir esse registro de manutenção do histórico?\n\nUma vez apagado, não será mais possível recuperar.");
+  if(!ok) return;
+  await sb.from("operacional_manutencoes_historico").delete().eq("id", id);
+  toast("Registro excluído.");
+  await carregarManutencoesOperacional();
+}
+async function opManutCorrHistExcluir(id){
+  const ok = confirm("Tem certeza que deseja excluir esse registro de manutenção corretiva?\n\nUma vez apagado, não será mais possível recuperar.");
+  if(!ok) return;
+  await sb.from("operacional_manutencoes_corretivas").delete().eq("id", id);
+  toast("Registro excluído.");
+  await carregarManutencoesOperacional();
+}
 function opManutHistAbrirModalEditar(id){
   const h = (window.__opManutHist||[]).find(function(x){ return x.id === id; });
   if(!h) return;
@@ -2248,24 +2262,36 @@ function opManutHistAbrirModalEditar(id){
   overlay = document.createElement("div");
   overlay.id = "op-modal-overlay";
   overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  const anexosAtuais = [h.laudo_path?'<a href="'+h.laudo_path+'" target="_blank" style="color:var(--wine);">Laudo atual</a>':"", h.nfe_path?'<a href="'+h.nfe_path+'" target="_blank" style="color:var(--wine);">NFe atual</a>':""].filter(Boolean).join(" &nbsp; ");
   overlay.innerHTML =
-    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;"><h3>Editar manutenção</h3>' +
+    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;max-height:85vh;overflow-y:auto;"><h3>Editar manutenção</h3>' +
     '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><input id="omh-e-nome" value="' + escapeHtml(h.nome) + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Data</label><input type="date" id="omh-e-data" value="' + h.data + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Valor (R$)</label><input id="omh-e-valor" value="' + escapeHtml(h.valor||"") + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Quem realizou</label><input id="omh-e-quem" value="' + escapeHtml(h.quem||"") + '"></div>' +
-    '<div class="field" style="margin-bottom:14px;"><label>Próxima manutenção</label><input type="date" id="omh-e-proxima" value="' + (h.proxima||"") + '"></div>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" onclick="opManutHistSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div>';
+    '<div class="field" style="margin-bottom:10px;"><label>Próxima manutenção</label><input type="date" id="omh-e-proxima" value="' + (h.proxima||"") + '"></div>' +
+    (anexosAtuais ? '<p class="cardsub" style="margin-bottom:6px;">Anexos atuais: ' + anexosAtuais + "</p>" : "") +
+    '<div class="field" style="margin-bottom:6px;"><label>Substituir Laudo (opcional)</label><input type="file" id="omh-e-laudo"></div>' +
+    '<div class="field" style="margin-bottom:14px;"><label>Substituir NFe (opcional)</label><input type="file" id="omh-e-nfe"></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" id="omh-e-salvar-btn" onclick="opManutHistSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div>';
   document.body.appendChild(overlay);
 }
 async function opManutHistSalvarEdicao(id){
+  const h = (window.__opManutHist||[]).find(function(x){ return x.id === id; });
   const nome = document.getElementById("omh-e-nome").value.trim();
   const data = document.getElementById("omh-e-data").value;
   const valor = document.getElementById("omh-e-valor").value.trim();
   const quem = document.getElementById("omh-e-quem").value.trim();
   const proxima = document.getElementById("omh-e-proxima").value;
+  const laudoFile = document.getElementById("omh-e-laudo").files[0];
+  const nfeFile = document.getElementById("omh-e-nfe").files[0];
   if(!nome || !data){ toast("Preencha equipamento e data."); return; }
-  await sb.from("operacional_manutencoes_historico").update({ nome:nome, data:data, valor:valor, quem:quem, proxima:proxima||null }).eq("id", id);
+  const btn = document.getElementById("omh-e-salvar-btn");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  const updates = { nome:nome, data:data, valor:valor, quem:quem, proxima:proxima||null };
+  if(laudoFile){ const url = await opUploadArquivo(laudoFile); if(url) updates.laudo_path = url; }
+  if(nfeFile){ const url = await opUploadArquivo(nfeFile); if(url) updates.nfe_path = url; }
+  await sb.from("operacional_manutencoes_historico").update(updates).eq("id", id);
   opFecharModal();
   toast("Manutenção atualizada.");
   await carregarManutencoesOperacional();
@@ -2279,6 +2305,7 @@ function opManutCorrHistAbrirModalEditar(id){
   overlay = document.createElement("div");
   overlay.id = "op-modal-overlay";
   overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  const anexosAtuais = [h.laudo_path?'<a href="'+h.laudo_path+'" target="_blank" style="color:var(--wine);">Laudo atual</a>':"", h.nfe_path?'<a href="'+h.nfe_path+'" target="_blank" style="color:var(--wine);">NFe atual</a>':""].filter(Boolean).join(" &nbsp; ");
   overlay.innerHTML =
     '<div class="card form-card" style="max-width:440px;width:92%;margin:0;max-height:85vh;overflow-y:auto;"><h3>Editar manutenção corretiva</h3>' +
     '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><input id="omc-e-nome" value="' + escapeHtml(h.nome) + '"></div>' +
@@ -2286,8 +2313,11 @@ function opManutCorrHistAbrirModalEditar(id){
     '<div class="field" style="margin-bottom:10px;"><label>Data</label><input type="date" id="omc-e-data" value="' + h.data + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Valor (R$)</label><input id="omc-e-valor" value="' + escapeHtml(h.valor||"") + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Quem realizou</label><input id="omc-e-quem" value="' + escapeHtml(h.quem||"") + '"></div>' +
-    '<div class="field" style="margin-bottom:14px;"><label>Descrição</label><textarea id="omc-e-descricao" rows="3" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;">' + escapeHtml(h.descricao||"") + '</textarea></div>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" onclick="opManutCorrHistSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div>';
+    '<div class="field" style="margin-bottom:10px;"><label>Descrição</label><textarea id="omc-e-descricao" rows="3" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;">' + escapeHtml(h.descricao||"") + '</textarea></div>' +
+    (anexosAtuais ? '<p class="cardsub" style="margin-bottom:6px;">Anexos atuais: ' + anexosAtuais + "</p>" : "") +
+    '<div class="field" style="margin-bottom:6px;"><label>Substituir Laudo (opcional)</label><input type="file" id="omc-e-laudo"></div>' +
+    '<div class="field" style="margin-bottom:14px;"><label>Substituir NFe (opcional)</label><input type="file" id="omc-e-nfe"></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" id="omc-e-salvar-btn" onclick="opManutCorrHistSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div>';
   document.body.appendChild(overlay);
 }
 async function opManutCorrHistSalvarEdicao(id){
@@ -2297,8 +2327,15 @@ async function opManutCorrHistSalvarEdicao(id){
   const valor = document.getElementById("omc-e-valor").value.trim();
   const quem = document.getElementById("omc-e-quem").value.trim();
   const descricao = document.getElementById("omc-e-descricao").value.trim();
+  const laudoFile = document.getElementById("omc-e-laudo").files[0];
+  const nfeFile = document.getElementById("omc-e-nfe").files[0];
   if(!nome || !data){ toast("Preencha equipamento e data."); return; }
-  await sb.from("operacional_manutencoes_corretivas").update({ nome:nome, serie:serie, data:data, valor:valor, quem:quem, descricao:descricao }).eq("id", id);
+  const btn = document.getElementById("omc-e-salvar-btn");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  const updates = { nome:nome, serie:serie, data:data, valor:valor, quem:quem, descricao:descricao };
+  if(laudoFile){ const url = await opUploadArquivo(laudoFile); if(url) updates.laudo_path = url; }
+  if(nfeFile){ const url = await opUploadArquivo(nfeFile); if(url) updates.nfe_path = url; }
+  await sb.from("operacional_manutencoes_corretivas").update(updates).eq("id", id);
   opFecharModal();
   toast("Manutenção corretiva atualizada.");
   await carregarManutencoesOperacional();
