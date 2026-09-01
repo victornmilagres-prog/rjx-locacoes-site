@@ -71,7 +71,7 @@ let newId = inviteData.id;
 let linkManual = null;
 if (!inviteResp.ok) {
 const msgErro = inviteData.msg || inviteData.error_description || inviteData.message || '';
-const ehRateLimit = inviteResp.status === 429 || /rate limit/i.test(msgErro);
+const ehRateLimit = inviteResp.status === 429 || /rate limit/i.test(msgErro) || /already.*registered|already.*exists/i.test(msgErro);
 if (!ehRateLimit) {
 return res.status(400).json({ error: msgErro || 'Falha ao convidar usuario.' });
 }
@@ -97,7 +97,7 @@ headers: {
 Authorization: 'Bearer ' + SERVICE_KEY,
 apikey: SERVICE_KEY,
 'Content-Type': 'application/json',
-Prefer: 'return=representation'
+Prefer: 'return=representation,resolution=merge-duplicates'
 },
 body: JSON.stringify({ id: newId, nome, email, papel: novoPapel, ativo: true })
 });
