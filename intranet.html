@@ -1472,19 +1472,22 @@ async function tsCarregarLocacoesInner(){
       if(e.concluida && e.motorista_id === currentUsuario.id) pontos += 1;
     });
   });
+  let selfiesValidasCount = 0;
   dias.forEach(function(dia){
     const s = selfiesPorDia[dia];
     possiveis += PONTOS_UNIFORME_PREMIACAO;
-    if(s && s.validada === true) pontos += PONTOS_UNIFORME_PREMIACAO;
+    if(s && s.validada === true){ pontos += PONTOS_UNIFORME_PREMIACAO; selfiesValidasCount++; }
     else if(s && s.validada === false && s.motivo === 'expirada') pontos -= PONTOS_UNIFORME_PREMIACAO;
   });
   const pct = possiveis > 0 ? Math.round((pontos/possiveis)*100) : 0;
   let html = '';
-  html += '<div class="card form-card"><h3>Minha pontuação</h3>';
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-  html += '<div><div style="font-size:26px;font-weight:800;">' + pontos + ' pts</div><div class="cardsub" style="margin:2px 0 0;">de ' + possiveis + ' possíveis</div></div>';
-  html += '<span class="status-pill ' + (pct>=80?'status-ok':'status-wait') + '" style="font-size:14px;"><span class="dot"></span>' + pct + '%</span>';
-  html += '</div></div>';
+  const resumoCardHtml = '<div class="resumo">' +
+      '<div><div class="pontos">' + pontos + '</div><div class="pontos-lbl">Pontos este mês</div></div>' +
+      '<div class="divisor"></div>' +
+      '<div class="mini"><b>' + locsFechadasTransp.length + '</b>Locações fechadas</div>' +
+      '<div class="mini"><b>' + locsFechadasTransp.filter(function(l){ return l.atraso; }).length + '</b>Com atraso</div>' +
+      '<div class="mini"><b>' + selfiesValidasCount + '</b>Selfies validadas</div>' +
+      '</div>';
 
   html += '<div class="card form-card"><h3>Selfie de uniforme do dia</h3><p class="cardsub">Uma selfie por dia cobre todas as suas locações daquele dia. Sem envio até o fim do dia, você perde ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p>';
   html += '<div id="pt-lista-selfies-dia">';
@@ -1539,6 +1542,7 @@ async function tsCarregarLocacoesInner(){
     '<div class="premio-barra"><div class="premio-fill ' + (ganhandoTransp?"":"abaixo") + '" style="width:' + Math.min(pctTransp,100) + '%;"></div><div class="premio-meta-marca" style="left:80%;"></div></div>' +
     '<div class="premio-rodape"><span>' + ganhosTransp + " / " + possiveisTransp + " pontos (" + pctTransp + '%)</span><span class="premio-status ' + (ganhandoTransp?"status-ok":"status-wait") + '">' + (ganhandoTransp ? "🏆 Ganhando o prêmio" : ("Faltam " + (80-pctTransp) + " pontos percentuais")) + "</span></div></div>";
   content.insertAdjacentHTML("afterbegin", premioCardHtml);
+  content.insertAdjacentHTML("afterbegin", resumoCardHtml);
 }
 
 let premiacaoSelfieAlvo = null;
@@ -2746,7 +2750,7 @@ async function carregarPremiacaoOperacional(isGestor){
       return true;
     });
   if(opTabAtual === "aberta"){
-    html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">' +
+    html += '<div style="display:flex;gap:8px;margin-bottom:16px;margin-top:18px;flex-wrap:wrap;">' +
       '<button class="subtab' + (window.__opEquipFiltro==="todos"?" active":"") + '" onclick="opFiltrarEquip(&quot;todos&quot;)">Todos</button>' +
       '<button class="subtab' + (window.__opEquipFiltro==="com_insumo"?" active":"") + '" onclick="opFiltrarEquip(&quot;com_insumo&quot;)">Ultraformer / Crio (13 etapas · 13 pts)</button>' +
       '<button class="subtab' + (window.__opEquipFiltro==="sem_insumo"?" active":"") + '" onclick="opFiltrarEquip(&quot;sem_insumo&quot;)">Lavieen / Endolaser (10 etapas · 10 pts)</button>' +
