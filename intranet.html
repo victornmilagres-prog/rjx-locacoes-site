@@ -2012,13 +2012,13 @@ html += '<div class="card" style="margin-bottom:24px;overflow-x:auto;"><table st
   html += '<button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="opManutAvulsaAbrirModal()">+ Adicionar Manutenção Preventiva avulsa</button>';
   html += '<input class="field" id="om-busca" placeholder="Buscar..." style="max-width:320px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;" oninput="opManutRenderHistorico()"></div>';
   html += '<div class="card" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
-  ["Equipamento","Data","Valor","Realizado por","Próxima manutenção","Anexos"].forEach(function(h){
+  ["Equipamento","Data","Valor","Realizado por","Próxima manutenção","Anexos","Ação"].forEach(function(h){
     html += '<th style="text-align:left;padding:10px 12px;font-size:10.5px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
   });
   html += '</tr></thead><tbody id="op-manut-hist-tbody"></tbody></table></div>';
   html += '<div class="card form-card" style="margin-top:24px;"><h3>Manutenções Corretivas</h3><p class="cardsub">Reparos feitos fora do calendário preventivo, lançados após a ocorrência.</p></div>';
   html += '<div class="card" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
-  ["Equipamento","Nº de série","Data","Valor","Realizado por","Descrição","Anexos"].forEach(function(h){
+  ["Equipamento","Nº de série","Data","Valor","Realizado por","Descrição","Anexos","Ação"].forEach(function(h){
     html += '<th style="text-align:left;padding:10px 12px;font-size:10.5px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
   });
   html += '</tr></thead><tbody id="omc-tbody"></tbody></table></div>';
@@ -2093,7 +2093,8 @@ function opManutRenderHistorico(){
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">R$ ' + escapeHtml(h.valor||"") + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(h.quem||"") + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + opDataBR(h.proxima) + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + (anexos || "—") + '</td></tr>';
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + (anexos || "—") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><button title="Editar" onclick="opManutHistAbrirModalEditar(&quot;' + h.id + '&quot;)" style="background:none;border:1px solid var(--line);color:var(--gray);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;line-height:1;">⚙️</button></td></tr>';
   }).join("");
 }
 
@@ -2185,7 +2186,8 @@ function opManutCorrRenderTabela(){
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">R$ ' + escapeHtml(h.valor||"") + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(h.quem||"") + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);max-width:260px;white-space:normal;">' + escapeHtml(h.descricao||"—") + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + (anexos || "—") + '</td></tr>';
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + (anexos || "—") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><button title="Editar" onclick="opManutCorrHistAbrirModalEditar(&quot;' + h.id + '&quot;)" style="background:none;border:1px solid var(--line);color:var(--gray);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;line-height:1;">⚙️</button></td></tr>';
   }).join("");
 }
 
@@ -2236,6 +2238,69 @@ async function opManutExcluir(id){
   if(!ok) return;
   await sb.from("operacional_manutencoes").delete().eq("id", id);
   toast("Equipamento excluído.");
+  await carregarManutencoesOperacional();
+}
+function opManutHistAbrirModalEditar(id){
+  const h = (window.__opManutHist||[]).find(function(x){ return x.id === id; });
+  if(!h) return;
+  let overlay = document.getElementById("op-modal-overlay");
+  if(overlay) overlay.remove();
+  overlay = document.createElement("div");
+  overlay.id = "op-modal-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  overlay.innerHTML =
+    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;"><h3>Editar manutenção</h3>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><input id="omh-e-nome" value="' + escapeHtml(h.nome) + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Data</label><input type="date" id="omh-e-data" value="' + h.data + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Valor (R$)</label><input id="omh-e-valor" value="' + escapeHtml(h.valor||"") + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Quem realizou</label><input id="omh-e-quem" value="' + escapeHtml(h.quem||"") + '"></div>' +
+    '<div class="field" style="margin-bottom:14px;"><label>Próxima manutenção</label><input type="date" id="omh-e-proxima" value="' + (h.proxima||"") + '"></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" onclick="opManutHistSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div>';
+  document.body.appendChild(overlay);
+}
+async function opManutHistSalvarEdicao(id){
+  const nome = document.getElementById("omh-e-nome").value.trim();
+  const data = document.getElementById("omh-e-data").value;
+  const valor = document.getElementById("omh-e-valor").value.trim();
+  const quem = document.getElementById("omh-e-quem").value.trim();
+  const proxima = document.getElementById("omh-e-proxima").value;
+  if(!nome || !data){ toast("Preencha equipamento e data."); return; }
+  await sb.from("operacional_manutencoes_historico").update({ nome:nome, data:data, valor:valor, quem:quem, proxima:proxima||null }).eq("id", id);
+  opFecharModal();
+  toast("Manutenção atualizada.");
+  await carregarManutencoesOperacional();
+}
+
+function opManutCorrHistAbrirModalEditar(id){
+  const h = (window.__opManutCorr||[]).find(function(x){ return x.id === id; });
+  if(!h) return;
+  let overlay = document.getElementById("op-modal-overlay");
+  if(overlay) overlay.remove();
+  overlay = document.createElement("div");
+  overlay.id = "op-modal-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  overlay.innerHTML =
+    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;max-height:85vh;overflow-y:auto;"><h3>Editar manutenção corretiva</h3>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><input id="omc-e-nome" value="' + escapeHtml(h.nome) + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Nº de série</label><input id="omc-e-serie" value="' + escapeHtml(h.serie||"") + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Data</label><input type="date" id="omc-e-data" value="' + h.data + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Valor (R$)</label><input id="omc-e-valor" value="' + escapeHtml(h.valor||"") + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Quem realizou</label><input id="omc-e-quem" value="' + escapeHtml(h.quem||"") + '"></div>' +
+    '<div class="field" style="margin-bottom:14px;"><label>Descrição</label><textarea id="omc-e-descricao" rows="3" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;">' + escapeHtml(h.descricao||"") + '</textarea></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" onclick="opManutCorrHistSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div>';
+  document.body.appendChild(overlay);
+}
+async function opManutCorrHistSalvarEdicao(id){
+  const nome = document.getElementById("omc-e-nome").value.trim();
+  const serie = document.getElementById("omc-e-serie").value.trim();
+  const data = document.getElementById("omc-e-data").value;
+  const valor = document.getElementById("omc-e-valor").value.trim();
+  const quem = document.getElementById("omc-e-quem").value.trim();
+  const descricao = document.getElementById("omc-e-descricao").value.trim();
+  if(!nome || !data){ toast("Preencha equipamento e data."); return; }
+  await sb.from("operacional_manutencoes_corretivas").update({ nome:nome, serie:serie, data:data, valor:valor, quem:quem, descricao:descricao }).eq("id", id);
+  opFecharModal();
+  toast("Manutenção corretiva atualizada.");
   await carregarManutencoesOperacional();
 }
 function opManutAvulsaAbrirModal(){
