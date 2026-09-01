@@ -2070,7 +2070,7 @@ function opManutRenderTabela(){
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + opDataBR(e.renovacao) + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + cotar + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + statusHtml + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><div style="display:flex;align-items:center;gap:8px;"><button title="Excluir equipamento" onclick="opManutExcluir(&quot;' + e.id + '&quot;)" style="background:none;border:1px solid var(--alert);color:var(--alert);border-radius:6px;width:26px;height:26px;font-size:13px;font-weight:700;cursor:pointer;line-height:1;flex-shrink:0;">✕</button>' + acaoHtml + '</div></td></tr>';
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><div style="display:flex;align-items:center;gap:8px;"><button title="Editar equipamento" onclick="opManutAbrirModalEditar(&quot;' + e.id + '&quot;)" style="background:none;border:1px solid var(--line);color:var(--gray);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;line-height:1;flex-shrink:0;">⚙️</button><button title="Excluir equipamento" onclick="opManutExcluir(&quot;' + e.id + '&quot;)" style="background:none;border:1px solid var(--alert);color:var(--alert);border-radius:6px;width:26px;height:26px;font-size:13px;font-weight:700;cursor:pointer;line-height:1;flex-shrink:0;">✕</button>' + acaoHtml + '</div></td></tr>';
   }).join("");
 }
 
@@ -2200,6 +2200,34 @@ async function opManutAdicionar(){
   await carregarManutencoesOperacional();
 }
 
+function opManutAbrirModalEditar(id){
+  const eq = (window.__opManutEquip||[]).find(function(e){ return e.id === id; });
+  if(!eq) return;
+  let overlay = document.getElementById("op-modal-overlay");
+  if(overlay) overlay.remove();
+  overlay = document.createElement("div");
+  overlay.id = "op-modal-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  overlay.innerHTML =
+    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;"><h3>Editar equipamento</h3>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><input id="om-e-nome" value="' + escapeHtml(eq.nome) + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Nº de série</label><input id="om-e-serie" value="' + escapeHtml(eq.serie||"") + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Última manutenção</label><input type="date" id="om-e-data" value="' + eq.ultima_manutencao + '"></div>' +
+    '<div class="field" style="margin-bottom:14px;"><label>Renovação (próxima)</label><input type="date" id="om-e-renovacao" value="' + eq.renovacao + '"></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" onclick="opManutSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div>';
+  document.body.appendChild(overlay);
+}
+async function opManutSalvarEdicao(id){
+  const nome = document.getElementById("om-e-nome").value.trim();
+  const serie = document.getElementById("om-e-serie").value.trim();
+  const data = document.getElementById("om-e-data").value;
+  const renovacao = document.getElementById("om-e-renovacao").value;
+  if(!nome || !data || !renovacao){ toast("Preencha equipamento, última manutenção e renovação."); return; }
+  await sb.from("operacional_manutencoes").update({ nome:nome, serie:serie, ultima_manutencao:data, renovacao:renovacao, atualizado_em: new Date().toISOString() }).eq("id", id);
+  opFecharModal();
+  toast("Equipamento atualizado.");
+  await carregarManutencoesOperacional();
+}
 async function opManutExcluir(id){
   const eq = (window.__opManutEquip||[]).find(function(e){ return e.id === id; });
   if(!eq) return;
@@ -2332,6 +2360,7 @@ function opSegRenderTabela(){
       acaoHtml = meses <= 1 ? '<button class="btn btn-primary btn-sm" onclick="opSegIniciarCotacao(&quot;' + s.id + '&quot;)">Renovar seguro</button>' : "-";
     }
     const excluirHtml = '<button title="Excluir seguro" onclick="opSegExcluir(&quot;' + s.id + '&quot;)" style="background:none;border:1px solid var(--alert);color:var(--alert);border-radius:6px;width:26px;height:26px;font-size:13px;font-weight:700;cursor:pointer;line-height:1;">✕</button>';
+    const editarHtml = '<button title="Editar seguro" onclick="opSegAbrirModalEditar(&quot;' + s.id + '&quot;)" style="background:none;border:1px solid var(--line);color:var(--gray);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;line-height:1;flex-shrink:0;">⚙️</button>';
     return '<tr><td style="padding:10px 12px;border-bottom:1px solid var(--line);"><b>' + escapeHtml(s.nome) + '</b></td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(s.serie||"—") + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(s.apolice||"—") + '</td>' +
@@ -2342,7 +2371,7 @@ function opSegRenderTabela(){
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">R$ ' + escapeHtml(s.parcela||"") + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(s.corretora||"") + '</td>' +
       '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + statusHtml + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><div style="display:flex;align-items:center;gap:8px;">' + excluirHtml + acaoHtml + '</div></td></tr>';
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><div style="display:flex;align-items:center;gap:8px;">' + editarHtml + excluirHtml + acaoHtml + '</div></td></tr>';
   }).join("");
 }
 
@@ -2414,6 +2443,42 @@ async function opSegConfirmarFinalizar(id){
   await sb.from("operacional_seguros").update(updates).eq("id", id);
   opFecharModal();
   toast("Seguro renovado — próxima renovação em " + opDataBR(renovacao) + ".");
+  await carregarSegurosOperacional();
+}
+function opSegAbrirModalEditar(id){
+  const seg = (window.__opSeguros||[]).find(function(x){ return x.id === id; });
+  if(!seg) return;
+  let overlay = document.getElementById("op-modal-overlay");
+  if(overlay) overlay.remove();
+  overlay = document.createElement("div");
+  overlay.id = "op-modal-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  overlay.innerHTML =
+    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;max-height:85vh;overflow-y:auto;"><h3>Editar seguro</h3>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><input id="sg-e-nome" value="' + escapeHtml(seg.nome) + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Nº de série</label><input id="sg-e-serie" value="' + escapeHtml(seg.serie||"") + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Nº da apólice</label><input id="sg-e-apolice" value="' + escapeHtml(seg.apolice||"") + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Corretora</label><input id="sg-e-corretora" value="' + escapeHtml(seg.corretora||"") + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Data (contratação)</label><input type="date" id="sg-e-data" value="' + seg.data + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Renovação (próxima)</label><input type="date" id="sg-e-renovacao" value="' + seg.renovacao + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Valor</label><input id="sg-e-valor" value="' + escapeHtml(seg.valor||"") + '"></div>' +
+    '<div class="field" style="margin-bottom:14px;"><label>Parcela</label><input id="sg-e-parcela" value="' + escapeHtml(seg.parcela||"") + '"></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" onclick="opSegSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div>';
+  document.body.appendChild(overlay);
+}
+async function opSegSalvarEdicao(id){
+  const nome = document.getElementById("sg-e-nome").value.trim();
+  const serie = document.getElementById("sg-e-serie").value.trim();
+  const apolice = document.getElementById("sg-e-apolice").value.trim();
+  const corretora = document.getElementById("sg-e-corretora").value.trim();
+  const data = document.getElementById("sg-e-data").value;
+  const renovacao = document.getElementById("sg-e-renovacao").value;
+  const valor = document.getElementById("sg-e-valor").value.trim();
+  const parcela = document.getElementById("sg-e-parcela").value.trim();
+  if(!nome || !data || !renovacao){ toast("Preencha ao menos equipamento, data e renovação."); return; }
+  await sb.from("operacional_seguros").update({ nome:nome, serie:serie, apolice:apolice, corretora:corretora, data:data, renovacao:renovacao, valor:valor, parcela:parcela, atualizado_em: new Date().toISOString() }).eq("id", id);
+  opFecharModal();
+  toast("Seguro atualizado.");
   await carregarSegurosOperacional();
 }
 async function opSegExcluir(id){
