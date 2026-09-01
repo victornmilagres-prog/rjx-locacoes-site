@@ -67,10 +67,30 @@ apikey: SERVICE_KEY,
 body: JSON.stringify({ email })
 });
 const inviteData = await inviteResp.json();
+let newId = inviteData.id;
+let linkManual = null;
 if (!inviteResp.ok) {
-return res.status(400).json({ error: inviteData.msg || inviteData.error_description || inviteData.message || 'Falha ao convidar usuario.' });
+const msgErro = inviteData.msg || inviteData.error_description || inviteData.message || '';
+const ehRateLimit = inviteResp.status === 429 || /rate limit/i.test(msgErro);
+if (!ehRateLimit) {
+return res.status(400).json({ error: msgErro || 'Falha ao convidar usuario.' });
 }
-const newId = inviteData.id;
+const linkResp = await fetch(SUPABASE_URL + '/auth/v1/admin/generate_link', {
+method: 'POST',
+headers: {
+Authorization: 'Bearer ' + SERVICE_KEY,
+apikey: SERVICE_KEY,
+'Content-Type': 'application/json'
+},
+body: JSON.stringify({ type: 'invite', email: email, redirect_to: redirectTo })
+});
+const linkData = await linkResp.json();
+if (!linkResp.ok) {
+return res.status(400).json({ error: linkData.msg || linkData.error_description || linkData.message || 'Limite de e-mail atingido e nao foi possivel gerar o link manual.' });
+}
+newId = linkData.user && linkData.user.id;
+linkManual = linkData.action_link || (linkData.properties && linkData.properties.action_link) || null;
+}
 const insertResp = await fetch(SUPABASE_URL + '/rest/v1/usuarios', {
 method: 'POST',
 headers: {
@@ -85,7 +105,7 @@ const insertData = await insertResp.json();
 if (!insertResp.ok) {
 return res.status(400).json({ error: insertData.message || 'Falha ao salvar usuario.' });
 }
-return res.status(200).json({ usuario: insertData[0] });
+return res.status(200).json({ usuario: insertData[0], linkManual: linkManual });
 }
 
 if (req.method === 'PATCH') {
