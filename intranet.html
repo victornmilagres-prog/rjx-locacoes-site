@@ -2671,6 +2671,16 @@ let opTabAtual = 'aberta';
 function mudarTabOperacionalPremiacao(t){ opTabAtual = t; carregarPremiacaoOperacional(true); }
 
 async function carregarPremiacaoOperacional(isGestor){
+  let contestBannerHtml = "";
+  const pendentes = (window.__opContestacoes||[]).filter(function(c){ return c.status === 'pendente'; });
+      if(pendentes.length){
+        contestBannerHtml += '<div class="card contest-alert"><h3>🔔 ' + pendentes.length + ' contestação(ões) pendente(s)</h3>';
+        pendentes.forEach(function(c){
+          const locC = locs.find(function(l){ return l.id === c.locacao_id; }) || {};
+          contestBannerHtml += '<div class="contest-row"><div><b>' + escapeHtml(locC.equipamento||'') + '</b> — Locação #' + (locC.numero||'') + '</div><button class="btn btn-primary btn-sm" onclick="abrirModalContestacao(&quot;' + c.id + '&quot;)">Ver contestação</button></div>';
+        });
+        contestBannerHtml += '</div>';
+      }
   const content = document.getElementById('operacional-content');
   const motoristas = await getMotoristas();
   const motoristaNome = {};
@@ -2730,6 +2740,7 @@ async function carregarPremiacaoOperacional(isGestor){
   html += '<button class="subtab' + (opTabAtual==='aberta'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;aberta&quot;)">Locações abertas</button>';
   html += '<button class="subtab' + (opTabAtual==='fechada'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;fechada&quot;)">Locações fechadas</button>';
   html += '<button class="subtab' + (opTabAtual==='explicacao'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;explicacao&quot;)">Como funciona a pontuação</button>';
+  html += contestBannerHtml;
   if(opTabAtual === "explicacao"){
     html += '<div class="card form-card"><h3>Como funciona a pontuação</h3>';
     html += '<p class="cardsub">Toda etapa concluída de uma locação vale 1 ponto. A selfie de uniforme do dia soma +5 pontos quando validada (ou -5 se reprovada ou expirar sem enviar).</p>';
@@ -2749,15 +2760,7 @@ async function carregarPremiacaoOperacional(isGestor){
     html += '<p class="empty-hint">Nenhuma locação ' + (opTabAtual==='aberta'?'aberta':'fechada') + '.</p>';
   } else {
     if(opTabAtual === 'fechada'){
-      const pendentes = (window.__opContestacoes||[]).filter(function(c){ return c.status === 'pendente'; });
-      if(pendentes.length){
-        html += '<div class="card contest-alert"><h3>🔔 ' + pendentes.length + ' contestação(ões) pendente(s)</h3>';
-        pendentes.forEach(function(c){
-          const locC = locsFiltradas.find(function(l){ return l.id === c.locacao_id; }) || {};
-          html += '<div class="contest-row"><div><b>' + escapeHtml(locC.equipamento||'') + '</b> — Locação #' + (locC.numero||'') + '</div><button class="btn btn-primary btn-sm" onclick="abrirModalContestacao(&quot;' + c.id + '&quot;)">Ver contestação</button></div>';
-        });
-        html += '</div>';
-      }
+      
       const resolvidas = (window.__opContestacoes||[]).filter(function(c){ return c.status === 'aceita' || c.status === 'rejeitada' || c.status === 'reaberta'; });
       if(resolvidas.length){
         html += '<div class="card form-card"><h3 style="font-size:15px;">Contestações já resolvidas</h3>';
@@ -2769,27 +2772,57 @@ async function carregarPremiacaoOperacional(isGestor){
         });
         html += '</div>';
       }
-    }    html += locsFiltradas.map(function(loc){
+    }    window.__opLocacoes = locs; window.__opEtapasPorLoc = etapasPorLoc; window.__opMotoristaNome = motoristaNome;
+  window.__opLocsAbertasExp = window.__opLocsAbertasExp || {};
+  if(opTabAtual === "aberta"){
+    html += locsFiltradas.map(function(loc){
       const eq = PREMIACAO_EQUIP[loc.equipamento] || { label: loc.equipamento };
       const etapas = etapasPorLoc[loc.id] || [];
       const feitas = etapas.filter(function(e){ return e.concluida; }).length;
       const total = etapas.length;
-      if(loc.status === "fechada"){
-        const ptsC = loc.atraso ? 0 : feitas;
-        return '<div style="display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;">' +
-          '<span style="width:40px;color:var(--gray-soft);font-size:12px;">#' + escapeHtml(String(loc.numero||"")) + '</span>' +
-          '<b style="flex:1;min-width:140px;">' + escapeHtml(eq.label||loc.equipamento||"") + '</b>' +
-          '<span style="width:110px;font-size:13px;color:var(--gray);">' + escapeHtml(motoristaNome[loc.motorista_id]||"") + '</span>' +
-          '<span style="width:60px;font-size:13px;">' + feitas + "/" + total + '</span>' +
-          (loc.atraso ? '<span class="status-pill status-wait"><span class="dot"></span>Atraso</span>' : '<span class="status-pill status-ok"><span class="dot"></span>OK</span>') +
-          '<b style="width:70px;text-align:right;">' + ptsC + " pts</b></div>";
-      }
+      const nomeMotor = escapeHtml(motoristaNome[loc.motorista_id]||"");
+      const dias = Math.max(0, Math.floor((Date.now() - new Date(loc.data_locacao).getTime()) / 86400000));
+      const aberto = !!window.__opLocsAbertasExp[loc.id];
       const etapasHtml = etapas.map(function(e){
-        return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px;"><input type="checkbox" ' + (e.concluida?'checked':'') + ' ' + (loc.status==='fechada'?'disabled':'') + ' onchange="togglePremiacaoEtapa(&quot;' + e.id + '&quot;,&quot;' + loc.id + '&quot;,this.checked)"> <span style="flex:1;">' + e.ordem + '. ' + escapeHtml(e.nome) + '</span>' + (e.concluida ? '<span class="quem" style="font-size:11px;color:var(--gray);">' + escapeHtml(motoristaNome[e.motorista_id] || '') + '</span>' : '') + '</div>';
-      }).join('') + '<div style="margin-top:12px;padding:12px 14px;border:1px dashed var(--alert);border-radius:6px;background:#fdf5f2;display:flex;align-items:center;gap:10px;"><input type="checkbox" id="atraso-' + loc.id + '" ' + (loc.atraso ? 'checked' : '') + ' onchange="togglePremiacaoAtraso(&quot;' + loc.id + '&quot;, this.checked)"><label for="atraso-' + loc.id + '" style="font-weight:600;color:var(--alert);cursor:pointer;">Teve atraso em alguma etapa</label></div>';
-      return '<div class="card" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;"><div><b>Locação #' + escapeHtml(loc.numero) + '</b><div style="font-size:12px;color:var(--gray);">' + eq.label + ' - ' + escapeHtml(motoristaNome[loc.motorista_id]||'-') + '</div></div><span style="font-size:12px;color:var(--gray);">' + feitas + '/' + total + ' etapas</span></div><div style="margin-top:8px;">' + etapasHtml + '</div>' +
-        (loc.status==='aberta' ? '<button class="btn btn-primary" style="margin-top:10px;" onclick="finalizarLocacaoPremiacao(&quot;' + loc.id + '&quot;,' + feitas + ',' + total + ')">Finalizar locação' + (feitas<total?' (' + (total-feitas) + ' pendente' + ((total-feitas)>1?'s':'') + ')':'') + '</button>' : '') + '</div>';
-    }).join('');
+        return '<div class="etapa-row' + (e.concluida?" done":"") + '" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px;">' +
+          '<input type="checkbox" ' + (e.concluida?"checked":"") + ' onchange="togglePremiacaoEtapa(&quot;' + e.id + '&quot;,&quot;' + loc.id + '&quot;,this.checked)" style="width:18px;height:18px;accent-color:var(--wine);flex-shrink:0;">' +
+          '<span style="flex:1;' + (e.concluida?"":"color:var(--gray-soft);") + '">' + escapeHtml(e.ordem + ". " + e.nome) + '</span>' +
+          (e.concluida ? '<span style="font-size:11.5px;background:var(--ok-bg);color:var(--ok);padding:2px 8px;border-radius:12px;font-weight:600;flex-shrink:0;">+1 pt</span>' : "") +
+          '</div>';
+      }).join("");
+      return '<div class="card" style="margin-bottom:12px;overflow:hidden;">' +
+        '<div onclick="opToggleLocCard(&quot;' + loc.id + '&quot;)" style="display:flex;justify-content:space-between;align-items:center;padding:15px 18px;cursor:pointer;">' +
+          '<div><div style="font-size:15px;font-weight:600;">Locação #' + (loc.numero||"") + " — " + escapeHtml(eq.label||"") + '</div>' +
+          '<div style="font-size:12.5px;color:var(--gray);margin-top:2px;">' + nomeMotor + " · aberta há " + dias + (dias===1?" dia":" dias") + '</div></div>' +
+          '<div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">' +
+          '<span style="font-size:12.5px;color:var(--gray);">' + feitas + "/" + total + ' etapas</span>' +
+          '<span style="font-size:14px;color:var(--gray);">' + (aberto?"▴":"▾") + '</span></div>' +
+        '</div>' +
+        (aberto ? '<div style="border-top:1px solid var(--line);padding:6px 18px 12px;">' + etapasHtml + '</div>' : "") +
+        '</div>';
+    }).join("");
+  } else {
+    html += '<div class="card" style="padding:4px 0;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<thead><tr><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">#</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Equipamento</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Motorista</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Etapas</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Atraso</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Pontos</th><th></th></tr></thead><tbody>' +
+      locsFiltradas.map(function(loc){
+        const eq = PREMIACAO_EQUIP[loc.equipamento] || { label: loc.equipamento };
+        const etapas = etapasPorLoc[loc.id] || [];
+        const feitas = etapas.filter(function(e){ return e.concluida; }).length;
+        const total = etapas.length;
+        const nomeMotor = escapeHtml(motoristaNome[loc.motorista_id]||"");
+        const pontos = loc.atraso ? 0 : feitas;
+        return '<tr style="border-top:1px solid var(--line);">' +
+          '<td style="padding:11px 10px;">' + (loc.numero||"") + '</td>' +
+          '<td style="padding:11px 10px;font-weight:600;">' + escapeHtml(eq.label||"") + '</td>' +
+          '<td style="padding:11px 10px;">' + nomeMotor + '</td>' +
+          '<td style="padding:11px 10px;">' + feitas + "/" + total + '</td>' +
+          '<td style="padding:11px 10px;"><span style="font-size:12px;padding:2px 10px;border-radius:12px;font-weight:600;' + (loc.atraso?"background:var(--alert-bg);color:var(--alert);":"background:var(--ok-bg);color:var(--ok);") + '">' + (loc.atraso?"Sim":"Não") + '</span></td>' +
+          '<td style="padding:11px 10px;">' + pontos + ' pts</td>' +
+          '<td style="padding:11px 10px;"><a href="#" onclick="opAbrirDetalhesLocFechada(&quot;' + loc.id + '&quot;);return false;" style="color:var(--wine);text-decoration:underline;font-size:12.5px;">ver detalhes</a></td>' +
+          '</tr>';
+      }).join("") +
+      '</tbody></table></div>';
+  }
   }
   const dados = {};
   motoristas.forEach(function(m){ dados[m.id] = { nome: m.nome, pontos: 0, possiveis: 0 }; });
@@ -3060,7 +3093,29 @@ async function atualizarBadgeContestacoesSidebar(){
   } catch(e) {}
 }
 
-async function togglePremiacaoEtapa(etapaId, locId, checked){
+async function opToggleLocCard(id){
+  window.__opLocsAbertasExp = window.__opLocsAbertasExp || {};
+  window.__opLocsAbertasExp[id] = !window.__opLocsAbertasExp[id];
+  carregarPremiacaoOperacional(true);
+}
+function opAbrirDetalhesLocFechada(id){
+  const loc = (window.__opLocacoes||[]).find(function(l){ return l.id === id; });
+  if(!loc) return;
+  const eq = PREMIACAO_EQUIP[loc.equipamento] || { label: loc.equipamento };
+  const etapas = (window.__opEtapasPorLoc||{})[id] || [];
+  const nomeMotor = escapeHtml((window.__opMotoristaNome||{})[loc.motorista_id]||"");
+  let overlay = document.getElementById("op-modal-overlay");
+  if(overlay) overlay.remove();
+  overlay = document.createElement("div");
+  overlay.id = "op-modal-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  const etapasHtml = etapas.map(function(e){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px;"><input type="checkbox" ' + (e.concluida?"checked":"") + ' disabled style="width:18px;height:18px;accent-color:var(--wine);flex-shrink:0;"><span style="flex:1;' + (e.concluida?"":"color:var(--gray-soft);") + '">' + escapeHtml(e.ordem + ". " + e.nome) + '</span></div>';
+  }).join("");
+  overlay.innerHTML = '<div class="card form-card" style="max-width:460px;width:92%;margin:0;max-height:85vh;overflow-y:auto;"><h3>Locação #' + (loc.numero||"") + '</h3><p class="cardsub">' + escapeHtml(eq.label||"") + ' · ' + nomeMotor + '</p>' + etapasHtml + '<div style="display:flex;justify-content:flex-end;margin-top:16px;"><button class="btn btn-ghost" onclick="opFecharModal()">Fechar</button></div></div>';
+  document.body.appendChild(overlay);
+}
+function togglePremiacaoEtapa(etapaId, locId, checked){
   const updates = { concluida: checked };
   if(checked){
     const locResult = await sb.from('premiacao_locacoes').select('motorista_id').eq('id', locId).single();
