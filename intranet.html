@@ -2744,23 +2744,8 @@ async function carregarPremiacaoOperacional(isGestor){
     return;
   }
   html += '</div>';
-  window.__opEquipFiltro = window.__opEquipFiltro || 'todos';
-    const locsFiltradas = locs.filter(function(l){
-      if(l.status !== opTabAtual) return false;
-      if(opTabAtual === 'aberta' && window.__opEquipFiltro !== 'todos'){
-        const eqInfo2 = PREMIACAO_EQUIP[l.equipamento] || {};
-        const grupo2 = eqInfo2.insumos ? 'com_insumo' : 'sem_insumo';
-        if(grupo2 !== window.__opEquipFiltro) return false;
-      }
-      return true;
-    });
-  if(opTabAtual === "aberta"){
-    html += '<div style="display:flex;gap:8px;margin-bottom:16px;margin-top:18px;flex-wrap:wrap;">' +
-      '<button class="subtab' + (window.__opEquipFiltro==="todos"?" active":"") + '" onclick="opFiltrarEquip(&quot;todos&quot;)">Todos</button>' +
-      '<button class="subtab' + (window.__opEquipFiltro==="com_insumo"?" active":"") + '" onclick="opFiltrarEquip(&quot;com_insumo&quot;)">Ultraformer / Crio (13 etapas · 13 pts)</button>' +
-      '<button class="subtab' + (window.__opEquipFiltro==="sem_insumo"?" active":"") + '" onclick="opFiltrarEquip(&quot;sem_insumo&quot;)">Lavieen / Endolaser (10 etapas · 10 pts)</button>' +
-      "</div>";
-  }  if(!locsFiltradas.length){
+  const locsFiltradas = locs.filter(function(l){ return l.status === opTabAtual; });
+    if(!locsFiltradas.length){
     html += '<p class="empty-hint">Nenhuma locação ' + (opTabAtual==='aberta'?'aberta':'fechada') + '.</p>';
   } else {
     if(opTabAtual === 'fechada'){
@@ -3074,10 +3059,7 @@ async function atualizarBadgeContestacoesSidebar(){
     if(el) el.innerHTML = n > 0 ? ('<span class="badge-alerta">' + n + "</span>") : "";
   } catch(e) {}
 }
-function opFiltrarEquip(grupo){
-  window.__opEquipFiltro = grupo;
-  carregarPremiacaoOperacional(true);
-}
+
 async function togglePremiacaoEtapa(etapaId, locId, checked){
   const updates = { concluida: checked };
   if(checked){
