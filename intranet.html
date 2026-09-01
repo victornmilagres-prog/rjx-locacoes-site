@@ -3093,7 +3093,7 @@ async function atualizarBadgeContestacoesSidebar(){
   } catch(e) {}
 }
 
-async function opToggleLocCard(id){
+function opToggleLocCard(id){
   window.__opLocsAbertasExp = window.__opLocsAbertasExp || {};
   window.__opLocsAbertasExp[id] = !window.__opLocsAbertasExp[id];
   carregarPremiacaoOperacional(true);
@@ -3115,7 +3115,7 @@ function opAbrirDetalhesLocFechada(id){
   overlay.innerHTML = '<div class="card form-card" style="max-width:460px;width:92%;margin:0;max-height:85vh;overflow-y:auto;"><h3>Locação #' + (loc.numero||"") + '</h3><p class="cardsub">' + escapeHtml(eq.label||"") + ' · ' + nomeMotor + '</p>' + etapasHtml + '<div style="display:flex;justify-content:flex-end;margin-top:16px;"><button class="btn btn-ghost" onclick="opFecharModal()">Fechar</button></div></div>';
   document.body.appendChild(overlay);
 }
-function togglePremiacaoEtapa(etapaId, locId, checked){
+async function togglePremiacaoEtapa(etapaId, locId, checked){
   const updates = { concluida: checked };
   if(checked){
     const locResult = await sb.from('premiacao_locacoes').select('motorista_id').eq('id', locId).single();
