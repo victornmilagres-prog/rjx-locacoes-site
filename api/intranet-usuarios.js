@@ -88,7 +88,7 @@ const linkData = await linkResp.json();
 if (!linkResp.ok) {
 return res.status(400).json({ error: linkData.msg || linkData.error_description || linkData.message || 'Limite de e-mail atingido e nao foi possivel gerar o link manual.' });
 }
-newId = linkData.user && linkData.user.id;
+newId = linkData.id || (linkData.user && linkData.user.id);
 linkManual = linkData.action_link || (linkData.properties && linkData.properties.action_link) || null;
 }
 const insertResp = await fetch(SUPABASE_URL + '/rest/v1/usuarios', {
