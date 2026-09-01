@@ -1447,16 +1447,7 @@ async function tsCarregarLocacoesInner(){
     return;
   }
   const locs = result.data || [];
-  let contestBannerHtml = "";
-  const pendentes = (window.__opContestacoes||[]).filter(function(c){ return c.status === 'pendente'; });
-      if(pendentes.length){
-        contestBannerHtml += '<div class="card contest-alert"><h3>🔔 ' + pendentes.length + ' contestação(ões) pendente(s)</h3>';
-        pendentes.forEach(function(c){
-          const locC = locs.find(function(l){ return l.id === c.locacao_id; }) || {};
-          contestBannerHtml += '<div class="contest-row"><div><b>' + escapeHtml(locC.equipamento||'') + '</b> — Locação #' + (locC.numero||'') + '</div><button class="btn btn-primary btn-sm" onclick="abrirModalContestacao(&quot;' + c.id + '&quot;)">Ver contestação</button></div>';
-        });
-        contestBannerHtml += '</div>';
-      }
+  
   const idsLocs = locs.map(function(l){ return l.id; });
   let etapasPorLoc = {};
   if(idsLocs.length){
@@ -2695,6 +2686,16 @@ async function carregarPremiacaoOperacional(isGestor){
     return;
   }
   const locs = result.data || [];
+  let contestBannerHtml = "";
+  const pendentes = (window.__opContestacoes||[]).filter(function(c){ return c.status === 'pendente'; });
+      if(pendentes.length){
+        contestBannerHtml += '<div class="card contest-alert"><h3>🔔 ' + pendentes.length + ' contestação(ões) pendente(s)</h3>';
+        pendentes.forEach(function(c){
+          const locC = locs.find(function(l){ return l.id === c.locacao_id; }) || {};
+          contestBannerHtml += '<div class="contest-row"><div><b>' + escapeHtml(locC.equipamento||'') + '</b> — Locação #' + (locC.numero||'') + '</div><button class="btn btn-primary btn-sm" onclick="abrirModalContestacao(&quot;' + c.id + '&quot;)">Ver contestação</button></div>';
+        });
+        contestBannerHtml += '</div>';
+      }
   const idsLocs = locs.map(function(l){ return l.id; });
   let etapasPorLoc = {};
   if(idsLocs.length){
