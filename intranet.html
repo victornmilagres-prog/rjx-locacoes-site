@@ -513,6 +513,7 @@ async function renderGerencial(container){
           '</select>' +
         '</div>' +
         '<div id="nu-error" class="login-error" style="display:none;"></div>' +
+        '<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--gray);margin-bottom:10px;cursor:pointer;"><input type="checkbox" id="nu-sem-email" style="width:16px;height:16px;"> Não enviar e-mail (gerar link pra eu enviar manualmente)</label>' +
         '<div id="nu-success" class="login-success" style="display:none;"></div>' +
         '<button class="btn btn-primary" id="btn-criar-usuario">Convidar usuário</button>' +
       '</div>' +
@@ -536,7 +537,9 @@ async function carregarUsuarios(){
         '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + escapeHtml(u.email) + '</td>' +
         '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + papelLabel(u.papel) + '</td>' +
         '<td style="padding:10px 14px;border-bottom:1px solid var(--line);">' + (u.ativo ? 'Ativo' : 'Inativo') + '</td>' +
-        '<td style="padding:10px 14px;border-bottom:1px solid var(--line);"><a href="#" class="act-toggle" data-id="' + u.id + '" data-ativo="' + u.ativo + '" style="color:var(--wine);font-weight:700;font-size:12.5px;">' + (u.ativo ? 'Desativar' : 'Reativar') + '</a></td>' +
+        '<td style="padding:10px 14px;border-bottom:1px solid var(--line);"><a href="#" class="act-toggle" data-id="' + u.id + '" data-ativo="' + u.ativo + '" style="color:var(--wine);font-weight:700;font-size:12.5px;">' + (u.ativo ? 'Desativar' : 'Reativar') + '</a>' +
+      ' <a href="#" class="act-edit" data-id="' + u.id + '" data-nome="' + escapeHtml(u.nome) + '" data-papel="' + u.papel + '" style="color:var(--gray);font-weight:700;font-size:12.5px;margin-left:10px;">Editar</a>' +
+      ' <a href="#" class="act-delete" data-id="' + u.id + '" data-nome="' + escapeHtml(u.nome) + '" style="color:var(--alert);font-weight:700;font-size:12.5px;margin-left:10px;">Excluir</a></td>' +
       '</tr>';
     });    tabela.innerHTML = '<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Nome</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">E-mail</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Papel</th><th style="text-align:left;font-size:11px;text-transform:uppercase;color:var(--gray);padding:10px 14px;border-bottom:1px solid var(--line);">Status</th><th></th></tr></thead><tbody>' + rowsHtml + '</tbody></table>';
     tabela.querySelectorAll('.act-toggle').forEach(function(a){
@@ -549,6 +552,44 @@ async function carregarUsuarios(){
         catch(err){ alert('Erro: ' + err.message); }
       });
     });
+tabela.querySelectorAll(".act-edit").forEach(function(a){
+  a.addEventListener("click", function(e){
+    e.preventDefault();
+    const id = a.dataset.id;
+    const nomeAtual = a.dataset.nome;
+    const papelAtual = a.dataset.papel;
+    let overlay = document.getElementById("ger-modal-overlay");
+    if(overlay) overlay.remove();
+    overlay = document.createElement("div");
+    overlay.id = "ger-modal-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+    overlay.innerHTML =
+      '<div class="card form-card" style="max-width:400px;width:92%;margin:0;"><h3>Editar usuário</h3>' +
+      '<div class="field" style="margin-bottom:10px;margin-top:10px;"><label>Nome completo</label><input id="ger-e-nome" value="' + nomeAtual + '"></div>' +
+      '<div class="field" style="margin-bottom:14px;"><label>Papel</label><select id="ger-e-papel"><option value="comercial"' + (papelAtual==="comercial"?" selected":"") + '>Comercial</option><option value="transportes"' + (papelAtual==="transportes"?" selected":"") + '>Transportes</option><option value="operacional"' + (papelAtual==="operacional"?" selected":"") + '>Operacional</option><option value="financeiro"' + (papelAtual==="financeiro"?" selected":"") + '>Financeiro</option><option value="gerencial"' + (papelAtual==="gerencial"?" selected":"") + '>Gerencial</option></select></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="document.getElementById(&quot;ger-modal-overlay&quot;).remove()">Cancelar</button><button class="btn btn-primary" id="ger-e-salvar">Salvar</button></div></div>';
+    document.body.appendChild(overlay);
+    document.getElementById("ger-e-salvar").addEventListener("click", async function(){
+      const nome = document.getElementById("ger-e-nome").value.trim();
+      const papel = document.getElementById("ger-e-papel").value;
+      if(!nome){ alert("Preencha o nome."); return; }
+      try{ await apiCall("PATCH", { id: id, nome: nome, papel: papel }); overlay.remove(); await carregarUsuarios(); }
+      catch(err){ alert(err.message); }
+    });
+  });
+});
+tabela.querySelectorAll(".act-delete").forEach(function(a){
+  a.addEventListener("click", async function(e){
+    e.preventDefault();
+    const id = a.dataset.id;
+    const nome = a.dataset.nome;
+    const ok = confirm("Tem certeza que deseja excluir o usuário \"" + nome + "\"?\n\nEssa ação remove o acesso dele por completo e não pode ser desfeita.");
+    if(!ok) return;
+    a.textContent = "...";
+    try{ await apiCall("DELETE", { id: id }); await carregarUsuarios(); }
+    catch(err){ alert(err.message); }
+  });
+});
   }catch(err){
     tabela.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(err.message) + '</p>';
   }
@@ -565,7 +606,8 @@ async function criarUsuario(){
   const btn = document.getElementById('btn-criar-usuario');
   btn.disabled = true; btn.textContent = 'Convidando...';
   try{
-    const resultadoConvite = await apiCall('POST', { nome: nome, email: email, papel: papel });
+    const semEmail = document.getElementById('nu-sem-email').checked;
+    const resultadoConvite = await apiCall('POST', { nome: nome, email: email, papel: papel, semEmail: semEmail });
     if(resultadoConvite && resultadoConvite.linkManual){
       okEl.innerHTML = 'Limite de e-mail do sistema atingido. Copie o link abaixo e envie voc\u00ea mesmo pra ' + escapeHtml(email) + ':<br><div style="display:flex;gap:8px;margin-top:8px;"><input readonly id="link-manual-convite" value="' + resultadoConvite.linkManual + '" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;" onclick="this.select()"><button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById(&quot;link-manual-convite&quot;).value); toast(&quot;Link copiado!&quot;);">Copiar</button></div>';
     } else {
