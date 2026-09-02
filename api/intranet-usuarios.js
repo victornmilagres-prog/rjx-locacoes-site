@@ -57,7 +57,12 @@ if (!nome || !email || !novoPapel) {
 return res.status(400).json({ error: 'Preencha nome, e-mail e papel.' });
 }
 const redirectTo = 'https://rjxlocacoes.com.br/intranet.html';
-const inviteResp = await fetch(SUPABASE_URL + '/auth/v1/invite?redirect_to=' + encodeURIComponent(redirectTo), {
+let inviteResp, inviteData;
+if (body.semEmail === true) {
+inviteResp = { ok: false, status: 0 };
+inviteData = { msg: 'link manual solicitado' };
+} else {
+inviteResp = await fetch(SUPABASE_URL + '/auth/v1/invite?redirect_to=' + encodeURIComponent(redirectTo), {
 method: 'POST',
 headers: {
 Authorization: 'Bearer ' + SERVICE_KEY,
@@ -66,12 +71,13 @@ apikey: SERVICE_KEY,
 },
 body: JSON.stringify({ email })
 });
-const inviteData = await inviteResp.json();
+inviteData = await inviteResp.json();
+}
 let newId = inviteData.id;
 let linkManual = null;
 if (!inviteResp.ok) {
 const msgErro = inviteData.msg || inviteData.error_description || inviteData.message || '';
-const ehRateLimit = inviteResp.status === 429 || /rate limit/i.test(msgErro) || /already.*registered|already.*exists/i.test(msgErro);
+const ehRateLimit = body.semEmail === true || inviteResp.status === 429 || /rate limit/i.test(msgErro) || /already.*registered|already.*exists/i.test(msgErro);
 if (!ehRateLimit) {
 return res.status(400).json({ error: msgErro || 'Falha ao convidar usuario.' });
 }
