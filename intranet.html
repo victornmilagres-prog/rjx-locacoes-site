@@ -227,6 +227,22 @@ textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--lin
 .manual-equip-endo{border-color:#c9761f;}
 .manual-equip-lav{border-color:#3f8f7a;}
 .manual-footer{background:#221a15; color:#e8ddd2; padding:16px 20px; border-radius:10px; font-size:13px; text-align:center; margin-top:20px;}
+.form-row{display:grid;grid-template-columns:1fr 1.4fr 1fr .8fr .8fr auto;gap:10px;align-items:end;}
+@media(max-width:1000px){.form-row{grid-template-columns:1fr 1fr;}}
+.total-cell{font-weight:700;color:var(--wine);}
+.price-table{margin-top:10px;}
+.price-group{background:var(--paper-soft);border-radius:6px;padding:12px 14px;margin-bottom:10px;}
+.price-group h4{font-size:12.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--wine);margin-bottom:8px;}
+.price-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.price-grid .field label{font-size:11px;font-weight:600;color:var(--gray);}
+.price-grid .field input{padding:6px 8px;font-size:12.5px;}
+.toggle-price{cursor:pointer;color:var(--wine);font-size:12.5px;text-decoration:underline;background:none;border:none;padding:0;font-family:inherit;}
+.summary-row{display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap;}
+.summary-box{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px 18px;flex:1;min-width:140px;}
+.summary-box .num{font-family:Fraunces,serif;font-size:22px;font-weight:600;}
+.summary-box .lbl{font-size:11px;color:var(--gray);text-transform:uppercase;letter-spacing:.3px;margin-top:2px;}
+.icon-btn{background:none;border:1px solid var(--line);color:var(--gray);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;line-height:1;}
+.icon-btn:hover{border-color:var(--wine);color:var(--wine);}
 </style>
 </head>
 <body>
@@ -818,21 +834,21 @@ async function freteRenderConteudo(){
   if(!lancamentos.length){
     html += '<div class="empty-hint">Nenhum lançamento ainda esse mês.</div>';
   } else {
-    html += '<table><thead><tr><th>Data</th><th>Pedido</th><th>Equipamento</th><th>Base</th><th>KM</th><th>Taxa/km</th><th>Valor KM</th><th>Espera</th><th>Extra</th><th>Total</th><th>Ação</th></tr></thead><tbody>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);white-space:nowrap;">Data</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);white-space:nowrap;">Pedido</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);white-space:nowrap;">Equipamento</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);white-space:nowrap;">Base</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);white-space:nowrap;">KM</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);white-space:nowrap;">Taxa/km</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);white-space:nowrap;">Valor KM</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);white-space:nowrap;">Espera</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);white-space:nowrap;">Extra</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);white-space:nowrap;">Total</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);white-space:nowrap;">Ação</th></tr></thead><tbody>';
     lancamentos.forEach(function(l){
       const c = freteCalcular(l, tabela);
       const eq = FRETE_EQUIPAMENTOS.find(function(e){ return e.id === l.equipamento; });
       const ehCombo = eq.grupo === "combo";
       html += "<tr>" +
-        "<td>" + freteFmtData(l.data) + "</td>" +
-        "<td>" + escapeHtml(l.pedido) + "</td>" +
-        "<td>" + escapeHtml(eq.label) + "</td>" +
-        "<td>" + freteFmt(c.base) + "</td>" +
-        "<td>" + (ehCombo ? "—" : Number(l.km).toFixed(1).replace(".",",")) + "</td>" +
-        "<td>" + (ehCombo ? "—" : freteFmt(c.taxa)) + "</td>" +
-        "<td>" + (ehCombo ? "—" : freteFmt(c.valorKm)) + "</td>" +
-        "<td>" + (c.esperaValor ? freteFmt(c.esperaValor) : "—") + "</td>" +
-        "<td>" + (c.extra ? freteFmt(c.extra) : "—") + "</td>" +
+        "<td style=\"padding:9px 10px;border-bottom:1px solid var(--line);\">" + freteFmtData(l.data) + "</td>" +
+        "<td style=\"padding:9px 10px;border-bottom:1px solid var(--line);\">" + escapeHtml(l.pedido) + "</td>" +
+        "<td style=\"padding:9px 10px;border-bottom:1px solid var(--line);\">" + escapeHtml(eq.label) + "</td>" +
+        "<td style=\"padding:9px 10px;border-bottom:1px solid var(--line);\">" + freteFmt(c.base) + "</td>" +
+        "<td style=\"padding:9px 10px;border-bottom:1px solid var(--line);\">" + (ehCombo ? "—" : Number(l.km).toFixed(1).replace(".",",")) + "</td>" +
+        "<td style=\"padding:9px 10px;border-bottom:1px solid var(--line);\">" + (ehCombo ? "—" : freteFmt(c.taxa)) + "</td>" +
+        "<td style=\"padding:9px 10px;border-bottom:1px solid var(--line);\">" + (ehCombo ? "—" : freteFmt(c.valorKm)) + "</td>" +
+        "<td style=\"padding:9px 10px;border-bottom:1px solid var(--line);\">" + (c.esperaValor ? freteFmt(c.esperaValor) : "—") + "</td>" +
+        "<td style=\"padding:9px 10px;border-bottom:1px solid var(--line);\">" + (c.extra ? freteFmt(c.extra) : "—") + "</td>" +
         '<td class="total-cell">' + freteFmt(c.total) + "</td>" +
         '<td><div style="display:flex;gap:6px;"><button class="icon-btn" title="Editar" onclick="freteAbrirEdicao(&quot;' + l.id + '&quot;)">⚙️</button><button class="icon-btn" title="Excluir" style="border-color:var(--alert);color:var(--alert);" onclick="freteRemoverLancamento(&quot;' + l.id + '&quot;)">✕</button></div></td>' +
         "</tr>";
