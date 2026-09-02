@@ -695,6 +695,7 @@ async function renderComercial(container){
 '<button class="subtab" id="cs-tab-leads" onclick="selectComercialSubtab(&quot;leads&quot;)">Controle de Leads</button>' +
 '<button class="subtab" id="cs-tab-comissao" onclick="selectComercialSubtab(&quot;comissao&quot;)">Premiação Comercial</button>' +
 '<button class="subtab" id="cs-tab-logistica" onclick="selectComercialSubtab(&quot;logistica&quot;)">Premiação Logística</button>' +
+'<button class="subtab" id="cs-tab-frete" onclick="selectComercialSubtab(&quot;frete&quot;)">Controle de Frete</button>' +
 '</div>' +
     '<div class="content" id="comercial-content"><p class="empty-hint">Carregando...</p></div>';
 
@@ -703,14 +704,245 @@ async function renderComercial(container){
 }
 
 
+const FRETE_EQUIPAMENTOS = [
+  { id: "ultraformer", label: "Ultraformer MPT", grupo: "a" },
+  { id: "endolaser", label: "Endolaser", grupo: "a" },
+  { id: "criodermis", label: "Criodermis", grupo: "a" },
+  { id: "lavieen", label: "Lavieen", grupo: "b" },
+  { id: "combo_lavieen_ultra", label: "Lavieen + Ultraformer MPT (combo)", grupo: "combo" }
+];
+function freteFmt(n){ return "R$ " + (Number(n)||0).toFixed(2).replace(".", ","); }
+function freteFmtData(iso){ const p = iso.split("-"); return p[2] + "/" + p[1] + "/" + p[0]; }
+function freteTaxaPorKm(km, tabela, grupo){
+  if(km <= 15) return Number(tabela[grupo + "_r0_15"]);
+  if(km <= 25) return Number(tabela[grupo + "_r15_25"]);
+  return Number(tabela[grupo + "_acima25"]);
+}
+function freteCalcular(l, tabela){
+  const eq = FRETE_EQUIPAMENTOS.find(function(e){ return e.id === l.equipamento; });
+  let base = 0, taxa = 0, valorKm = 0;
+  if(eq.grupo === "combo"){
+    base = Number(tabela.combo_base);
+  } else {
+    base = Number(tabela[eq.grupo + "_frete_fixo"]);
+    taxa = freteTaxaPorKm(Number(l.km), tabela, eq.grupo);
+    valorKm = Number(l.km) * taxa;
+  }
+  let esperaValor = 0;
+  if(l.espera === "30min") esperaValor = Number(tabela.espera_30min);
+  else if(l.espera === "1h") esperaValor = Number(tabela.espera_1h);
+  const extra = Number(l.extra) || 0;
+  const total = base + valorKm + esperaValor + extra;
+  return { base: base, taxa: taxa, valorKm: valorKm, esperaValor: esperaValor, extra: extra, total: total };
+}
+
+async function carregarFreteComercial(){
+  const content = document.getElementById("comercial-content");
+  content.innerHTML = "<p class=\"empty-hint\">Carregando...</p>";
+  const rMot = await sb.from("comercial_frete_motoristas").select("*").eq("ativo", true).order("ordem");
+  window.__freteMotoristas = rMot.data || [];
+  const rTab = await sb.from("comercial_frete_tabelas").select("*");
+  window.__freteTabelas = {};
+  (rTab.data||[]).forEach(function(tb){ window.__freteTabelas[tb.motorista_id] = tb; });
+  if(!window.__freteMotoristaAtual && window.__freteMotoristas.length){ window.__freteMotoristaAtual = window.__freteMotoristas[0].id; }
+  window.__fretePrecoAberto = window.__fretePrecoAberto || false;
+  await freteRenderConteudo();
+}
+function freteSelecionarMotorista(id){
+  window.__freteMotoristaAtual = id;
+  window.__fretePrecoAberto = false;
+  freteRenderConteudo();
+}
+async function freteRenderConteudo(){
+  const content = document.getElementById("comercial-content");
+  const motoristas = window.__freteMotoristas || [];
+  const m = motoristas.find(function(x){ return x.id === window.__freteMotoristaAtual; });
+  if(!m){ content.innerHTML = "<p class=\"empty-hint\">Nenhum motorista cadastrado.</p>"; return; }
+  const tabela = window.__freteTabelas[m.id] || {};
+  const rLanc = await sb.from("comercial_frete_lancamentos").select("*").eq("motorista_id", m.id).order("data", { ascending:false }).order("criado_em", { ascending:false });
+  const lancamentos = rLanc.data || [];
+  window.__freteLancamentos = lancamentos;
+
+  let html = "";
+  html += '<div class="subnav">' + motoristas.map(function(mm){ return '<button class="subtab' + (mm.id===m.id?" active":"") + '" onclick="freteSelecionarMotorista(&quot;' + mm.id + '&quot;)">' + escapeHtml(mm.nome) + '</button>'; }).join("") + "</div>";
+
+  const totalMes = lancamentos.reduce(function(a,l){ return a + freteCalcular(l, tabela).total; }, 0);
+  const totalKm = lancamentos.reduce(function(a,l){ return a + (Number(l.km)||0); }, 0);
+  html += '<div class="summary-row">' +
+    '<div class="summary-box"><div class="num">' + freteFmt(totalMes) + '</div><div class="lbl">Total do mês</div></div>' +
+    '<div class="summary-box"><div class="num">' + lancamentos.length + '</div><div class="lbl">Corridas lançadas</div></div>' +
+    '<div class="summary-box"><div class="num">' + totalKm.toFixed(1).replace(".",",") + ' km</div><div class="lbl">KM rodados</div></div>' +
+    "</div>";
+
+  html += '<div class="card form-card"><h3>Novo lançamento — ' + escapeHtml(m.nome) + '</h3>' +
+    '<p class="cardsub">Preencha pedido, equipamento e KM. Base e valor são calculados automaticamente pela tabela de preço deste motorista.</p>' +
+    '<div class="form-row">' +
+    '<div class="field"><label>Data</label><input type="date" id="frete-novo-data" value="' + new Date().toISOString().slice(0,10) + '"></div>' +
+    '<div class="field"><label>Pedido</label><input id="frete-novo-pedido" placeholder="Ex: 260901/001"></div>' +
+    '<div class="field"><label>Equipamento</label><select id="frete-novo-equipamento" onchange="fretePreviaAtualizar()">' + FRETE_EQUIPAMENTOS.map(function(e){ return '<option value="' + e.id + '">' + e.label + "</option>"; }).join("") + '</select></div>' +
+    '<div class="field"><label>KM</label><input type="number" step="0.1" id="frete-novo-km" placeholder="0" oninput="fretePreviaAtualizar()"></div>' +
+    '<div class="field"><label>Extra (R$)</label><input type="number" step="0.01" id="frete-novo-extra" placeholder="0,00"></div>' +
+    '<button class="btn btn-primary" onclick="freteAdicionarLancamento()">+ Adicionar</button>' +
+    "</div>" +
+    '<div class="form-row" style="margin-top:10px;">' +
+    '<div class="field"><label>Tempo de espera (opcional)</label><select id="frete-novo-espera"><option value="">Nenhum</option><option value="30min">30 min — ' + freteFmt(tabela.espera_30min) + '</option><option value="1h">1 hora — ' + freteFmt(tabela.espera_1h) + '</option></select></div>' +
+    '<div class="field"><label>Prévia do valor</label><div id="frete-previa-valor" style="padding:9px 10px;background:var(--paper-soft);border-radius:6px;font-weight:700;color:var(--wine);">—</div></div>' +
+    "</div></div>";
+
+  html += '<div class="card form-card">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+    '<div><h3>Tabela de preço — ' + escapeHtml(m.nome) + '</h3><p class="cardsub" style="margin-bottom:0;">Base, faixas de KM e tempo de espera usados no cálculo automático.</p></div>' +
+    '<button class="toggle-price" onclick="fretePrecoToggle()">' + (window.__fretePrecoAberto ? "Fechar ▲" : "Editar ▼") + "</button>" +
+    "</div>";
+  if(window.__fretePrecoAberto){
+    html += '<div class="price-table">';
+    [["a","Ultraformer, Endo e Crio"],["b","Lavieen"]].forEach(function(pair){
+      const g = pair[0], nome = pair[1];
+      html += '<div class="price-group"><h4>' + nome + '</h4><div class="price-grid">' +
+        '<div class="field"><label>Frete fixo</label><input type="number" step="0.01" value="' + tabela[g+"_frete_fixo"] + '" onchange="freteAtualizarTabela(&quot;'+g+'_frete_fixo&quot;,this.value)"></div>' +
+        '<div class="field"><label>0–15 km (R$/km)</label><input type="number" step="0.01" value="' + tabela[g+"_r0_15"] + '" onchange="freteAtualizarTabela(&quot;'+g+'_r0_15&quot;,this.value)"></div>' +
+        '<div class="field"><label>15–25 km (R$/km)</label><input type="number" step="0.01" value="' + tabela[g+"_r15_25"] + '" onchange="freteAtualizarTabela(&quot;'+g+'_r15_25&quot;,this.value)"></div>' +
+        '<div class="field"><label>Acima de 25 km (R$/km)</label><input type="number" step="0.01" value="' + tabela[g+"_acima25"] + '" onchange="freteAtualizarTabela(&quot;'+g+'_acima25&quot;,this.value)"></div>' +
+        "</div></div>";
+    });
+    html += '<div class="price-group"><h4>Tempo de espera e combo</h4><div class="price-grid">' +
+      '<div class="field"><label>Espera 30 min</label><input type="number" step="0.01" value="' + tabela.espera_30min + '" onchange="freteAtualizarTabela(&quot;espera_30min&quot;,this.value)"></div>' +
+      '<div class="field"><label>Espera 1 hora</label><input type="number" step="0.01" value="' + tabela.espera_1h + '" onchange="freteAtualizarTabela(&quot;espera_1h&quot;,this.value)"></div>' +
+      '<div class="field"><label>Base combo (2 equip.)</label><input type="number" step="0.01" value="' + tabela.combo_base + '" onchange="freteAtualizarTabela(&quot;combo_base&quot;,this.value)"></div>' +
+      "</div></div>";
+    html += "</div>";
+  }
+  html += "</div>";
+
+  html += '<div class="card" style="padding:6px 0;overflow-x:auto;">';
+  if(!lancamentos.length){
+    html += '<div class="empty-hint">Nenhum lançamento ainda esse mês.</div>';
+  } else {
+    html += '<table><thead><tr><th>Data</th><th>Pedido</th><th>Equipamento</th><th>Base</th><th>KM</th><th>Taxa/km</th><th>Valor KM</th><th>Espera</th><th>Extra</th><th>Total</th><th>Ação</th></tr></thead><tbody>';
+    lancamentos.forEach(function(l){
+      const c = freteCalcular(l, tabela);
+      const eq = FRETE_EQUIPAMENTOS.find(function(e){ return e.id === l.equipamento; });
+      const ehCombo = eq.grupo === "combo";
+      html += "<tr>" +
+        "<td>" + freteFmtData(l.data) + "</td>" +
+        "<td>" + escapeHtml(l.pedido) + "</td>" +
+        "<td>" + escapeHtml(eq.label) + "</td>" +
+        "<td>" + freteFmt(c.base) + "</td>" +
+        "<td>" + (ehCombo ? "—" : Number(l.km).toFixed(1).replace(".",",")) + "</td>" +
+        "<td>" + (ehCombo ? "—" : freteFmt(c.taxa)) + "</td>" +
+        "<td>" + (ehCombo ? "—" : freteFmt(c.valorKm)) + "</td>" +
+        "<td>" + (c.esperaValor ? freteFmt(c.esperaValor) : "—") + "</td>" +
+        "<td>" + (c.extra ? freteFmt(c.extra) : "—") + "</td>" +
+        '<td class="total-cell">' + freteFmt(c.total) + "</td>" +
+        '<td><div style="display:flex;gap:6px;"><button class="icon-btn" title="Editar" onclick="freteAbrirEdicao(&quot;' + l.id + '&quot;)">⚙️</button><button class="icon-btn" title="Excluir" style="border-color:var(--alert);color:var(--alert);" onclick="freteRemoverLancamento(&quot;' + l.id + '&quot;)">✕</button></div></td>' +
+        "</tr>";
+    });
+    html += "</tbody></table>";
+  }
+  html += "</div>";
+
+  content.innerHTML = html;
+  fretePreviaAtualizar();
+}
+function fretePrecoToggle(){
+  window.__fretePrecoAberto = !window.__fretePrecoAberto;
+  freteRenderConteudo();
+}
+async function freteAtualizarTabela(campo, valor){
+  const m = (window.__freteMotoristas||[]).find(function(x){ return x.id === window.__freteMotoristaAtual; });
+  if(!m) return;
+  const updates = {};
+  updates[campo] = Number(valor) || 0;
+  await sb.from("comercial_frete_tabelas").update(updates).eq("motorista_id", m.id);
+  window.__fretePrecoAberto = true;
+  await carregarFreteComercial();
+}
+function fretePreviaAtualizar(){
+  const m = (window.__freteMotoristas||[]).find(function(x){ return x.id === window.__freteMotoristaAtual; });
+  if(!m) return;
+  const tabela = (window.__freteTabelas||{})[m.id];
+  if(!tabela) return;
+  const equipEl = document.getElementById("frete-novo-equipamento");
+  const kmEl = document.getElementById("frete-novo-km");
+  const previa = document.getElementById("frete-previa-valor");
+  if(!equipEl || !previa) return;
+  const km = kmEl ? (Number(kmEl.value) || 0) : 0;
+  const c = freteCalcular({ equipamento: equipEl.value, km: km, extra:0, espera:"" }, tabela);
+  previa.textContent = freteFmt(c.base + c.valorKm) + (c.taxa ? "  (taxa " + freteFmt(c.taxa) + "/km)" : "");
+}
+async function freteAdicionarLancamento(){
+  const m = (window.__freteMotoristas||[]).find(function(x){ return x.id === window.__freteMotoristaAtual; });
+  if(!m) return;
+  const data = document.getElementById("frete-novo-data").value;
+  const pedido = document.getElementById("frete-novo-pedido").value.trim();
+  const equipamento = document.getElementById("frete-novo-equipamento").value;
+  const km = Number(document.getElementById("frete-novo-km").value) || 0;
+  const extra = Number(document.getElementById("frete-novo-extra").value) || 0;
+  const espera = document.getElementById("frete-novo-espera").value;
+  if(!pedido){ toast("Preencha o número do pedido."); return; }
+  await sb.from("comercial_frete_lancamentos").insert({ motorista_id: m.id, data:data, pedido:pedido, equipamento:equipamento, km:km, extra:extra, espera:espera, criado_por: currentUsuario.id });
+  toast("Lançamento adicionado.");
+  await carregarFreteComercial();
+}
+async function freteRemoverLancamento(id){
+  const ok = confirm("Tem certeza que deseja excluir esse lançamento?");
+  if(!ok) return;
+  await sb.from("comercial_frete_lancamentos").delete().eq("id", id);
+  toast("Lançamento excluído.");
+  await carregarFreteComercial();
+}
+function freteAbrirEdicao(id){
+  const l = (window.__freteLancamentos||[]).find(function(x){ return x.id === id; });
+  if(!l) return;
+  let overlay = document.getElementById("op-modal-overlay");
+  if(overlay) overlay.remove();
+  overlay = document.createElement("div");
+  overlay.id = "op-modal-overlay";
+  overlay.className = "modal-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  overlay.innerHTML =
+    '<div class="card form-card modal-box"><h3>Editar lançamento</h3>' +
+    '<p class="cardsub">Pedido ' + escapeHtml(l.pedido) + ' — use aqui pra incluir o extra ou o tempo de espera quando souber, no dia seguinte.</p>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Pedido</label><input id="frete-edit-pedido" value="' + escapeHtml(l.pedido) + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><select id="frete-edit-equipamento">' +
+      FRETE_EQUIPAMENTOS.map(function(e){ return '<option value="' + e.id + '"' + (e.id === l.equipamento ? " selected" : "") + '>' + e.label + "</option>"; }).join("") +
+    '</select></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>KM</label><input type="number" step="0.1" id="frete-edit-km" value="' + l.km + '"></div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Tempo de espera</label><select id="frete-edit-espera">' +
+      '<option value="">Nenhum</option>' +
+      '<option value="30min"' + (l.espera === "30min" ? " selected" : "") + '>30 min</option>' +
+      '<option value="1h"' + (l.espera === "1h" ? " selected" : "") + '>1 hora</option>' +
+    '</select></div>' +
+    '<div class="field" style="margin-bottom:16px;"><label>Extra (R$)</label><input type="number" step="0.01" id="frete-edit-extra" value="' + l.extra + '"></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+      '<button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button>' +
+      '<button class="btn btn-primary" onclick="freteSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button>' +
+    "</div></div>";
+  document.body.appendChild(overlay);
+}
+async function freteSalvarEdicao(id){
+  const pedido = document.getElementById("frete-edit-pedido").value.trim();
+  const equipamento = document.getElementById("frete-edit-equipamento").value;
+  const km = Number(document.getElementById("frete-edit-km").value) || 0;
+  const espera = document.getElementById("frete-edit-espera").value;
+  const extra = Number(document.getElementById("frete-edit-extra").value) || 0;
+  if(!pedido){ toast("Preencha o pedido."); return; }
+  await sb.from("comercial_frete_lancamentos").update({ pedido:pedido, equipamento:equipamento, km:km, espera:espera, extra:extra }).eq("id", id);
+  opFecharModal();
+  toast("Lançamento atualizado.");
+  await carregarFreteComercial();
+}
+
 async function selectComercialSubtab(tab){
   document.getElementById('cs-tab-insumos').classList.toggle('active', tab==='insumos');
   document.getElementById('cs-tab-leads').classList.toggle('active', tab==='leads');
   document.getElementById('cs-tab-comissao').classList.toggle('active', tab==='comissao');
   document.getElementById('cs-tab-logistica').classList.toggle('active', tab==='logistica');
+  document.getElementById('cs-tab-frete').classList.toggle('active', tab==='frete');
   if(tab === 'insumos'){ await carregarInsumosComercial(); }
   else if(tab === 'leads'){ await carregarLeadsComercial(); }
   else if(tab === 'comissao'){ await carregarComissaoComercial(); }
+  else if(tab === 'frete'){ await carregarFreteComercial(); }
   else { await carregarPremiacaoComercial(); }
 }
 
