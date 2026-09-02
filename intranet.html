@@ -2981,6 +2981,46 @@ async function opSegExcluir(id){
 let opTabAtual = 'aberta';
 function mudarTabOperacionalPremiacao(t){ opTabAtual = t; carregarPremiacaoOperacional(true); }
 
+async function opRenderValidacaoSelfies(content, htmlAteAqui){
+  const rMot = await sb.from("usuarios").select("id,nome").eq("papel","transportes").eq("ativo",true);
+  const nomeMotor = {};
+  (rMot.data||[]).forEach(function(m){ nomeMotor[m.id] = m.nome; });
+  const rSelfies = await sb.from("premiacao_selfies_dia").select("*").order("data_ref",{ascending:false});
+  const selfies = rSelfies.data || [];
+  let html = htmlAteAqui;
+  if(!selfies.length){
+    html += '<p class="empty-hint">Nenhuma selfie registrada ainda.</p>';
+  } else {
+    html += '<div class="card" style="padding:4px 0;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<thead><tr><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Data</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Motorista</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Status</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Pontos</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Ação</th></tr></thead><tbody>';
+    selfies.forEach(function(s){
+      const nome = escapeHtml(nomeMotor[s.motorista_id] || "(motorista removido)");
+      const dataFmt = s.data_ref.split("-").reverse().join("/");
+      let statusTxt, statusCls, pontosTxt;
+      if(s.validada === true){ statusTxt = "Validada"; statusCls = "background:var(--ok-bg,#eaf1ec);color:var(--ok,#3f6b52);"; pontosTxt = "+" + PONTOS_UNIFORME_PREMIACAO; }
+      else if(s.validada === false && s.motivo === "expirada"){ statusTxt = "Prazo expirado"; statusCls = "background:var(--alert-bg,#f6e6e0);color:var(--alert,#8a2e1f);"; pontosTxt = "-" + PONTOS_UNIFORME_PREMIACAO; }
+      else if(s.validada === false && s.motivo === "reprovada"){ statusTxt = "IA reprovou"; statusCls = "background:var(--wait-bg,#f7ecd9);color:var(--wait,#8a5a12);"; pontosTxt = "0"; }
+      else { statusTxt = "Aguardando validação"; statusCls = "background:var(--wait-bg,#f7ecd9);color:var(--wait,#8a5a12);"; pontosTxt = "0"; }
+      const podeAgir = !(s.validada === true);
+      const acao = podeAgir ? ('<button class="icon-btn" title="Validar (+' + PONTOS_UNIFORME_PREMIACAO + ')" style="border-color:var(--ok,#3f6b52);color:var(--ok,#3f6b52);width:auto;padding:0 8px;" onclick="opValidarSelfieManual(&quot;' + s.motorista_id + '&quot;,&quot;' + s.data_ref + '&quot;,true)">Validar</button> <button class="icon-btn" title="Reprovar" style="border-color:var(--alert,#8a2e1f);color:var(--alert,#8a2e1f);width:auto;padding:0 8px;" onclick="opValidarSelfieManual(&quot;' + s.motorista_id + '&quot;,&quot;' + s.data_ref + '&quot;,false)">Reprovar</button>') : "—";
+      html += '<tr style="border-top:1px solid var(--line);">' +
+        '<td style="padding:9px 10px;">' + dataFmt + '</td>' +
+        '<td style="padding:9px 10px;font-weight:600;">' + nome + '</td>' +
+        '<td style="padding:9px 10px;"><span style="font-size:12px;padding:2px 10px;border-radius:12px;font-weight:600;' + statusCls + '">' + statusTxt + '</span></td>' +
+        '<td style="padding:9px 10px;">' + pontosTxt + '</td>' +
+        '<td style="padding:9px 10px;">' + acao + '</td>' +
+        "</tr>";
+    });
+    html += "</tbody></table></div>";
+  }
+  content.innerHTML = html;
+}
+async function opValidarSelfieManual(motoristaId, dataRef, validada){
+  await sb.from("premiacao_selfies_dia").update({ validada: validada, motivo: validada ? null : "reprovada", validada_em: new Date().toISOString() }).eq("motorista_id", motoristaId).eq("data_ref", dataRef);
+  toast(validada ? "Selfie validada." : "Selfie reprovada.");
+  await carregarPremiacaoOperacional(true);
+}
+
 async function carregarPremiacaoOperacional(isGestor){
   
   const content = document.getElementById('operacional-content');
@@ -3052,7 +3092,12 @@ async function carregarPremiacaoOperacional(isGestor){
   html += '<button class="subtab' + (opTabAtual==='aberta'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;aberta&quot;)">Locações abertas</button>';
   html += '<button class="subtab' + (opTabAtual==='fechada'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;fechada&quot;)">Locações fechadas</button>';
   html += '<button class="subtab' + (opTabAtual==='explicacao'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;explicacao&quot;)">Como funciona a pontuação</button>';
+  html += '<button class="subtab' + (opTabAtual==='selfies'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;selfies&quot;)">Validação de Selfies</button>';
   html += contestBannerHtml;
+  if(opTabAtual === "selfies"){
+    await opRenderValidacaoSelfies(content, html);
+    return;
+  }
   if(opTabAtual === "explicacao"){
     html += '<div class="card form-card"><h3>Como funciona a pontuação</h3>';
     html += '<p class="cardsub">Toda etapa concluída de uma locação vale 1 ponto. A selfie de uniforme do dia soma +5 pontos quando validada (ou -5 se reprovada ou expirar sem enviar).</p>';
