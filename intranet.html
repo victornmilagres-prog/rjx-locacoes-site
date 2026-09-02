@@ -1160,6 +1160,16 @@ function equipamentoParaPremio(texto){
 }
 function calcularPremioLead(equipamento){ return (equipamento === "Criodermis") ? 25 : 50; }
 
+async function leadsExcluir(id){
+  const l = (window.__leadsAtuais||[]).find(function(x){ return x.id === id; });
+  const nome = l ? l.nome : "esse lead";
+  const ok = confirm("Tem certeza que deseja excluir o lead \"" + nome + "\"?\n\nEssa ação não pode ser desfeita.");
+  if(!ok) return;
+  await sb.from("comercial_leads").delete().eq("id", id);
+  toast("Lead excluído.");
+  await carregarLeadsComercial();
+}
+
 async function carregarLeadsComercial(){
   const content = document.getElementById("comercial-content");
   content.style.maxWidth = "none";
@@ -1180,7 +1190,7 @@ async function carregarLeadsComercial(){
     '</div><input id="ld-equip-outros" placeholder="Digite o equipamento" style="display:none;margin-top:8px;max-width:280px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;"></div>';
   html += '<button class="btn btn-primary" style="margin-top:16px;" onclick="adicionarLead()">Adicionar lead</button></div>';
   html += '<div class="card" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
-  ["","Data","Nome","Telefone","Equipamento","Etapa atual","Status","Ação","Observações","Alugou"].forEach(function(h){
+  ["","Data","Nome","Telefone","Equipamento","Etapa atual","Status","Ação","Observações","Alugou",""].forEach(function(h){
     html += '<th style="text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
   });
   html += '</tr></thead><tbody id="tbody-leads"></tbody></table></div>';
@@ -1224,7 +1234,7 @@ function renderLeadsTabela(){
   const tbody = document.getElementById("tbody-leads");
   if(!tbody) return;
   const leads = window.__leadsAtuais || [];
-  if(!leads.length){ tbody.innerHTML = '<tr><td colspan="10" class="empty-hint">Nenhum lead cadastrado ainda.</td></tr>'; return; }
+  if(!leads.length){ tbody.innerHTML = '<tr><td colspan="11" class="empty-hint">Nenhum lead cadastrado ainda.</td></tr>'; return; }
   const ordenados = leads.slice().sort(function(a,b){ return a.data < b.data ? -1 : (a.data > b.data ? 1 : 0); });
   const cellStyle = "padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:12.5px;";
   tbody.innerHTML = ordenados.map(function(l){
@@ -1252,6 +1262,7 @@ function renderLeadsTabela(){
       '<td style="padding:7px 10px;border-bottom:1px solid var(--line);">' + acaoHtml + '</td>' +
       '<td style="padding:7px 10px;border-bottom:1px solid var(--line);min-width:110px;"><input value="' + escapeHtml(l.obs||"") + '" placeholder="—" style="width:100%;min-width:110px;border:1px solid transparent;background:transparent;padding:4px 6px;border-radius:4px;font-size:12.5px;font-family:inherit;white-space:normal;" onchange="leadsAtualizarObs(&quot;' + l.id + '&quot;,this.value)"></td>' +
       '<td style="' + cellStyle + '"><select style="border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:12.5px;font-family:inherit;background:#fff;" onchange="leadsAtualizarAlugou(&quot;' + l.id + '&quot;,this.value)"><option value="" ' + (alugouVal===""?"selected":"") + '>—</option><option value="sim" ' + (alugouVal==="sim"?"selected":"") + '>Sim</option><option value="nao" ' + (alugouVal==="nao"?"selected":"") + '>Não</option></select></td>' +
+      '<td style="padding:9px 10px;border-bottom:1px solid var(--line);text-align:center;"><button onclick="leadsExcluir(&quot;' + l.id + '&quot;)" title="Excluir lead" style="background:none;border:1px solid var(--alert);color:var(--alert);border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;line-height:1;">✕</button></td>' +
       "</tr>";
   }).join("");
 }
