@@ -115,6 +115,7 @@ if (!id) return res.status(400).json({ error: 'ID obrigatorio.' });
 const patchBody = {};
 if (typeof body.ativo === 'boolean') patchBody.ativo = body.ativo;
 if (body.papel) patchBody.papel = body.papel;
+if (body.nome) patchBody.nome = body.nome;
 const r = await fetch(SUPABASE_URL + '/rest/v1/usuarios?id=eq.' + id, {
 method: 'PATCH',
 headers: {
@@ -130,6 +131,33 @@ if (!r.ok) return res.status(400).json({ error: data.message || 'Falha ao atuali
 return res.status(200).json({ usuario: data[0] });
 }
 
+if (req.method === 'DELETE') {
+const body = req.body || {};
+const id = body.id;
+if (!id) return res.status(400).json({ error: 'ID obrigatorio.' });
+const delAuth = await fetch(SUPABASE_URL + '/auth/v1/admin/users/' + id, {
+method: 'DELETE',
+headers: {
+Authorization: 'Bearer ' + SERVICE_KEY,
+apikey: SERVICE_KEY
+}
+});
+if (!delAuth.ok && delAuth.status !== 404) {
+const delAuthData = await delAuth.json().catch(function(){ return {}; });
+return res.status(400).json({ error: delAuthData.msg || delAuthData.error_description || delAuthData.message || 'Falha ao excluir usuario do auth.' });
+}
+const delRow = await fetch(SUPABASE_URL + '/rest/v1/usuarios?id=eq.' + id, {
+method: 'DELETE',
+headers: {
+Authorization: 'Bearer ' + SERVICE_KEY,
+apikey: SERVICE_KEY
+}
+});
+if (!delRow.ok) {
+return res.status(400).json({ error: 'Falha ao excluir registro do usuario.' });
+}
+return res.status(200).json({ ok: true });
+}
 return res.status(405).json({ error: 'Metodo nao permitido.' });
 } catch (err) {
 return res.status(500).json({ error: err.message || 'Erro interno.' });
