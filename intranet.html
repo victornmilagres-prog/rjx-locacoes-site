@@ -3155,7 +3155,8 @@ async function carregarPremiacaoOperacional(isGestor){
           '<span style="font-size:12.5px;color:var(--gray);">' + feitas + "/" + total + ' etapas</span>' +
           '<span style="font-size:14px;color:var(--gray);">' + (aberto?"▴":"▾") + '</span></div>' +
         '</div>' +
-        (aberto ? '<div style="border-top:1px solid var(--line);padding:12px 18px;">' +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +'<input type="checkbox" id="atraso-' + loc.id + '" ' + (loc.atraso ? "checked" : "") + ' onchange="togglePremiacaoAtraso(&quot;' + loc.id + '&quot;, this.checked)">' +'<label for="atraso-' + loc.id + '" style="font-weight:600;color:var(--alert);cursor:pointer;font-size:13px;">Marcar atraso em alguma etapa (zera os pontos da loca\u00e7\u00e3o)</label>' +'</div>' +etapasHtml + '</div>' : "") +
+        (aberto ? '<div style="border-top:1px solid var(--line);padding:12px 18px;">' +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +'<input type="checkbox" id="atraso-' + loc.id + '" ' + (loc.atraso ? "checked" : "") + ' onchange="togglePremiacaoAtraso(&quot;' + loc.id + '&quot;, this.checked)">' +'<label for="atraso-' + loc.id + '" style="font-weight:600;color:var(--alert);cursor:pointer;font-size:13px;">Marcar atraso em alguma etapa (zera os pontos da loca\u00e7\u00e3o)</label>' +
+      '<button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="opFecharLocacao(&quot;' + loc.id + '&quot;)">Fechar loca\u00e7\u00e3o</button>' +'</div>' +etapasHtml + '</div>' : "") +
         '</div>';
     }).join("");
   } else {
@@ -3218,6 +3219,14 @@ async function carregarPremiacaoOperacional(isGestor){
   }  html = html.replace("%%RANKING_PLACEHOLDER%%", rankingHtml);
   content.innerHTML = html;
   document.getElementById('btn-virar-dia-premiacao').addEventListener('click', virarDiaPremiacao);
+}
+
+async function opFecharLocacao(locId){
+  const ok = confirm("Tem certeza que deseja fechar essa loca\u00e7\u00e3o?\n\nIsso vai mov\u00ea-la para 'Loca\u00e7\u00f5es fechadas' e liberar o prazo para o motorista contestar caso discorde de algo.");
+  if(!ok) return;
+  await sb.from("premiacao_locacoes").update({ status: "fechada", atualizado_em: new Date().toISOString() }).eq("id", locId);
+  toast("Loca\u00e7\u00e3o fechada.");
+  await carregarPremiacaoOperacional(true);
 }
 
 async function togglePremiacaoAtraso(locId, checked){
