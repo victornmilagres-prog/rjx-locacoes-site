@@ -1170,6 +1170,34 @@ async function leadsExcluir(id){
   await carregarLeadsComercial();
 }
 
+function leadsRenderSeletorMes(){
+  const wrap = document.getElementById("leads-mes-filtro-wrap");
+  if(!wrap) return;
+  const leads = window.__leadsAtuais || [];
+  const mesesSet = {};
+  leads.forEach(function(l){ if(l.data) mesesSet[l.data.slice(0,7)] = true; });
+  const meses = Object.keys(mesesSet).sort().reverse();
+  if(!window.__leadsMesFiltro){
+    const hoje = new Date().toISOString().slice(0,7);
+    window.__leadsMesFiltro = meses.indexOf(hoje) !== -1 ? hoje : "todos";
+  }
+  const nomesMes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  let html = '<label style="font-size:12.5px;font-weight:600;color:var(--gray);margin-right:8px;">Filtrar por mês:</label>';
+  html += '<select onchange="leadsFiltrarMes(this.value)" style="padding:6px 10px;font-size:13px;">';
+  html += '<option value="todos"' + (window.__leadsMesFiltro === "todos" ? " selected" : "") + '>Todos os meses</option>';
+  meses.forEach(function(m){
+    const partes = m.split("-");
+    const label = nomesMes[parseInt(partes[1],10)-1] + "/" + partes[0];
+    html += '<option value="' + m + '"' + (window.__leadsMesFiltro === m ? " selected" : "") + '>' + label + '</option>';
+  });
+  html += "</select>";
+  wrap.innerHTML = html;
+}
+function leadsFiltrarMes(valor){
+  window.__leadsMesFiltro = valor;
+  renderLeadsTabela();
+}
+
 async function carregarLeadsComercial(){
   const content = document.getElementById("comercial-content");
   content.style.maxWidth = "none";
@@ -1189,6 +1217,7 @@ async function carregarLeadsComercial(){
     COMISSAO_EQUIPAMENTOS.concat(["Outros"]).map(function(eq){ return '<div class="ld-equip-pill" data-eq="' + eq + '" onclick="leadsToggleEquip(this,&quot;' + eq + '&quot;)" style="border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-size:12.5px;cursor:pointer;user-select:none;background:#fff;color:var(--gray);">' + eq + '</div>'; }).join("") +
     '</div><input id="ld-equip-outros" placeholder="Digite o equipamento" style="display:none;margin-top:8px;max-width:280px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;"></div>';
   html += '<button class="btn btn-primary" style="margin-top:16px;" onclick="adicionarLead()">Adicionar lead</button></div>';
+  html += '<div id="leads-mes-filtro-wrap" style="margin-bottom:12px;"></div>';
   html += '<div class="card" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13.5px;"><thead><tr>';
   ["","Data","Nome","Telefone","Equipamento","Etapa atual","Status","Ação","Observações","Alugou",""].forEach(function(h){
     html += '<th style="text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;color:var(--gray);border-bottom:1px solid var(--line);white-space:nowrap;">' + h + '</th>';
@@ -1197,6 +1226,7 @@ async function carregarLeadsComercial(){
   content.innerHTML = html;
   document.getElementById("ld-data").value = premiacaoIsoHoje(0);
   renderLeadsAlerta();
+  leadsRenderSeletorMes();
   renderLeadsTabela();
 }
 
@@ -1233,7 +1263,8 @@ function renderLeadsAlerta(){
 function renderLeadsTabela(){
   const tbody = document.getElementById("tbody-leads");
   if(!tbody) return;
-  const leads = window.__leadsAtuais || [];
+  const todosLeadsMes = window.__leadsAtuais || [];
+  const leads = (window.__leadsMesFiltro && window.__leadsMesFiltro !== 'todos') ? todosLeadsMes.filter(function(l){ return (l.data||'').slice(0,7) === window.__leadsMesFiltro; }) : todosLeadsMes;
   if(!leads.length){ tbody.innerHTML = '<tr><td colspan="11" class="empty-hint">Nenhum lead cadastrado ainda.</td></tr>'; return; }
   const ordenados = leads.slice().sort(function(a,b){ return a.data < b.data ? -1 : (a.data > b.data ? 1 : 0); });
   const cellStyle = "padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:12.5px;";
