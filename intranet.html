@@ -1174,27 +1174,45 @@ function leadsRenderSeletorMes(){
   const wrap = document.getElementById("leads-mes-filtro-wrap");
   if(!wrap) return;
   const leads = window.__leadsAtuais || [];
-  const mesesSet = {};
-  leads.forEach(function(l){ if(l.data) mesesSet[l.data.slice(0,7)] = true; });
-  const meses = Object.keys(mesesSet).sort().reverse();
-  if(!window.__leadsMesFiltro){
-    const hoje = new Date().toISOString().slice(0,7);
-    window.__leadsMesFiltro = meses.indexOf(hoje) !== -1 ? hoje : "todos";
+  const anosSet = {};
+  leads.forEach(function(l){ if(l.data) anosSet[l.data.slice(0,4)] = true; });
+  const anos = Object.keys(anosSet).sort();
+  const hoje = new Date().toISOString().slice(0,10);
+  const anoHoje = hoje.slice(0,4);
+  const mesHoje = hoje.slice(0,7);
+  if(anos.indexOf(anoHoje) === -1) anos.push(anoHoje);
+  anos.sort();
+  if(!window.__leadsAnoFiltro){
+    window.__leadsAnoFiltro = anoHoje;
   }
-  const nomesMes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-  let html = '<label style="font-size:12.5px;font-weight:600;color:var(--gray);margin-right:8px;">Filtrar por mês:</label>';
-  html += '<select onchange="leadsFiltrarMes(this.value)" style="padding:6px 10px;font-size:13px;">';
-  html += '<option value="todos"' + (window.__leadsMesFiltro === "todos" ? " selected" : "") + '>Todos os meses</option>';
-  meses.forEach(function(m){
-    const partes = m.split("-");
-    const label = nomesMes[parseInt(partes[1],10)-1] + "/" + partes[0];
-    html += '<option value="' + m + '"' + (window.__leadsMesFiltro === m ? " selected" : "") + '>' + label + '</option>';
+  if(!window.__leadsMesFiltro){
+    window.__leadsMesFiltro = mesHoje;
+  }
+  const nomesMesAbrev = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  let html = '<div style="background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;"><div style="display:flex;gap:8px;flex-wrap:wrap;">';
+  anos.forEach(function(a){
+    html += '<button type="button" class="subtab' + (window.__leadsAnoFiltro === a ? " active" : "") + '" onclick="leadsSelecionarAno(&quot;' + a + '&quot;)">' + a + "</button>";
   });
-  html += "</select>";
+  html += "</div></div>";
+  html += '<div style="background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;"><div style="display:flex;gap:8px;flex-wrap:wrap;">';
+  html += '<button type="button" class="subtab' + (window.__leadsMesFiltro === "todos" ? " active" : "") + '" onclick="leadsFiltrarMes(&quot;todos&quot;)">Todos</button>';
+  for(let m=1; m<=12; m++){
+    const mm = (m<10?"0":"")+m;
+    const valor = window.__leadsAnoFiltro + "-" + mm;
+    html += '<button type="button" class="subtab' + (window.__leadsMesFiltro === valor ? " active" : "") + '" onclick="leadsFiltrarMes(&quot;' + valor + '&quot;)">' + nomesMesAbrev[m-1] + "</button>";
+  }
+  html += "</div></div>";
   wrap.innerHTML = html;
+}
+function leadsSelecionarAno(ano){
+  window.__leadsAnoFiltro = ano;
+  window.__leadsMesFiltro = "todos";
+  leadsRenderSeletorMes();
+  renderLeadsTabela();
 }
 function leadsFiltrarMes(valor){
   window.__leadsMesFiltro = valor;
+  leadsRenderSeletorMes();
   renderLeadsTabela();
 }
 
