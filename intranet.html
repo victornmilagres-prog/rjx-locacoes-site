@@ -243,6 +243,41 @@ textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--lin
 .summary-box .lbl{font-size:11px;color:var(--gray);text-transform:uppercase;letter-spacing:.3px;margin-top:2px;}
 .icon-btn{background:none;border:1px solid var(--line);color:var(--gray);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;line-height:1;}
 .icon-btn:hover{border-color:var(--wine);color:var(--wine);}
+
+/* ===== Módulo Equipamentos ===== */
+.filefield{border:1.5px dashed var(--line);border-radius:7px;padding:9px 11px;font-size:12px;color:var(--gray);display:flex;align-items:center;justify-content:space-between;background:#fff;cursor:pointer;gap:8px;}
+.filefield.attached{border-style:solid;border-color:var(--ok);color:var(--ok);background:#eef4ef;}
+.foto-box{border-radius:8px;background:var(--paper-soft);flex-shrink:0;position:relative;overflow:hidden;border:1px solid var(--line);cursor:pointer;}
+.foto-box img{width:100%;height:100%;object-fit:cover;display:block;}
+.foto-box.vazio{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-style:dashed;color:var(--gray);}
+.foto-box.vazio .foto-ico{font-size:17px;}
+.foto-box.vazio .foto-txt{font-size:9px;text-align:center;line-height:1.15;}
+.add-equip-btn{background:transparent;border:1.5px dashed var(--gray);color:var(--gray);padding:8px 16px;border-radius:999px;font-size:13.5px;cursor:pointer;font-family:inherit;font-weight:500;}
+.add-equip-btn:hover{border-color:var(--wine);color:var(--wine);}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.section-head h3{font-size:15px;margin:0;}
+.piece-row{display:flex;align-items:flex-start;gap:12px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.piece-row .info-full{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;}
+.piece-row .info{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.piece-row .info .mini label{font-size:9.5px;text-transform:uppercase;color:var(--gray);display:block;margin-bottom:1px;}
+.piece-row .info .mini div{font-size:12.5px;}
+.cart-filterbar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.cart-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+.cart-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;position:relative;}
+.cart-card .star{position:absolute;top:10px;right:12px;font-size:17px;cursor:pointer;color:#d8cfb4;}
+.cart-card .star.on{color:#c98a4b;}
+.cart-card .cart-top{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;}
+.cart-card .serie{font-size:15px;font-weight:600;margin-bottom:2px;}
+.cart-card .disparos{font-size:11.5px;color:var(--gray);}
+.cart-card .barra{height:6px;border-radius:4px;background:var(--paper-soft);overflow:hidden;margin-bottom:10px;}
+.cart-card .barra .fill{height:100%;background:var(--ok);}
+.cart-card .barra .fill.low{background:var(--wait);}
+.cart-card .barra .fill.empty{background:var(--alert);}
+.cart-card .linkrow{display:flex;gap:6px;margin-bottom:10px;}
+.link-btn{flex:1;text-align:center;padding:6px 0;border-radius:6px;border:1px solid var(--line);font-size:11.5px;font-weight:600;cursor:pointer;background:#fff;color:var(--gray);}
+.link-btn.active{background:var(--wine);border-color:var(--wine);color:#fff;}
+.cart-card .foot{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--gray);}
+.cart-card.acabado{opacity:.6;}
 </style>
 </head>
 <body>
@@ -2359,10 +2394,512 @@ async function selectOperacionalSubtab(tab){
   else { await carregarPremiacaoOperacional(isGestor); }
 }
 
+
+/* ===== Módulo Equipamentos (real) ===== */
+let equipEquipamentos = [];
+let equipAbaAtual = null;
+let equipCartFiltro = 'todos';
+
 async function carregarEquipamentosOperacional(){
-  const content = document.getElementById("operacional-content");
-  content.innerHTML = '<div class="card" style="padding:40px 24px;text-align:center;color:var(--gray);"><h3 style="margin-bottom:8px;">🚧 Em construção</h3><p class="cardsub" style="margin:0;">Essa aba ainda está sendo desenvolvida.</p></div>';
+  const content = document.getElementById('operacional-content');
+  const r = await sb.from('equipamentos').select('*').order('ordem');
+  if(r.error){ content.innerHTML = '<div class="card"><p>Erro ao carregar equipamentos: ' + r.error.message + '</p></div>'; return; }
+  equipEquipamentos = r.data || [];
+  if(!equipAbaAtual || (equipAbaAtual !== 'cartuchos' && !equipEquipamentos.find(e => e.id === equipAbaAtual))){
+    equipAbaAtual = equipEquipamentos.length ? equipEquipamentos[0].id : 'cartuchos';
+  }
+  content.innerHTML = '<div class="subnav" id="equip-subnav" style="align-items:center;"></div><div id="equip-conteudo"></div>';
+  equipRenderSubnav();
+  await equipRenderConteudo();
 }
+
+function equipRenderSubnav(){
+  const el = document.getElementById('equip-subnav');
+  if(!el) return;
+  let html = equipEquipamentos.map(function(e){
+    return '<button class="subtab ' + (equipAbaAtual===e.id?'active':'') + '" onclick="equipMudarAba(&quot;' + e.id + '&quot;)">' + escapeHtml(e.nome) + '</button>';
+  }).join('');
+  html += '<button class="subtab ' + (equipAbaAtual==='cartuchos'?'active':'') + '" onclick="equipMudarAba(&quot;cartuchos&quot;)">Cartuchos</button>';
+  html += '<button class="add-equip-btn" onclick="equipAbrirModalNovo()">+ Adicionar equipamento</button>';
+  el.innerHTML = html;
+}
+
+function equipMudarAba(id){
+  equipAbaAtual = id;
+  equipRenderSubnav();
+  equipRenderConteudo();
+}
+
+async function equipRenderConteudo(){
+  const el = document.getElementById('equip-conteudo');
+  if(!el) return;
+  el.innerHTML = '<p class="cardsub">Carregando...</p>';
+  if(equipAbaAtual === 'cartuchos'){
+    el.innerHTML = await equipRenderCartuchosHtml();
+    return;
+  }
+  const eq = equipEquipamentos.find(function(e){ return e.id === equipAbaAtual; });
+  if(!eq){ el.innerHTML = '<div class="card"><p>Equipamento não encontrado.</p></div>'; return; }
+  let html = equipCardCadastro(eq);
+  if(eq.tem_acessorios){
+    html += await equipRenderAcessoriosHtml(eq);
+  }
+  el.innerHTML = html;
+}
+
+function equipCardCadastro(eq){
+  const foto = eq.foto_url;
+  return '' +
+  '<div class="card">' +
+    '<h3>Dados do equipamento</h3>' +
+    '<p class="cardsub">Informações gerais de ' + escapeHtml(eq.nome) + '.</p>' +
+    '<div style="display:flex;gap:18px;">' +
+      '<input type="file" accept="image/*" id="equip-foto-input" style="display:none" onchange="equipUploadFoto(this.files[0])">' +
+      '<div class="foto-box ' + (foto?'':'vazio') + '" style="width:92px;height:92px;" onclick="document.getElementById(&quot;equip-foto-input&quot;).click()">' +
+        (foto ? '<img src="' + foto + '">' : '<span class="foto-ico">📷</span><span class="foto-txt">Adicionar<br>foto</span>') +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;flex:1;">' +
+        '<div class="field"><label>Nome do equipamento</label><input id="equip-cad-nome" value="' + escapeHtml(eq.nome) + '"></div>' +
+        '<div class="field"><label>Número de série</label><input id="equip-cad-serie" value="' + escapeHtml(eq.numero_serie||'') + '"></div>' +
+        '<div class="field"><label>Data da compra</label><input type="date" id="equip-cad-data" value="' + (eq.data_compra||'') + '"></div>' +
+        '<div class="field"><label>Número da nota fiscal</label><input id="equip-cad-nf" value="' + escapeHtml(eq.numero_nf||'') + '"></div>' +
+        '<div class="field"><label>Número da Anvisa</label><input id="equip-cad-anvisa" value="' + escapeHtml(eq.numero_anvisa||'') + '"></div>' +
+        '<div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:14px;">' +
+      equipCampoAnexo('nf', 'Anexo da nota fiscal', eq.anexo_nf_url) +
+      equipCampoAnexo('manual', 'Manual do equipamento', eq.anexo_manual_url) +
+      equipCampoAnexo('anvisa', 'Anexo da Anvisa', eq.anexo_anvisa_url) +
+    '</div>' +
+    '<div style="margin-top:14px;"><button class="btn btn-primary" onclick="equipSalvarCadastro()">Salvar equipamento</button></div>' +
+  '</div>';
+}
+
+function equipCampoAnexo(campo, label, url){
+  const attached = !!url;
+  return '<div class="field"><label>' + label + '</label>' +
+    '<input type="file" id="equip-anexo-' + campo + '-input" style="display:none" onchange="equipUploadAnexo(&quot;' + campo + '&quot;, this.files[0])">' +
+    '<div class="filefield ' + (attached?'attached':'') + '" onclick="document.getElementById(&quot;equip-anexo-' + campo + '-input&quot;).click()">' +
+      '<span>' + (attached?'✓ Arquivo anexado':'📎 Nenhum arquivo — clique para anexar') + '</span>' +
+      (attached ? '<a href="' + url + '" target="_blank" onclick="event.stopPropagation()" style="text-decoration:underline;">Ver</a>' : '<span style="text-decoration:underline;">Anexar</span>') +
+    '</div></div>';
+}
+
+async function equipUploadFoto(file){
+  if(!file) return;
+  const eq = equipEquipamentos.find(function(e){ return e.id === equipAbaAtual; });
+  if(!eq) return;
+  const url = await opUploadArquivo(file);
+  if(!url) return;
+  const upd = await sb.from('equipamentos').update({ foto_url: url }).eq('id', eq.id);
+  if(upd.error){ toast('Erro ao salvar foto: ' + upd.error.message); return; }
+  toast('Foto atualizada.');
+  await carregarEquipamentosOperacional();
+}
+
+async function equipUploadAnexo(campo, file){
+  if(!file) return;
+  const eq = equipEquipamentos.find(function(e){ return e.id === equipAbaAtual; });
+  if(!eq) return;
+  const url = await opUploadArquivo(file);
+  if(!url) return;
+  const campoDb = campo === 'nf' ? 'anexo_nf_url' : (campo === 'manual' ? 'anexo_manual_url' : 'anexo_anvisa_url');
+  const payload = {};
+  payload[campoDb] = url;
+  const upd = await sb.from('equipamentos').update(payload).eq('id', eq.id);
+  if(upd.error){ toast('Erro ao anexar arquivo: ' + upd.error.message); return; }
+  toast('Arquivo anexado.');
+  await carregarEquipamentosOperacional();
+}
+
+async function equipSalvarCadastro(){
+  const eq = equipEquipamentos.find(function(e){ return e.id === equipAbaAtual; });
+  if(!eq) return;
+  const nome = document.getElementById('equip-cad-nome').value.trim();
+  const serie = document.getElementById('equip-cad-serie').value.trim();
+  const data = document.getElementById('equip-cad-data').value || null;
+  const nf = document.getElementById('equip-cad-nf').value.trim();
+  const anvisa = document.getElementById('equip-cad-anvisa').value.trim();
+  if(!nome){ toast('Preencha o nome do equipamento.'); return; }
+  const upd = await sb.from('equipamentos').update({
+    nome: nome, numero_serie: serie || null, data_compra: data, numero_nf: nf || null, numero_anvisa: anvisa || null
+  }).eq('id', eq.id);
+  if(upd.error){ toast('Erro ao salvar: ' + upd.error.message); return; }
+  toast('Equipamento salvo.');
+  await carregarEquipamentosOperacional();
+}
+
+async function equipRenderAcessoriosHtml(eq){
+  const r = await sb.from('equipamento_acessorios').select('*').eq('equipamento_id', eq.id).order('ordem');
+  const itens = r.data || [];
+  const titulo = eq.slug === 'crio' ? 'Manoplas' : 'Acessórios';
+  const btnLabel = eq.slug === 'crio' ? '+ Adicionar manopla' : '+ Adicionar acessório';
+  let rows = itens.map(function(it, idx){ return equipAcessorioRowHtml(it, idx+1); }).join('');
+  if(!itens.length) rows = '<p class="cardsub">Nenhum item cadastrado ainda.</p>';
+  return '<div class="card">' +
+    '<div class="section-head"><h3>' + titulo + ' (' + itens.length + ')</h3><button class="btn btn-primary btn-sm" onclick="equipAcessorioAbrirModal(null)">' + btnLabel + '</button></div>' +
+    '<div class="piece-list">' + rows + '</div>' +
+  '</div>';
+}
+
+function equipAcessorioRowHtml(it, numero){
+  return '<div class="piece-row">' +
+    '<div style="width:26px;height:26px;border-radius:50%;background:var(--paper-soft);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--wine);flex-shrink:0;">' + numero + '</div>' +
+    '<div class="foto-box ' + (it.foto_url?'':'vazio') + '" style="width:44px;height:44px;flex-shrink:0;cursor:default;">' +
+      (it.foto_url ? '<img src="' + it.foto_url + '">' : '<span class="foto-ico" style="font-size:14px;">📷</span>') +
+    '</div>' +
+    '<div class="info-full">' +
+      '<div style="font-size:13.5px;font-weight:600;">' + escapeHtml(it.nome) + '</div>' +
+      '<div class="info">' +
+        '<div class="mini"><label>Número de série</label><div>' + escapeHtml(it.numero_serie || '—') + '</div></div>' +
+        '<div class="mini"><label>Nota fiscal</label><div>' + escapeHtml(it.numero_nf || '—') + '</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:5px;flex-shrink:0;">' +
+      '<button class="icon-btn" title="Editar" onclick="equipAcessorioAbrirModal(&quot;' + it.id + '&quot;)">⚙️</button>' +
+      '<button class="icon-btn" title="Remover" onclick="equipAcessorioRemover(&quot;' + it.id + '&quot;)">✕</button>' +
+    '</div>' +
+  '</div>';
+}
+
+async function equipAcessorioAbrirModal(id){
+  const eq = equipEquipamentos.find(function(e){ return e.id === equipAbaAtual; });
+  if(!eq) return;
+  let item = { nome:'', numero_serie:'', numero_nf:'', anexo_nf_url:'', foto_url:'' };
+  if(id){
+    const r = await sb.from('equipamento_acessorios').select('*').eq('id', id).maybeSingle();
+    if(r.data) item = r.data;
+  }
+  window.__equipAcessorioEditId = id;
+  window.__equipAcessorioFotoUrl = item.foto_url || '';
+  window.__equipAcessorioNfUrl = item.anexo_nf_url || '';
+  let overlay = document.getElementById('op-modal-overlay');
+  if(overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'op-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;overflow-y:auto;padding:20px 0;';
+  const rotulo = eq.slug === 'crio' ? 'manopla' : 'acessório';
+  overlay.innerHTML = '' +
+    '<div class="card form-card" style="max-width:420px;width:92%;margin:0;">' +
+      '<h3>' + (id?'Editar':'Adicionar') + ' ' + rotulo + '</h3>' +
+      '<div class="field" style="margin:12px 0;"><label>Nome</label><input id="eqac-nome" value="' + escapeHtml(item.nome) + '" placeholder="Ex: Manopla 1, Tela"></div>' +
+      '<div class="field" style="margin-bottom:12px;"><label>Número de série</label><input id="eqac-serie" value="' + escapeHtml(item.numero_serie||'') + '"></div>' +
+      '<div class="field" style="margin-bottom:12px;"><label>Número da nota fiscal</label><input id="eqac-nf" value="' + escapeHtml(item.numero_nf||'') + '"></div>' +
+      '<div class="field" style="margin-bottom:14px;">' +
+        '<label>Foto</label>' +
+        '<input type="file" accept="image/*" id="eqac-foto-input" style="display:none" onchange="equipAcessorioUploadFoto(this.files[0])">' +
+        '<div class="filefield ' + (item.foto_url?'attached':'') + '" id="eqac-foto-box" onclick="document.getElementById(&quot;eqac-foto-input&quot;).click()">' +
+          '<span>' + (item.foto_url?'✓ Foto anexada':'📷 Nenhuma foto — clique para anexar') + '</span>' +
+          '<span style="text-decoration:underline;">' + (item.foto_url?'Trocar':'Anexar') + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="field" style="margin-bottom:16px;">' +
+        '<label>Anexo da nota fiscal</label>' +
+        '<input type="file" id="eqac-nfanexo-input" style="display:none" onchange="equipAcessorioUploadNf(this.files[0])">' +
+        '<div class="filefield ' + (item.anexo_nf_url?'attached':'') + '" id="eqac-nf-box" onclick="document.getElementById(&quot;eqac-nfanexo-input&quot;).click()">' +
+          '<span>' + (item.anexo_nf_url?'✓ Arquivo anexado':'📎 Nenhum arquivo — clique para anexar') + '</span>' +
+          '<span style="text-decoration:underline;">' + (item.anexo_nf_url?'Trocar':'Anexar') + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
+        '<button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button>' +
+        '<button class="btn btn-primary" onclick="equipAcessorioSalvar()">Salvar</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+async function equipAcessorioUploadFoto(file){
+  if(!file) return;
+  const url = await opUploadArquivo(file);
+  if(!url) return;
+  window.__equipAcessorioFotoUrl = url;
+  const box = document.getElementById('eqac-foto-box');
+  if(box){ box.classList.add('attached'); box.querySelector('span').textContent = '✓ Foto anexada'; }
+  toast('Foto anexada.');
+}
+
+async function equipAcessorioUploadNf(file){
+  if(!file) return;
+  const url = await opUploadArquivo(file);
+  if(!url) return;
+  window.__equipAcessorioNfUrl = url;
+  const box = document.getElementById('eqac-nf-box');
+  if(box){ box.classList.add('attached'); box.querySelector('span').textContent = '✓ Arquivo anexado'; }
+  toast('Arquivo anexado.');
+}
+
+async function equipAcessorioSalvar(){
+  const eq = equipEquipamentos.find(function(e){ return e.id === equipAbaAtual; });
+  const nome = document.getElementById('eqac-nome').value.trim();
+  const serie = document.getElementById('eqac-serie').value.trim();
+  const nf = document.getElementById('eqac-nf').value.trim();
+  if(!nome){ toast('Digite o nome.'); return; }
+  const payload = {
+    nome: nome, numero_serie: serie || null, numero_nf: nf || null,
+    foto_url: window.__equipAcessorioFotoUrl || null,
+    anexo_nf_url: window.__equipAcessorioNfUrl || null
+  };
+  let res;
+  if(window.__equipAcessorioEditId){
+    res = await sb.from('equipamento_acessorios').update(payload).eq('id', window.__equipAcessorioEditId);
+  } else {
+    const cnt = await sb.from('equipamento_acessorios').select('id', { count:'exact', head:true }).eq('equipamento_id', eq.id);
+    payload.equipamento_id = eq.id;
+    payload.ordem = cnt.count || 0;
+    res = await sb.from('equipamento_acessorios').insert(payload);
+  }
+  if(res.error){ toast('Erro ao salvar: ' + res.error.message); return; }
+  opFecharModal();
+  toast('Salvo.');
+  await equipRenderConteudo();
+}
+
+async function equipAcessorioRemover(id){
+  if(!confirm('Remover este item?')) return;
+  const del = await sb.from('equipamento_acessorios').delete().eq('id', id);
+  if(del.error){ toast('Erro ao remover: ' + del.error.message); return; }
+  toast('Removido.');
+  await equipRenderConteudo();
+}
+
+let equipNovoTemAcessorios = null;
+
+function equipAbrirModalNovo(){
+  equipNovoTemAcessorios = null;
+  let overlay = document.getElementById('op-modal-overlay');
+  if(overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'op-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;overflow-y:auto;padding:20px 0;';
+  overlay.innerHTML = '' +
+    '<div class="card form-card" style="max-width:400px;width:92%;margin:0;">' +
+      '<h3>Adicionar equipamento</h3>' +
+      '<div class="field" style="margin:14px 0;"><label>Nome do equipamento</label><input id="equip-novo-nome" placeholder="Ex: Enduse Plus"></div>' +
+      '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">Esse equipamento tem acessórios? (manoplas, tela, etc.)</div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:16px;">' +
+        '<div class="btn btn-ghost" id="equip-novo-sim" style="flex:1;text-align:center;cursor:pointer;" onclick="equipNovoSelecionar(true)">Sim</div>' +
+        '<div class="btn btn-ghost" id="equip-novo-nao" style="flex:1;text-align:center;cursor:pointer;" onclick="equipNovoSelecionar(false)">Não</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+        '<button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button>' +
+        '<button class="btn btn-primary" onclick="equipNovoConfirmar()">Adicionar</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+function equipNovoSelecionar(valor){
+  equipNovoTemAcessorios = valor;
+  const simEl = document.getElementById('equip-novo-sim');
+  const naoEl = document.getElementById('equip-novo-nao');
+  simEl.style.background = valor===true ? 'var(--wine)' : '';
+  simEl.style.color = valor===true ? '#fff' : '';
+  simEl.style.borderColor = valor===true ? 'var(--wine)' : '';
+  naoEl.style.background = valor===false ? 'var(--wine)' : '';
+  naoEl.style.color = valor===false ? '#fff' : '';
+  naoEl.style.borderColor = valor===false ? 'var(--wine)' : '';
+}
+
+async function equipNovoConfirmar(){
+  const nome = document.getElementById('equip-novo-nome').value.trim();
+  if(!nome){ toast('Digite o nome do equipamento.'); return; }
+  if(equipNovoTemAcessorios === null){ toast('Diga se o equipamento tem acessórios.'); return; }
+  const ordem = equipEquipamentos.length ? Math.max.apply(null, equipEquipamentos.map(function(e){ return e.ordem||0; })) + 1 : 1;
+  const slugBase = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_');
+  const slug = 'custom_' + slugBase + '_' + Date.now();
+  const ins = await sb.from('equipamentos').insert({ nome: nome, slug: slug, fixo:false, tem_acessorios: equipNovoTemAcessorios, ordem: ordem }).select().maybeSingle();
+  if(ins.error){ toast('Erro ao adicionar: ' + ins.error.message); return; }
+  opFecharModal();
+  toast('Equipamento adicionado.');
+  equipAbaAtual = ins.data.id;
+  await carregarEquipamentosOperacional();
+}
+
+async function equipRenderCartuchosHtml(){
+  const r = await sb.from('cartuchos').select('*').order('created_at', { ascending:false });
+  const todos = r.data || [];
+  let filtrados;
+  if(equipCartFiltro === 'em_uso') filtrados = todos.filter(function(c){ return c.em_uso; });
+  else if(equipCartFiltro === 'mpt1') filtrados = todos.filter(function(c){ return c.vinculo === 'mpt1'; });
+  else if(equipCartFiltro === 'mpt2') filtrados = todos.filter(function(c){ return c.vinculo === 'mpt2'; });
+  else if(equipCartFiltro === 'estoque') filtrados = todos.filter(function(c){ return c.vinculo === 'none' && c.disparos_restantes > 0; });
+  else if(equipCartFiltro === 'acabados') filtrados = todos.filter(function(c){ return c.disparos_restantes <= 0; });
+  else filtrados = todos.filter(function(c){ return c.disparos_restantes > 0; });
+
+  function filtroBtn(id, label){
+    return '<button class="subtab ' + (equipCartFiltro===id?'active':'') + '" onclick="equipCartMudarFiltro(&quot;' + id + '&quot;)">' + label + '</button>';
+  }
+
+  let cardsHtml = filtrados.map(function(c){ return equipCartuchoCardHtml(c); }).join('');
+  if(!filtrados.length) cardsHtml = '<p class="cardsub">Nenhum cartucho nessa categoria.</p>';
+
+  return '' +
+  '<div class="cart-filterbar">' +
+    filtroBtn('todos','Todos') +
+    filtroBtn('em_uso','Em uso ★') +
+    filtroBtn('mpt1','MPT 1') +
+    filtroBtn('mpt2','MPT 2') +
+    filtroBtn('estoque','Em estoque') +
+    '<span style="margin-left:auto;">' + filtroBtn('acabados','Cartuchos acabados') + '</span>' +
+  '</div>' +
+  '<div class="card">' +
+    '<div class="section-head"><h3>Cartuchos Ultraformer</h3><button class="btn btn-primary btn-sm" onclick="equipCartuchoAbrirModal(null)">+ Adicionar cartucho</button></div>' +
+    '<div class="cart-grid">' + cardsHtml + '</div>' +
+  '</div>';
+}
+
+function equipCartMudarFiltro(f){
+  equipCartFiltro = f;
+  equipRenderConteudo();
+}
+
+function equipCartuchoCardHtml(c){
+  const pct = c.disparos_total > 0 ? Math.round((c.disparos_restantes/c.disparos_total)*100) : 0;
+  const cls = pct<=0 ? 'empty' : (pct<25 ? 'low' : '');
+  const acabado = c.disparos_restantes <= 0;
+  return '<div class="cart-card ' + (acabado?'acabado':'') + '">' +
+    '<div class="star ' + (c.em_uso?'on':'') + '" onclick="equipCartuchoToggleUso(&quot;' + c.id + '&quot;, ' + (!c.em_uso) + ')">★</div>' +
+    '<div class="cart-top">' +
+      '<div class="foto-box ' + (c.foto_url?'':'vazio') + '" style="width:42px;height:42px;cursor:default;">' +
+        (c.foto_url ? '<img src="' + c.foto_url + '">' : '<span class="foto-ico" style="font-size:14px;">📷</span>') +
+      '</div>' +
+      '<div>' +
+        '<div class="serie">' + escapeHtml(c.numero_serie) + '</div>' +
+        '<div class="disparos">' + c.disparos_restantes + ' / ' + c.disparos_total + ' disparos restantes</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="barra"><div class="fill ' + cls + '" style="width:' + Math.max(pct,0) + '%;"></div></div>' +
+    '<div class="linkrow">' +
+      '<div class="link-btn ' + (c.vinculo==='mpt1'?'active':'') + '" onclick="equipCartuchoSetVinculo(&quot;' + c.id + '&quot;,&quot;mpt1&quot;)">MPT 1</div>' +
+      '<div class="link-btn ' + (c.vinculo==='mpt2'?'active':'') + '" onclick="equipCartuchoSetVinculo(&quot;' + c.id + '&quot;,&quot;mpt2&quot;)">MPT 2</div>' +
+      '<div class="link-btn ' + (c.vinculo==='none'?'active':'') + '" onclick="equipCartuchoSetVinculo(&quot;' + c.id + '&quot;,&quot;none&quot;)">Estoque</div>' +
+    '</div>' +
+    '<div class="foot"><span>' + escapeHtml(c.numero_nf||'sem NF') + '</span>' +
+      '<span style="display:flex;gap:8px;">' +
+        (c.anexo_nf_url ? '<a href="' + c.anexo_nf_url + '" target="_blank" style="text-decoration:underline;">Ver anexo</a>' : '') +
+        '<span style="text-decoration:underline;cursor:pointer;" onclick="equipCartuchoAbrirModal(&quot;' + c.id + '&quot;)">Editar</span>' +
+      '</span>' +
+    '</div>' +
+  '</div>';
+}
+
+async function equipCartuchoToggleUso(id, valor){
+  const upd = await sb.from('cartuchos').update({ em_uso: valor }).eq('id', id);
+  if(upd.error){ toast('Erro: ' + upd.error.message); return; }
+  await equipRenderConteudo();
+}
+
+async function equipCartuchoSetVinculo(id, vinculo){
+  const upd = await sb.from('cartuchos').update({ vinculo: vinculo }).eq('id', id);
+  if(upd.error){ toast('Erro: ' + upd.error.message); return; }
+  await equipRenderConteudo();
+}
+
+async function equipCartuchoAbrirModal(id){
+  let item = { numero_serie:'', numero_nf:'', anexo_nf_url:'', foto_url:'', disparos_total:400, disparos_restantes:400 };
+  if(id){
+    const r = await sb.from('cartuchos').select('*').eq('id', id).maybeSingle();
+    if(r.data) item = r.data;
+  }
+  window.__cartEditId = id;
+  window.__cartFotoUrl = item.foto_url || '';
+  window.__cartNfUrl = item.anexo_nf_url || '';
+  let overlay = document.getElementById('op-modal-overlay');
+  if(overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'op-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;overflow-y:auto;padding:20px 0;';
+  overlay.innerHTML = '' +
+    '<div class="card form-card" style="max-width:420px;width:92%;margin:0;">' +
+      '<h3>' + (id?'Editar':'Adicionar') + ' cartucho</h3>' +
+      '<div class="field" style="margin:12px 0;"><label>Número de série</label><input id="cart-serie" value="' + escapeHtml(item.numero_serie||'') + '"></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">' +
+        '<div class="field"><label>Disparos comprados</label><input type="number" id="cart-total" value="' + (item.disparos_total||0) + '"></div>' +
+        '<div class="field"><label>Disparos restantes</label><input type="number" id="cart-restantes" value="' + (item.disparos_restantes||0) + '"></div>' +
+      '</div>' +
+      '<div class="field" style="margin-bottom:12px;"><label>Número da nota fiscal</label><input id="cart-nf" value="' + escapeHtml(item.numero_nf||'') + '"></div>' +
+      '<div class="field" style="margin-bottom:12px;">' +
+        '<label>Foto</label>' +
+        '<input type="file" accept="image/*" id="cart-foto-input" style="display:none" onchange="equipCartuchoUploadFoto(this.files[0])">' +
+        '<div class="filefield ' + (item.foto_url?'attached':'') + '" id="cart-foto-box" onclick="document.getElementById(&quot;cart-foto-input&quot;).click()">' +
+          '<span>' + (item.foto_url?'✓ Foto anexada':'📷 Nenhuma foto — clique para anexar') + '</span>' +
+          '<span style="text-decoration:underline;">' + (item.foto_url?'Trocar':'Anexar') + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="field" style="margin-bottom:16px;">' +
+        '<label>Anexo da nota fiscal</label>' +
+        '<input type="file" id="cart-nfanexo-input" style="display:none" onchange="equipCartuchoUploadNf(this.files[0])">' +
+        '<div class="filefield ' + (item.anexo_nf_url?'attached':'') + '" id="cart-nf-box" onclick="document.getElementById(&quot;cart-nfanexo-input&quot;).click()">' +
+          '<span>' + (item.anexo_nf_url?'✓ Arquivo anexado':'📎 Nenhum arquivo — clique para anexar') + '</span>' +
+          '<span style="text-decoration:underline;">' + (item.anexo_nf_url?'Trocar':'Anexar') + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<div>' + (id ? ('<button class="btn btn-ghost" onclick="equipCartuchoRemover(&quot;' + id + '&quot;)">Excluir</button>') : '') + '</div>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button>' +
+          '<button class="btn btn-primary" onclick="equipCartuchoSalvar()">Salvar</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+async function equipCartuchoUploadFoto(file){
+  if(!file) return;
+  const url = await opUploadArquivo(file);
+  if(!url) return;
+  window.__cartFotoUrl = url;
+  const box = document.getElementById('cart-foto-box');
+  if(box){ box.classList.add('attached'); box.querySelector('span').textContent = '✓ Foto anexada'; }
+  toast('Foto anexada.');
+}
+
+async function equipCartuchoUploadNf(file){
+  if(!file) return;
+  const url = await opUploadArquivo(file);
+  if(!url) return;
+  window.__cartNfUrl = url;
+  const box = document.getElementById('cart-nf-box');
+  if(box){ box.classList.add('attached'); box.querySelector('span').textContent = '✓ Arquivo anexado'; }
+  toast('Arquivo anexado.');
+}
+
+async function equipCartuchoSalvar(){
+  const serie = document.getElementById('cart-serie').value.trim();
+  const total = parseInt(document.getElementById('cart-total').value) || 0;
+  const restantes = parseInt(document.getElementById('cart-restantes').value) || 0;
+  const nf = document.getElementById('cart-nf').value.trim();
+  if(!serie){ toast('Digite o número de série.'); return; }
+  const payload = {
+    numero_serie: serie, disparos_total: total, disparos_restantes: restantes,
+    numero_nf: nf || null, foto_url: window.__cartFotoUrl || null, anexo_nf_url: window.__cartNfUrl || null
+  };
+  let res;
+  if(window.__cartEditId){
+    res = await sb.from('cartuchos').update(payload).eq('id', window.__cartEditId);
+  } else {
+    payload.em_uso = false;
+    payload.vinculo = 'none';
+    res = await sb.from('cartuchos').insert(payload);
+  }
+  if(res.error){ toast('Erro ao salvar: ' + res.error.message); return; }
+  opFecharModal();
+  toast('Cartucho salvo.');
+  await equipRenderConteudo();
+}
+
+async function equipCartuchoRemover(id){
+  if(!confirm('Remover este cartucho? O histórico será perdido.')) return;
+  const del = await sb.from('cartuchos').delete().eq('id', id);
+  if(del.error){ toast('Erro ao remover: ' + del.error.message); return; }
+  opFecharModal();
+  toast('Removido.');
+  await equipRenderConteudo();
+}
+
 
 // ================== MANUTENCOES ==================
 
