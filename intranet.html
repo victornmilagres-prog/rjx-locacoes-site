@@ -2724,9 +2724,8 @@ async function equipRenderCartuchosHtml(){
   if(equipCartFiltro === 'em_uso') filtrados = todos.filter(function(c){ return c.em_uso; });
   else if(equipCartFiltro === 'mpt1') filtrados = todos.filter(function(c){ return c.vinculo === 'mpt1'; });
   else if(equipCartFiltro === 'mpt2') filtrados = todos.filter(function(c){ return c.vinculo === 'mpt2'; });
-  else if(equipCartFiltro === 'estoque') filtrados = todos.filter(function(c){ return c.vinculo === 'none' && c.disparos_restantes > 0; });
-  else if(equipCartFiltro === 'acabados') filtrados = todos.filter(function(c){ return c.disparos_restantes <= 0; });
-  else filtrados = todos.filter(function(c){ return c.disparos_restantes > 0; });
+  else if(equipCartFiltro === 'estoque') filtrados = todos.filter(function(c){ return c.vinculo === 'none'; });
+  else filtrados = todos;
 
   function filtroBtn(id, label){
     return '<button class="subtab ' + (equipCartFiltro===id?'active':'') + '" onclick="equipCartMudarFiltro(&quot;' + id + '&quot;)">' + label + '</button>';
@@ -2742,7 +2741,6 @@ async function equipRenderCartuchosHtml(){
     filtroBtn('mpt1','MPT 1') +
     filtroBtn('mpt2','MPT 2') +
     filtroBtn('estoque','Em estoque') +
-    '<span style="margin-left:auto;">' + filtroBtn('acabados','Cartuchos acabados') + '</span>' +
   '</div>' +
   '<div class="card">' +
     '<div class="section-head"><h3>Cartuchos Ultraformer</h3><button class="btn btn-primary btn-sm" onclick="equipCartuchoAbrirModal(null)">+ Adicionar cartucho</button></div>' +
@@ -2750,27 +2748,25 @@ async function equipRenderCartuchosHtml(){
   '</div>';
 }
 
+
 function equipCartMudarFiltro(f){
   equipCartFiltro = f;
   equipRenderConteudo();
 }
 
 function equipCartuchoCardHtml(c){
-  const pct = c.disparos_total > 0 ? Math.round((c.disparos_restantes/c.disparos_total)*100) : 0;
-  const cls = pct<=0 ? 'empty' : (pct<25 ? 'low' : '');
-  const acabado = c.disparos_restantes <= 0;
-  return '<div class="cart-card ' + (acabado?'acabado':'') + '">' +
+  return '<div class="cart-card">' +
     '<div class="star ' + (c.em_uso?'on':'') + '" onclick="equipCartuchoToggleUso(&quot;' + c.id + '&quot;, ' + (!c.em_uso) + ')">★</div>' +
     '<div class="cart-top">' +
       '<div class="foto-box ' + (c.foto_url?'':'vazio') + '" style="width:42px;height:42px;cursor:default;">' +
         (c.foto_url ? '<img src="' + c.foto_url + '">' : '<span class="foto-ico" style="font-size:14px;">📷</span>') +
       '</div>' +
       '<div>' +
-        '<div class="serie">' + escapeHtml(c.numero_serie) + '</div>' +
-        '<div class="disparos">' + c.disparos_restantes + ' / ' + c.disparos_total + ' disparos restantes</div>' +
+        '<div class="serie">' + escapeHtml(c.tipo || c.numero_serie || 'Cartucho') + '</div>' +
+        '<div class="disparos">Nº série: ' + escapeHtml(c.numero_serie || '—') + '</div>' +
+        '<div class="disparos">' + (c.disparos_total||0) + ' disparos comprados</div>' +
       '</div>' +
     '</div>' +
-    '<div class="barra"><div class="fill ' + cls + '" style="width:' + Math.max(pct,0) + '%;"></div></div>' +
     '<div class="linkrow">' +
       '<div class="link-btn ' + (c.vinculo==='mpt1'?'active':'') + '" onclick="equipCartuchoSetVinculo(&quot;' + c.id + '&quot;,&quot;mpt1&quot;)">MPT 1</div>' +
       '<div class="link-btn ' + (c.vinculo==='mpt2'?'active':'') + '" onclick="equipCartuchoSetVinculo(&quot;' + c.id + '&quot;,&quot;mpt2&quot;)">MPT 2</div>' +
@@ -2785,6 +2781,7 @@ function equipCartuchoCardHtml(c){
   '</div>';
 }
 
+
 async function equipCartuchoToggleUso(id, valor){
   const upd = await sb.from('cartuchos').update({ em_uso: valor }).eq('id', id);
   if(upd.error){ toast('Erro: ' + upd.error.message); return; }
@@ -2798,7 +2795,7 @@ async function equipCartuchoSetVinculo(id, vinculo){
 }
 
 async function equipCartuchoAbrirModal(id){
-  let item = { numero_serie:'', numero_nf:'', anexo_nf_url:'', foto_url:'', disparos_total:400, disparos_restantes:400 };
+  let item = { numero_serie:'', numero_nf:'', anexo_nf_url:'', foto_url:'', disparos_total:400, tipo:'' };
   if(id){
     const r = await sb.from('cartuchos').select('*').eq('id', id).maybeSingle();
     if(r.data) item = r.data;
@@ -2814,10 +2811,10 @@ async function equipCartuchoAbrirModal(id){
   overlay.innerHTML = '' +
     '<div class="card form-card" style="max-width:420px;width:92%;margin:0;">' +
       '<h3>' + (id?'Editar':'Adicionar') + ' cartucho</h3>' +
-      '<div class="field" style="margin:12px 0;"><label>Número de série</label><input id="cart-serie" value="' + escapeHtml(item.numero_serie||'') + '"></div>' +
+      '<div class="field" style="margin:12px 0;"><label>Tipo do cartucho</label><input id="cart-tipo" value="' + escapeHtml(item.tipo||'') + '" placeholder="Ex: Booster 3.0mm"></div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">' +
         '<div class="field"><label>Disparos comprados</label><input type="number" id="cart-total" value="' + (item.disparos_total||0) + '"></div>' +
-        '<div class="field"><label>Disparos restantes</label><input type="number" id="cart-restantes" value="' + (item.disparos_restantes||0) + '"></div>' +
+        '<div class="field"><label>Número de série</label><input id="cart-serie" value="' + escapeHtml(item.numero_serie||'') + '"></div>' +
       '</div>' +
       '<div class="field" style="margin-bottom:12px;"><label>Número da nota fiscal</label><input id="cart-nf" value="' + escapeHtml(item.numero_nf||'') + '"></div>' +
       '<div class="field" style="margin-bottom:12px;">' +
@@ -2847,6 +2844,7 @@ async function equipCartuchoAbrirModal(id){
   document.body.appendChild(overlay);
 }
 
+
 async function equipCartuchoUploadFoto(file){
   if(!file) return;
   const url = await opUploadArquivo(file);
@@ -2868,13 +2866,13 @@ async function equipCartuchoUploadNf(file){
 }
 
 async function equipCartuchoSalvar(){
-  const serie = document.getElementById('cart-serie').value.trim();
+  const tipo = document.getElementById('cart-tipo').value.trim();
   const total = parseInt(document.getElementById('cart-total').value) || 0;
-  const restantes = parseInt(document.getElementById('cart-restantes').value) || 0;
+  const serie = document.getElementById('cart-serie').value.trim();
   const nf = document.getElementById('cart-nf').value.trim();
   if(!serie){ toast('Digite o número de série.'); return; }
   const payload = {
-    numero_serie: serie, disparos_total: total, disparos_restantes: restantes,
+    tipo: tipo || null, numero_serie: serie, disparos_total: total, disparos_restantes: total,
     numero_nf: nf || null, foto_url: window.__cartFotoUrl || null, anexo_nf_url: window.__cartNfUrl || null
   };
   let res;
@@ -2890,6 +2888,7 @@ async function equipCartuchoSalvar(){
   toast('Cartucho salvo.');
   await equipRenderConteudo();
 }
+
 
 async function equipCartuchoRemover(id){
   if(!confirm('Remover este cartucho? O histórico será perdido.')) return;
