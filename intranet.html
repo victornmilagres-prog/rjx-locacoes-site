@@ -244,6 +244,23 @@ textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--lin
 .icon-btn{background:none;border:1px solid var(--line);color:var(--gray);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;line-height:1;}
 .icon-btn:hover{border-color:var(--wine);color:var(--wine);}
 
+/* ===== Cartuchos v2: anexos separados + descarte ===== */
+.foot-new{padding-top:10px;border-top:1px solid var(--line);}
+.anexo-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;margin-bottom:5px;}
+.anexo-row:last-of-type{margin-bottom:8px;}
+.anexo-label{display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-weight:600;}
+.anexo-tag{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:1px 6px;border-radius:4px;background:var(--info-bg);color:var(--info);}
+.anexo-tag.contrato{background:var(--ok-bg);color:var(--ok);}
+.anexo-link{color:var(--wine);text-decoration:underline;font-size:12px;cursor:pointer;}
+.bottom-row{display:flex;justify-content:space-between;align-items:center;margin-top:2px;}
+.zerou-link{color:var(--alert);text-decoration:underline;font-size:11.5px;cursor:pointer;font-weight:600;}
+.restaurar-link{color:var(--ok);text-decoration:underline;font-size:11.5px;cursor:pointer;font-weight:600;}
+.editar-link{text-decoration:underline;cursor:pointer;font-size:12px;color:var(--gray);}
+.cart-card.descartado{opacity:.65;background:var(--paper-soft);}
+.link-btn.disabled{opacity:.5;pointer-events:none;}
+.badge-descartado{display:inline-block;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:2px 7px;border-radius:4px;background:var(--alert-bg);color:var(--alert);margin-bottom:6px;}
+.subtab-discard.active{background:var(--alert);border-color:var(--alert);}
+
 /* ===== Módulo Equipamentos ===== */
 .filefield{border:1.5px dashed var(--line);border-radius:7px;padding:9px 11px;font-size:12px;color:var(--gray);display:flex;align-items:center;justify-content:space-between;background:#fff;cursor:pointer;gap:8px;}
 .filefield.attached{border-style:solid;border-color:var(--ok);color:var(--ok);background:#eef4ef;}
@@ -2720,15 +2737,17 @@ async function equipNovoConfirmar(){
 async function equipRenderCartuchosHtml(){
   const r = await sb.from('cartuchos').select('*').order('created_at', { ascending:false });
   const todos = r.data || [];
+  const ativos = todos.filter(function(c){ return !c.descartado; });
   let filtrados;
-  if(equipCartFiltro === 'em_uso') filtrados = todos.filter(function(c){ return c.em_uso; });
-  else if(equipCartFiltro === 'mpt1') filtrados = todos.filter(function(c){ return c.vinculo === 'mpt1'; });
-  else if(equipCartFiltro === 'mpt2') filtrados = todos.filter(function(c){ return c.vinculo === 'mpt2'; });
-  else if(equipCartFiltro === 'estoque') filtrados = todos.filter(function(c){ return c.vinculo === 'none'; });
-  else filtrados = todos;
+  if(equipCartFiltro === 'descartados') filtrados = todos.filter(function(c){ return c.descartado; });
+  else if(equipCartFiltro === 'em_uso') filtrados = ativos.filter(function(c){ return c.em_uso; });
+  else if(equipCartFiltro === 'mpt1') filtrados = ativos.filter(function(c){ return c.vinculo === 'mpt1'; });
+  else if(equipCartFiltro === 'mpt2') filtrados = ativos.filter(function(c){ return c.vinculo === 'mpt2'; });
+  else if(equipCartFiltro === 'estoque') filtrados = ativos.filter(function(c){ return c.vinculo === 'none'; });
+  else filtrados = ativos;
 
-  function filtroBtn(id, label){
-    return '<button class="subtab ' + (equipCartFiltro===id?'active':'') + '" onclick="equipCartMudarFiltro(&quot;' + id + '&quot;)">' + label + '</button>';
+  function filtroBtn(id, label, discard){
+    return '<button class="subtab ' + (equipCartFiltro===id?'active':'') + (discard?' subtab-discard':'') + '" onclick="equipCartMudarFiltro(&quot;' + id + '&quot;)">' + label + '</button>';
   }
 
   let cardsHtml = filtrados.map(function(c){ return equipCartuchoCardHtml(c); }).join('');
@@ -2741,6 +2760,7 @@ async function equipRenderCartuchosHtml(){
     filtroBtn('mpt1','MPT 1') +
     filtroBtn('mpt2','MPT 2') +
     filtroBtn('estoque','Em estoque') +
+    filtroBtn('descartados','Descartados', true) +
   '</div>' +
   '<div class="card">' +
     '<div class="section-head"><h3>Cartuchos Ultraformer</h3><button class="btn btn-primary btn-sm" onclick="equipCartuchoAbrirModal(null)">+ Adicionar cartucho</button></div>' +
@@ -2749,14 +2769,16 @@ async function equipRenderCartuchosHtml(){
 }
 
 
+
 function equipCartMudarFiltro(f){
   equipCartFiltro = f;
   equipRenderConteudo();
 }
 
 function equipCartuchoCardHtml(c){
-  return '<div class="cart-card">' +
-    '<div class="star ' + (c.em_uso?'on':'') + '" onclick="equipCartuchoToggleUso(&quot;' + c.id + '&quot;, ' + (!c.em_uso) + ')">★</div>' +
+  const d = !!c.descartado;
+  return '<div class="cart-card ' + (d?'descartado':'') + '">' +
+    (d ? '<span class="badge-descartado">Descartado</span>' : '<div class="star ' + (c.em_uso?'on':'') + '" onclick="equipCartuchoToggleUso(&quot;' + c.id + '&quot;, ' + (!c.em_uso) + ')">★</div>') +
     '<div class="cart-top">' +
       '<div class="foto-box ' + (c.foto_url?'':'vazio') + '" style="width:42px;height:42px;cursor:default;">' +
         (c.foto_url ? '<img src="' + c.foto_url + '">' : '<span class="foto-ico" style="font-size:14px;">📷</span>') +
@@ -2768,18 +2790,23 @@ function equipCartuchoCardHtml(c){
       '</div>' +
     '</div>' +
     '<div class="linkrow">' +
-      '<div class="link-btn ' + (c.vinculo==='mpt1'?'active':'') + '" onclick="equipCartuchoSetVinculo(&quot;' + c.id + '&quot;,&quot;mpt1&quot;)">MPT 1</div>' +
-      '<div class="link-btn ' + (c.vinculo==='mpt2'?'active':'') + '" onclick="equipCartuchoSetVinculo(&quot;' + c.id + '&quot;,&quot;mpt2&quot;)">MPT 2</div>' +
-      '<div class="link-btn ' + (c.vinculo==='none'?'active':'') + '" onclick="equipCartuchoSetVinculo(&quot;' + c.id + '&quot;,&quot;none&quot;)">Estoque</div>' +
+      '<div class="link-btn ' + (c.vinculo==='mpt1'?'active':'') + (d?' disabled':'') + '" ' + (d?'':'onclick="equipCartuchoSetVinculo(&quot;' + c.id + '&quot;,&quot;mpt1&quot;)"') + '>MPT 1</div>' +
+      '<div class="link-btn ' + (c.vinculo==='mpt2'?'active':'') + (d?' disabled':'') + '" ' + (d?'':'onclick="equipCartuchoSetVinculo(&quot;' + c.id + '&quot;,&quot;mpt2&quot;)"') + '>MPT 2</div>' +
+      '<div class="link-btn ' + (c.vinculo==='none'?'active':'') + (d?' disabled':'') + '" ' + (d?'':'onclick="equipCartuchoSetVinculo(&quot;' + c.id + '&quot;,&quot;none&quot;)"') + '>Estoque</div>' +
     '</div>' +
-    '<div class="foot"><span>' + escapeHtml(c.numero_nf||'sem NF') + '</span>' +
-      '<span style="display:flex;gap:8px;">' +
-        (c.anexo_nf_url ? '<a href="' + c.anexo_nf_url + '" target="_blank" style="text-decoration:underline;">Ver anexo</a>' : '') +
-        '<span style="text-decoration:underline;cursor:pointer;" onclick="equipCartuchoAbrirModal(&quot;' + c.id + '&quot;)">Editar</span>' +
-      '</span>' +
+    '<div class="foot-new">' +
+      '<div class="anexo-row"><div class="anexo-label"><span class="anexo-tag">NFe</span> ' + escapeHtml(c.numero_nf||'sem NF') + '</div>' +
+        (c.anexo_nf_url ? '<a href="' + c.anexo_nf_url + '" target="_blank" class="anexo-link">Ver</a>' : '') +
+      '</div>' +
+      (c.anexo_contrato_url ? ('<div class="anexo-row"><div class="anexo-label"><span class="anexo-tag contrato">Contrato</span></div><a href="' + c.anexo_contrato_url + '" target="_blank" class="anexo-link">Ver</a></div>') : '') +
+      '<div class="bottom-row">' +
+        (d ? ('<span class="restaurar-link" onclick="equipCartuchoRestaurar(&quot;' + c.id + '&quot;)">Restaurar</span>') : ('<span class="zerou-link" onclick="equipCartuchoDescartar(&quot;' + c.id + '&quot;)">Zerou estoque</span>')) +
+        '<span class="editar-link" onclick="equipCartuchoAbrirModal(&quot;' + c.id + '&quot;)">Editar</span>' +
+      '</div>' +
     '</div>' +
   '</div>';
 }
+
 
 
 async function equipCartuchoToggleUso(id, valor){
@@ -2795,7 +2822,7 @@ async function equipCartuchoSetVinculo(id, vinculo){
 }
 
 async function equipCartuchoAbrirModal(id){
-  let item = { numero_serie:'', numero_nf:'', anexo_nf_url:'', foto_url:'', disparos_total:400, tipo:'' };
+  let item = { numero_serie:'', numero_nf:'', anexo_nf_url:'', anexo_contrato_url:'', foto_url:'', disparos_total:400, tipo:'' };
   if(id){
     const r = await sb.from('cartuchos').select('*').eq('id', id).maybeSingle();
     if(r.data) item = r.data;
@@ -2803,6 +2830,7 @@ async function equipCartuchoAbrirModal(id){
   window.__cartEditId = id;
   window.__cartFotoUrl = item.foto_url || '';
   window.__cartNfUrl = item.anexo_nf_url || '';
+  window.__cartContratoUrl = item.anexo_contrato_url || '';
   let overlay = document.getElementById('op-modal-overlay');
   if(overlay) overlay.remove();
   overlay = document.createElement('div');
@@ -2825,12 +2853,20 @@ async function equipCartuchoAbrirModal(id){
           '<span style="text-decoration:underline;">' + (item.foto_url?'Trocar':'Anexar') + '</span>' +
         '</div>' +
       '</div>' +
-      '<div class="field" style="margin-bottom:16px;">' +
+      '<div class="field" style="margin-bottom:12px;">' +
         '<label>Anexo da nota fiscal</label>' +
         '<input type="file" id="cart-nfanexo-input" style="display:none" onchange="equipCartuchoUploadNf(this.files[0])">' +
         '<div class="filefield ' + (item.anexo_nf_url?'attached':'') + '" id="cart-nf-box" onclick="document.getElementById(&quot;cart-nfanexo-input&quot;).click()">' +
           '<span>' + (item.anexo_nf_url?'✓ Arquivo anexado':'📎 Nenhum arquivo — clique para anexar') + '</span>' +
           '<span style="text-decoration:underline;">' + (item.anexo_nf_url?'Trocar':'Anexar') + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="field" style="margin-bottom:16px;">' +
+        '<label>Contrato de compra e venda</label>' +
+        '<input type="file" id="cart-contrato-input" style="display:none" onchange="equipCartuchoUploadContrato(this.files[0])">' +
+        '<div class="filefield ' + (item.anexo_contrato_url?'attached':'') + '" id="cart-contrato-box" onclick="document.getElementById(&quot;cart-contrato-input&quot;).click()">' +
+          '<span>' + (item.anexo_contrato_url?'✓ Arquivo anexado':'📎 Nenhum arquivo — clique para anexar') + '</span>' +
+          '<span style="text-decoration:underline;">' + (item.anexo_contrato_url?'Trocar':'Anexar') + '</span>' +
         '</div>' +
       '</div>' +
       '<div style="display:flex;justify-content:space-between;align-items:center;">' +
@@ -2843,6 +2879,7 @@ async function equipCartuchoAbrirModal(id){
     '</div>';
   document.body.appendChild(overlay);
 }
+
 
 
 async function equipCartuchoUploadFoto(file){
@@ -2873,7 +2910,8 @@ async function equipCartuchoSalvar(){
   if(!serie){ toast('Digite o número de série.'); return; }
   const payload = {
     tipo: tipo || null, numero_serie: serie, disparos_total: total, disparos_restantes: total,
-    numero_nf: nf || null, foto_url: window.__cartFotoUrl || null, anexo_nf_url: window.__cartNfUrl || null
+    numero_nf: nf || null, foto_url: window.__cartFotoUrl || null,
+    anexo_nf_url: window.__cartNfUrl || null, anexo_contrato_url: window.__cartContratoUrl || null
   };
   let res;
   if(window.__cartEditId){
@@ -2881,6 +2919,7 @@ async function equipCartuchoSalvar(){
   } else {
     payload.em_uso = false;
     payload.vinculo = 'none';
+    payload.descartado = false;
     res = await sb.from('cartuchos').insert(payload);
   }
   if(res.error){ toast('Erro ao salvar: ' + res.error.message); return; }
@@ -2888,6 +2927,31 @@ async function equipCartuchoSalvar(){
   toast('Cartucho salvo.');
   await equipRenderConteudo();
 }
+
+async function equipCartuchoUploadContrato(file){
+  if(!file) return;
+  const url = await opUploadArquivo(file);
+  if(!url) return;
+  window.__cartContratoUrl = url;
+  const box = document.getElementById('cart-contrato-box');
+  if(box){ box.classList.add('attached'); box.querySelector('span').textContent = '✓ Arquivo anexado'; }
+  toast('Arquivo anexado.');
+}
+
+async function equipCartuchoDescartar(id){
+  const upd = await sb.from('cartuchos').update({ descartado: true }).eq('id', id);
+  if(upd.error){ toast('Erro: ' + upd.error.message); return; }
+  toast('Cartucho movido para Descartados.');
+  await equipRenderConteudo();
+}
+
+async function equipCartuchoRestaurar(id){
+  const upd = await sb.from('cartuchos').update({ descartado: false }).eq('id', id);
+  if(upd.error){ toast('Erro: ' + upd.error.message); return; }
+  toast('Cartucho restaurado.');
+  await equipRenderConteudo();
+}
+
 
 
 async function equipCartuchoRemover(id){
