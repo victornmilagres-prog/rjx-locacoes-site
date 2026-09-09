@@ -3898,13 +3898,13 @@ async function carregarPremiacaoOperacional(isGestor){
   const locIdsMesMet = locsMesMet.map(function(l){ return l.id; });
   const rEtapasMet = locIdsMesMet.length ? await sb.from("premiacao_etapas").select("concluida").in("locacao_id", locIdsMesMet) : { data: [] };
   const pontosDistribuidosMet = (rEtapasMet.data||[]).filter(function(e){ return e.concluida; }).length;
-  const rSelfiesMet = await sb.from("premiacao_selfies_dia").select("id").eq("validada", true).like("data_ref", mesAtualMet + "-%");
+  const rSelfiesMet = await sb.from("premiacao_selfies_dia").select("motorista_id").not("validada", "is", null).like("data_ref", mesAtualMet + "-%");
   const selfiesValidadasMet = (rSelfiesMet.data||[]).length;
   const locacoesComAtrasoMet = locsMesMet.filter(function(l){ return l.atraso; }).length;
   html += '<div class="metrics">' +
     '<div class="metric"><div class="num">' + locsMesMet.length + '</div><div class="lbl">Locações no mês</div></div>' +
     '<div class="metric"><div class="num">' + pontosDistribuidosMet + '</div><div class="lbl">Pontos distribuídos</div></div>' +
-    '<div class="metric"><div class="num">' + selfiesValidadasMet + '</div><div class="lbl">Selfies validadas</div></div>' +
+    '<div class="metric"><div class="num">' + selfiesValidadasMet + '</div><div class="lbl">Selfies triadas</div></div>' +
     '<div class="metric atraso"><div class="num">' + locacoesComAtrasoMet + '</div><div class="lbl">Locações com atraso</div></div>' +
     '</div>';
   html += '%%RANKING_PLACEHOLDER%%';
