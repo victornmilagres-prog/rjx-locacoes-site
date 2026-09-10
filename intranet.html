@@ -2448,6 +2448,10 @@ async function selectOperacionalSubtab(tab){
 let equipEquipamentos = [];
 let equipAbaAtual = null;
 let equipCartFiltro = 'todos';
+let equipMainTab = 'equipamentos';
+let equipAcessoriosPorEquip = {};
+let equipManutPrevPorNome = {};
+let equipManutCorrPorNome = {};
 
 async function carregarEquipamentosOperacional(){
   const content = document.getElementById('operacional-content');
