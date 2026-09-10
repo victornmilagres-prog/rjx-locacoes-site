@@ -821,13 +821,10 @@ function freteTaxaPorKm(km, tabela, grupo){
 function freteCalcular(l, tabela){
   const eq = FRETE_EQUIPAMENTOS.find(function(e){ return e.id === l.equipamento; });
   let base = 0, taxa = 0, valorKm = 0;
-  if(eq.grupo === "combo"){
-    base = Number(tabela.combo_base);
-  } else {
-    base = Number(tabela[eq.grupo + "_frete_fixo"]);
-    taxa = freteTaxaPorKm(Number(l.km), tabela, eq.grupo);
-    valorKm = Number(l.km) * taxa;
-  }
+  const grupoCalc = eq.grupo === "combo" ? "a" : eq.grupo;
+  base = Number(tabela[grupoCalc + "_frete_fixo"]);
+  taxa = freteTaxaPorKm(Number(l.km), tabela, grupoCalc);
+  valorKm = Number(l.km) * taxa;
   let esperaValor = 0;
   if(l.espera === "30min") esperaValor = Number(tabela.espera_30min);
   else if(l.espera === "1h") esperaValor = Number(tabela.espera_1h);
