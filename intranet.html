@@ -3667,17 +3667,17 @@ function opSegRenderTabela(){
     }
     const excluirHtml = '<button title="Excluir seguro" onclick="opSegExcluir(&quot;' + s.id + '&quot;)" style="background:none;border:1px solid var(--alert);color:var(--alert);border-radius:6px;width:26px;height:26px;font-size:13px;font-weight:700;cursor:pointer;line-height:1;">✕</button>';
     const editarHtml = '<button title="Editar seguro" onclick="opSegAbrirModalEditar(&quot;' + s.id + '&quot;)" style="background:none;border:1px solid var(--line);color:var(--gray);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;line-height:1;flex-shrink:0;">⚙️</button>';
-    return '<tr><td style="padding:10px 12px;border-bottom:1px solid var(--line);"><b>' + escapeHtml(s.nome) + '</b></td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(s.serie||"—") + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(s.apolice||"—") + (s.anexo_apolice_url ? ' <a href="' + s.anexo_apolice_url + '" target="_blank" title="Ver apólice" style="text-decoration:underline;">📄</a>' : '') + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + opDataBR(s.data) + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + opDataBR(s.renovacao) + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + cotar + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">R$ ' + escapeHtml(s.valor||"") + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">R$ ' + escapeHtml(s.parcela||"") + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + escapeHtml(s.corretora||"") + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);">' + statusHtml + '</td>' +
-      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);"><div style="display:flex;align-items:center;gap:8px;">' + editarHtml + excluirHtml + acaoHtml + '</div></td></tr>';
+    return '<tr><td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;"><b>' + escapeHtml(s.nome) + '</b></td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;">' + escapeHtml(s.serie||"—") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;">' + escapeHtml(s.apolice||"—") + (s.anexo_apolice_url ? ' <a href="' + s.anexo_apolice_url + '" target="_blank" title="Ver apólice" style="text-decoration:underline;">📄</a>' : '') + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;">' + opDataBR(s.data) + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;">' + opDataBR(s.renovacao) + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;">' + cotar + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;">R$ ' + escapeHtml(s.valor||"") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;">R$ ' + escapeHtml(s.parcela||"") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;">' + escapeHtml(s.corretora||"") + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;">' + statusHtml + '</td>' +
+      '<td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;"><div style="display:flex;align-items:center;gap:8px;">' + editarHtml + excluirHtml + acaoHtml + '</div></td></tr>';
   }).join("");
 }
 
