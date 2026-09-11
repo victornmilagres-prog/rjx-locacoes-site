@@ -3931,7 +3931,7 @@ async function carregarPremiacaoOperacional(isGestor){
   html += '<button class="subtab' + (opTabAtual==='selfies'?' active':'') + '" onclick="mudarTabOperacionalPremiacao(&quot;selfies&quot;)">Validação de Selfies</button>';
   html += contestBannerHtml;
   if(opTabAtual === "selfies"){
-    await opRenderValidacaoSelfies(content, html);
+    await opRenderValidacaoSelfies(content, html.replace("%%RANKING_PLACEHOLDER%%", ""));
     return;
   }
   if(opTabAtual === "explicacao"){
@@ -3944,6 +3944,7 @@ async function carregarPremiacaoOperacional(isGestor){
     html += '<div style="font-size:10.5px;text-transform:uppercase;color:var(--gray-soft);font-weight:700;margin:20px 0 6px;">Lavieen e Endolaser Pioon 1470 — 10 etapas, 10 pontos</div>';
     html += PREMIACAO_ETAPAS_SEM_INSUMOS.map(function(nome,i){ return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;"><span>' + (i+1) + ". " + escapeHtml(nome) + '</span><span class="etapa-pts">+1 pt</span></div>'; }).join("");
     html += "</div>";
+    html = html.replace("%%RANKING_PLACEHOLDER%%", "");
     content.innerHTML = html;
     return;
   }
@@ -3986,7 +3987,7 @@ async function carregarPremiacaoOperacional(isGestor){
       return '<div class="card" style="margin-bottom:12px;overflow:hidden;">' +
         '<div onclick="opToggleLocCard(&quot;' + loc.id + '&quot;)" style="display:flex;justify-content:space-between;align-items:center;padding:15px 18px;cursor:pointer;">' +
           '<div><div style="font-size:15px;font-weight:600;">Locação #' + (loc.numero||"") + " — " + escapeHtml(eq.label||"") + '</div>' +
-          '<div style="font-size:12.5px;color:var(--gray);margin-top:2px;">' + nomeMotor + " · aberta há " + dias + (dias===1?" dia":" dias") + '</div></div>' +
+          '<div style="font-size:12.5px;color:var(--gray);margin-top:2px;">' + nomeMotor + " · " + equipFormatDataBr(loc.data_locacao) + " · aberta há " + dias + (dias===1?" dia":" dias") + '</div></div>' +
           '<div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">' +
           '<span style="font-size:12.5px;color:var(--gray);">' + feitas + "/" + total + ' etapas</span>' +
           '<span style="font-size:14px;color:var(--gray);">' + (aberto?"▴":"▾") + '</span></div>' +
