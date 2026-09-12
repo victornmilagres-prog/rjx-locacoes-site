@@ -327,6 +327,132 @@ textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--lin
 .link-btn.active{background:var(--wine);border-color:var(--wine);color:#fff;}
 .cart-card .foot{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--gray);}
 .cart-card.acabado{opacity:.6;}
+
+  /* ===== Módulo Cadastro de Cliente (Financeiro) ===== */
+  .cc-mod{
+    --paper-raised:#FFFFFF;
+    --ink-soft:var(--gray-soft);
+    --wine-deep:var(--wine-dark);
+    --ok-line:var(--ok); --ok-ink:var(--ok);
+    --warn-bg:var(--wait-bg); --warn-line:var(--wait); --warn-ink:var(--wait);
+    --bad-bg:var(--alert-bg); --bad-line:var(--alert); --bad-ink:var(--alert);
+  }
+  .cc-mod .cc-disclaimer{font-size:12px;color:var(--gray-soft);margin:0 0 16px;}
+  .cc-mod *{box-sizing:border-box;}
+  .cc-mod .steps{display:flex;margin-bottom:30px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--paper-raised);}
+  .cc-mod .step-btn{flex:1;padding:13px 10px;text-align:center;font-size:13.5px;color:var(--ink-soft);cursor:pointer;border:none;background:transparent;border-right:1px solid var(--line);font-family:inherit;}
+  .cc-mod .step-btn:last-child{border-right:none;}
+  .cc-mod .step-btn.active{background:var(--wine);color:#fff;font-weight:600;}
+  .cc-mod .step-btn .num{display:inline-block;width:18px;height:18px;border-radius:50%;border:1px solid currentColor;font-size:11px;line-height:16px;margin-right:6px;}
+  .cc-mod section.panel{display:none;background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;padding:26px 28px;margin-bottom:20px;}
+  .cc-mod section.panel.active{display:block;}
+  .cc-mod .field-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  .cc-mod .field-row.single{grid-template-columns:1fr;}
+  .cc-mod label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:5px;}
+  .cc-mod input[type=text], .cc-mod input[type=number], .cc-mod select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:14.5px;font-family:inherit;background:#fff;color:var(--ink);}
+  .cc-mod input:disabled{background:#F3F1EC;color:var(--ink-soft);}
+  .cc-mod input:focus, .cc-mod select:focus{outline:2px solid var(--wine);outline-offset:1px;}
+  .cc-mod fieldset{border:1px solid var(--line);border-radius:8px;padding:14px 16px 16px;margin:0 0 16px;}
+  .cc-mod legend{font-size:12.5px;color:var(--ink-soft);padding:0 6px;}
+  .cc-mod .radio-group{display:flex;gap:18px;flex-wrap:wrap;}
+  .cc-mod .radio-group label{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--ink);margin:0;}
+  .cc-mod .checkbox-group{display:flex;gap:16px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:#FBFAF7;}
+  .cc-mod .checkbox-group label{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--ink);margin:0;cursor:pointer;}
+  .cc-mod .field-error{font-size:12px;color:var(--bad-ink);margin-top:4px;display:none;}
+  .cc-mod .field-error.show{display:block;}
+  .cc-mod input.field-invalid{border-color:var(--bad-line);}
+  .cc-mod .hint{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+  .cc-mod .lookup-row{display:flex;gap:8px;align-items:flex-end;}
+  .cc-mod .lookup-row > div{flex:1;}
+  .cc-mod .btn-consultar{padding:9px 16px;border-radius:6px;border:1px solid var(--ink);background:var(--ink);color:#fff;font-size:13.5px;cursor:pointer;font-family:inherit;white-space:nowrap;height:38px;}
+  .cc-mod .btn-consultar:disabled{opacity:0.4;cursor:not-allowed;}
+  .cc-mod .readonly-result{display:flex;flex-direction:column;gap:6px;padding:10px 14px;border-radius:7px;font-size:13.5px;margin-top:10px;border:1px solid;}
+  .cc-mod .readonly-result.pending{background:#F3F1EC;border-color:var(--line);color:var(--ink-soft);}
+  .cc-mod .readonly-result.ok{background:var(--ok-bg);border-color:var(--ok-line);color:var(--ok-ink);}
+  .cc-mod .readonly-result.bad{background:var(--bad-bg);border-color:var(--bad-line);color:var(--bad-ink);}
+  .cc-mod .readonly-result .src{font-size:11.5px;opacity:0.85;}
+  .cc-mod .doc-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:inherit;background:rgba(255,255,255,0.6);border:1px solid currentColor;border-radius:20px;padding:3px 10px;width:fit-content;margin-top:2px;cursor:pointer;}
+  .cc-mod .doc-chip:hover{background:rgba(255,255,255,0.95);}
+  .cc-mod .locked-note{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--ink-soft);background:#F3F1EC;border-radius:6px;padding:8px 10px;margin-bottom:14px;}
+  .cc-mod .split-two{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .cc-mod .subcard{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:#FBFAF7;}
+  .cc-mod .subcard h4{margin:0 0 10px;font-size:14px;font-family:'Fraunces','Georgia',serif;font-weight:600;}
+  .cc-mod .kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:13px;margin-bottom:8px;}
+  .cc-mod .kv-grid .k{color:var(--ink-soft);}
+  .cc-mod table.debts{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;}
+  .cc-mod table.debts th, .cc-mod table.debts td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);}
+  .cc-mod table.debts th{color:var(--ink-soft);font-weight:600;font-size:11.5px;}
+  .cc-mod table.debts td.val{font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .cc-mod table.debts input[type=text]{padding:5px 7px;font-size:12.5px;}
+  .cc-mod .score-box{display:flex;align-items:center;gap:16px;margin:10px 0;}
+  .cc-mod .score-num{font-family:'Fraunces','Georgia',serif;font-size:34px;font-weight:600;}
+  .cc-mod .score-num.low{color:var(--bad-ink);}
+  .cc-mod .score-num.high{color:var(--ok-ink);}
+  .cc-mod .nav-buttons{display:flex;justify-content:space-between;margin-top:8px;}
+  .cc-mod .nav-buttons .right-group{display:flex;gap:10px;}
+  .cc-mod .btn{padding:11px 20px;border-radius:7px;border:none;font-size:14.5px;cursor:pointer;font-family:inherit;font-weight:600;}
+  .cc-mod .btn-primary{background:var(--wine);color:#fff;}
+  .cc-mod .btn-primary:hover{background:var(--wine-deep);}
+  .cc-mod .btn-primary:disabled{background:#C8B9BC;cursor:not-allowed;}
+  .cc-mod .btn-ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line);}
+  .cc-mod .btn-ghost:hover{border-color:var(--ink-soft);}
+  .cc-mod .btn-print{background:var(--ink);color:#fff;}
+  .cc-mod .btn-add-row{background:transparent;color:var(--wine);border:1px dashed var(--wine);border-radius:6px;padding:6px 12px;font-size:12.5px;font-family:inherit;cursor:pointer;margin-top:8px;}
+  .cc-mod .btn-remove-row{background:transparent;color:var(--bad-ink);border:none;font-size:13px;cursor:pointer;padding:2px 6px;}
+  .cc-mod .laudo-block{border:1px solid var(--line);border-radius:8px;margin-bottom:14px;overflow:hidden;}
+  .cc-mod .laudo-head{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#F5F3EE;border-bottom:1px solid var(--line);}
+  .cc-mod .laudo-head .idx{width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .cc-mod .laudo-head .title{font-weight:600;font-size:15px;flex:1;}
+  .cc-mod .verdict-chip{font-size:12px;padding:3px 10px;border-radius:20px;font-weight:600;white-space:nowrap;}
+  .cc-mod .verdict-chip.ok{background:var(--ok-bg);color:var(--ok-ink);border:1px solid var(--ok-line);}
+  .cc-mod .verdict-chip.bad{background:var(--bad-bg);color:var(--bad-ink);border:1px solid var(--bad-line);}
+  .cc-mod .verdict-chip.warn{background:var(--warn-bg);color:var(--warn-ink);border:1px solid var(--warn-line);}
+  .cc-mod .laudo-body{padding:14px 16px;font-size:14px;}
+  .cc-mod .laudo-body ul{margin:6px 0 0;padding-left:18px;}
+  .cc-mod .laudo-body li{margin-bottom:3px;}
+  .cc-mod .conclusion{border-radius:10px;padding:20px 22px;margin-top:18px;border:2px solid;}
+  .cc-mod .conclusion.ok{background:var(--ok-bg);border-color:var(--ok-line);}
+  .cc-mod .conclusion.bad{background:var(--bad-bg);border-color:var(--bad-line);}
+  .cc-mod .conclusion.warn{background:var(--warn-bg);border-color:var(--warn-line);}
+  .cc-mod .conclusion h3{margin:0 0 6px;font-family:'Fraunces','Georgia',serif;font-size:19px;}
+  .cc-mod .manual-approval{margin-top:14px;padding-top:14px;border-top:1px solid rgba(0,0,0,0.12);}
+  .cc-mod .manual-approval .radio-group label{font-weight:600;}
+  .cc-mod .empty-state{text-align:center;padding:50px 20px;color:var(--ink-soft);}
+  .cc-mod .empty-state .icon{font-size:34px;margin-bottom:10px;}
+  .cc-mod #doc-final{display:none;}
+  .cc-mod .doc-page{background:#fff;border:1px solid var(--line);border-radius:10px;padding:40px 46px;margin-bottom:24px;}
+  .cc-mod .doc-page h2.doc-title{font-family:'Fraunces','Georgia',serif;font-size:24px;margin:0 0 2px;}
+  .cc-mod .doc-page .doc-sub{color:var(--ink-soft);font-size:13px;margin-bottom:22px;border-bottom:1px solid var(--line);padding-bottom:16px;}
+  .cc-mod .doc-section{margin-bottom:22px;}
+  .cc-mod .doc-section h3{font-family:'Fraunces','Georgia',serif;font-size:16px;margin:0 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px;}
+  .cc-mod .doc-attach-thumb{border:1px dashed var(--line);border-radius:8px;padding:14px;font-size:12px;color:var(--ink-soft);margin-top:8px;background:#FAF9F6;}
+  .cc-mod .doc-attach-thumb .fname{font-weight:600;color:var(--ink);}
+  .cc-mod .modal-overlay{position:fixed;inset:0;background:rgba(31,27,25,0.55);display:flex;align-items:center;justify-content:center;z-index:80;padding:20px;}
+  .cc-mod .modal-box{background:#fff;border-radius:10px;max-width:520px;width:100%;max-height:85vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35);}
+  .cc-mod .modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);font-weight:600;font-size:14.5px;}
+  .cc-mod .modal-head button{background:transparent;border:none;font-size:16px;cursor:pointer;color:var(--ink-soft);}
+  .cc-mod .modal-body{padding:18px;font-size:13.5px;}
+  .cc-mod .mock-doc{border:1px solid var(--line);border-radius:8px;padding:18px;background:#FAF9F6;}
+  .cc-mod .mock-doc .mock-header{font-family:'Fraunces','Georgia',serif;font-size:15px;font-weight:600;margin-bottom:10px;border-bottom:1px solid var(--line);padding-bottom:8px;}
+  .cc-mod .mock-doc .mock-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px dashed var(--line);font-size:13px;}
+  .cc-mod .mock-doc .mock-row span:first-child{color:var(--ink-soft);}
+  .cc-mod .mock-stamp{display:inline-block;margin-top:12px;font-size:11px;letter-spacing:0.04em;text-transform:uppercase;border:2px solid var(--ok-line);color:var(--ok-ink);padding:4px 10px;border-radius:4px;transform:rotate(-2deg);}
+  .cc-mod .mock-stamp.bad{border-color:var(--bad-line);color:var(--bad-ink);}
+  @media(max-width:640px){
+    .cc-mod .field-row, .cc-mod .split-two, .cc-mod .kv-grid{grid-template-columns:1fr;}
+    .cc-mod .steps{flex-direction:column;}
+    .cc-mod .step-btn{border-right:none;border-bottom:1px solid var(--line);}
+    .cc-mod .nav-buttons{flex-direction:column;gap:10px;align-items:stretch;}
+    .cc-mod .nav-buttons .right-group{flex-direction:column;}
+  }
+  @media print{
+    .topbar, .sidebar, .pagehead, .subnav, .cc-mod .steps, .cc-mod .nav-buttons, .cc-mod .cc-disclaimer, .cc-mod .locked-note, .cc-mod .no-print-btn{display:none !important;}
+    .cc-mod section.panel{display:none !important;}
+    .cc-mod #doc-final{display:block !important;}
+    body{background:#fff;}
+    .cc-mod button{display:none !important;}
+  }
+
 </style>
 </head>
 <body>
@@ -524,7 +650,7 @@ function moduleList(){
       mods.push({ id:'gerencial', label:'Gerencial', enabled: papel === 'gerencial' });
   mods.push({ id:'comercial', label:'Comercial', enabled: papel === 'comercial' || papel === 'gerencial' });
   mods.push({ id:'transportes', label:'Transportes', enabled: papel === 'transportes' || papel === 'gerencial' });
-  mods.push({ id:'financeiro', label:'Financeiro', enabled:false, soon:true });
+  mods.push({ id:'financeiro', label:'Financeiro', enabled: papel === 'financeiro' || papel === 'gerencial' });
   mods.push({ id:'operacional', label:'Operacional', enabled: papel === 'operacional' || papel === 'gerencial' });
   mods.push({ id:'cadastros', label:'Cadastros', enabled:false, soon:true });
   return mods;
@@ -576,6 +702,7 @@ function selectModule(modId){
   if(modId === 'gerencial'){ renderGerencial(mainArea); }
   else if(modId === 'comercial'){ renderComercial(mainArea); }  else if(modId === 'transportes'){ renderTransportes(mainArea); }
 else if(modId === 'operacional'){ renderOperacional(mainArea); }
+  else if(modId === 'financeiro'){ renderFinanceiro(mainArea); }
 }
 
 /* ================= API HELPER (usuarios via serverless) ================= */
@@ -4365,6 +4492,883 @@ async function virarDiaPremiacao(){
 }
 
 
-  </script>
+  
+/* ================= FINANCEIRO ================= */
+async function renderFinanceiro(container){
+  container.innerHTML =
+    '<div class="pagehead"><div class="crumb">Intranet / <b>Financeiro</b></div><h1>Financeiro</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Financeiro</div></div>' +
+    '<div class="subnav">' +
+    '<button class="subtab active" id="fin-tab-cadastro" onclick="selectFinanceiroSubtab(&quot;cadastro&quot;)">Cadastro de Cliente</button>' +
+    '</div>' +
+    '<div class="content" id="financeiro-content"></div>';
+  selectFinanceiroSubtab('cadastro');
+}
+
+function selectFinanceiroSubtab(tab){
+  document.getElementById('fin-tab-cadastro').classList.toggle('active', tab === 'cadastro');
+  const content = document.getElementById('financeiro-content');
+  if(tab === 'cadastro'){
+    content.innerHTML = CC_MODULE_HTML;
+    ccOnTipoChange();
+  }
+}
+
+/* ===== Módulo Cadastro de Cliente (protótipo) ===== */
+const CC_MODULE_HTML = `<div class="cc-mod">
+<p class="cc-disclaimer">Os resultados de conselho, Serasa e alvará abaixo são simulados no protótipo; em produção virão da leitura automática dos documentos e das consultas reais aos sites oficiais.</p>
+<div class="steps">
+    <button class="step-btn active" data-step="1" onclick="ccGoStep(1)"><span class="num">1</span>Dados</button>
+    <button class="step-btn" data-step="2" onclick="ccGoStep(2)"><span class="num">2</span>Documentos</button>
+    <button class="step-btn" data-step="3" onclick="ccGoStep(3)"><span class="num">3</span>Parecer</button>
+  </div>
+
+  <!-- STEP 1 -->
+  <section class="panel active" id="panel-1">
+    <fieldset>
+      <legend>Tipo de cadastro</legend>
+      <div class="radio-group">
+        <label><input type="radio" name="tipo" value="PF" checked onchange="ccOnTipoChange()"> Pessoa física (CPF)</label>
+        <label><input type="radio" name="tipo" value="PJ" onchange="ccOnTipoChange()"> Pessoa jurídica (CNPJ)</label>
+      </div>
+    </fieldset>
+
+    <div class="field-row">
+      <div>
+        <label id="label-nome">Nome completo *</label>
+        <input type="text" id="nome" placeholder="Ex: Nathalia Massena Bittencourt Branco Braga" oninput="ccClearFieldError('nome'); ccCheckStep1Ready();">
+        <div class="field-error" id="erro-nome">Campo obrigatório.</div>
+      </div>
+      <div>
+        <label id="label-doc">CPF *</label>
+        <input type="text" id="documento" placeholder="000.000.000-00" oninput="ccClearFieldError('documento'); ccCheckStep1Ready();">
+        <div class="field-error" id="erro-documento">Campo obrigatório.</div>
+      </div>
+    </div>
+
+    <div class="field-row single">
+      <div>
+        <label>Equipamento(s) de interesse *</label>
+        <div class="checkbox-group" id="equipamento-checks" onchange="ccCheckStep1Ready();">
+          <label><input type="checkbox" name="equipamento" value="lavieen"> Lavieen</label>
+          <label><input type="checkbox" name="equipamento" value="criodermis"> Criodermis 2.0</label>
+          <label><input type="checkbox" name="equipamento" value="endolaser"> Endolaser Pioon 1470</label>
+          <label><input type="checkbox" name="equipamento" value="ultraformer"> Ultraformer MPT</label>
+        </div>
+        <div class="field-error" id="erro-equipamento">Selecione ao menos um equipamento.</div>
+        <div class="hint">Selecione um ou mais. Se o Ultraformer MPT (valor variável) estiver entre os escolhidos e o financeiro vier restritivo, ele é reprovado automaticamente para aprovação manual, mesmo que os demais entrem na regra de pagamento antecipado.</div>
+      </div>
+    </div>
+
+    <fieldset>
+      <legend>Conselho profissional (obrigatório em todo cadastro)</legend>
+      <div class="hint" style="margin-bottom:10px;">O responsável técnico pode não ser o titular do cadastro — informe os dados de quem vai realizar o procedimento.</div>
+      <div class="field-row">
+        <div>
+          <label>Conselho</label>
+          <select id="conselho-tipo">
+            <option>Medicina (CRM)</option>
+            <option>Odontologia (CRO)</option>
+            <option>Fisioterapia (CREFITO)</option>
+            <option>Biomedicina (CRBM)</option>
+            <option>Farmácia (CRF)</option>
+          </select>
+        </div>
+        <div>
+          <label>Número de inscrição</label>
+          <input type="text" id="conselho-numero" placeholder="Ex: 123456-RJ">
+        </div>
+      </div>
+      <div class="field-row">
+        <div>
+          <label>Nome completo do profissional *</label>
+          <input type="text" id="conselho-nome" placeholder="Nome de quem realiza o procedimento" oninput="ccClearFieldError('conselho-nome')">
+          <div class="field-error" id="erro-conselho-nome">Campo obrigatório.</div>
+        </div>
+        <div>
+          <label>CPF do profissional *</label>
+          <input type="text" id="conselho-cpf" placeholder="000.000.000-00" oninput="ccClearFieldError('conselho-cpf')">
+          <div class="field-error" id="erro-conselho-cpf">Campo obrigatório.</div>
+        </div>
+      </div>
+      <div class="lookup-row">
+        <div></div>
+        <button type="button" class="btn-consultar" onclick="ccConsultarConselho()">Consultar no site do conselho</button>
+      </div>
+      <div id="conselho-resultado" class="readonly-result pending">Ainda não consultado — obrigatório antes de avançar.</div>
+    </fieldset>
+
+    <div class="nav-buttons">
+      <span></span>
+      <button class="btn btn-primary" id="btn-avancar-1" onclick="if(ccCheckStep1Ready(true)) ccGoStep(2);" disabled>Continuar para documentos →</button>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="panel" id="panel-2">
+
+    <div class="locked-note">🔒 Nos exemplos, os dados vêm automaticamente do documento. Em "Personalizado", os campos ficam abertos para você simular qualquer consulta.</div>
+
+    <fieldset>
+      <legend>Consulta Serasa</legend>
+      <div class="lookup-row">
+        <div>
+          <label>Fonte dos dados</label>
+          <select id="serasa-fonte" onchange="ccOnFonteChange()">
+            <option value="nathalia">Exemplo — Nathalia (CPF)</option>
+            <option value="collucci">Exemplo — Collucci (CNPJ, restritivo)</option>
+            <option value="vivere">Exemplo — Vivere Estética (CNPJ, aprovado)</option>
+            <option value="custom">Personalizado — preencher com qualquer consulta</option>
+          </select>
+        </div>
+        <button class="btn-consultar" id="btn-anexo" onclick="ccProcessarSerasa()">Carregar e processar</button>
+      </div>
+      <div id="fieldset-validacao-custom" style="display:none;margin-top:14px;">
+        <div class="field-row">
+          <div>
+            <label>Nome ou razão social no documento importado</label>
+            <input type="text" id="custom-doc-nome" placeholder="Como aparece no relatório de crédito" oninput="ccAtualizarValidacaoCustom()">
+          </div>
+          <div>
+            <label>CPF ou CNPJ no documento importado</label>
+            <input type="text" id="custom-doc-cpf" placeholder="Como aparece no relatório de crédito" oninput="ccAtualizarValidacaoCustom()">
+          </div>
+        </div>
+        <div class="hint">Usado só para conferir se o relatório carregado é mesmo do cliente informado na etapa Dados.</div>
+      </div>
+      <div id="serasa-pendente" class="readonly-result pending">Aguardando importação do relatório.</div>
+      <div id="validacao-correspondencia" class="readonly-result pending" style="display:none;margin-top:8px;"></div>
+    </fieldset>
+
+    <div id="bloco-pos-serasa" style="display:none;">
+
+      <fieldset id="fieldset-situacao-pf">
+        <legend>Situação cadastral do CPF</legend>
+        <div id="situacao-pf-normal" class="normal-view">
+          <div id="doc-resultado" class="readonly-result"></div>
+        </div>
+        <div id="situacao-pf-custom" class="custom-view" style="display:none;">
+          <div class="field-row single">
+            <div>
+              <label>Situação do CPF</label>
+              <select id="custom-cpf-status" onchange="ccState.docAtivo = this.value==='ativo';">
+                <option value="ativo">Regular / Ativo</option>
+                <option value="irregular">Irregular / Restrição</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset id="fieldset-situacao-pj" style="display:none;">
+        <legend>Situação cadastral — empresa e sócio(s)</legend>
+        <div id="situacao-pj-normal" class="normal-view">
+          <div class="split-two">
+            <div class="subcard">
+              <h4 id="empresa-razao">Razão social</h4>
+              <div class="ccKv-grid" id="empresa-ccKv"></div>
+              <div id="doc-resultado-empresa" class="readonly-result"></div>
+            </div>
+            <div class="subcard">
+              <h4 id="socio-nome">Sócio(a)</h4>
+              <div class="ccKv-grid" id="socio-ccKv"></div>
+              <div id="doc-resultado-socio" class="readonly-result"></div>
+            </div>
+          </div>
+        </div>
+        <div id="situacao-pj-custom" class="custom-view" style="display:none;">
+          <div class="split-two">
+            <div class="subcard">
+              <h4>Empresa</h4>
+              <div class="field-row single"><div><label>Razão social</label><input type="text" id="custom-empresa-razao" placeholder="Razão social da empresa"></div></div>
+              <div class="field-row single"><div><label>CNPJ</label><input type="text" id="custom-empresa-cnpj" placeholder="00.000.000/0000-00"></div></div>
+              <div class="field-row single"><div><label>Endereço / Município</label><input type="text" id="custom-empresa-endereco" placeholder="Cidade — usada na consulta do alvará" oninput="ccState.alvaraMunicipio = this.value || '—'; document.getElementById('alvara-municipio-auto').value = this.value || '—';"></div></div>
+              <div class="field-row single"><div><label>Situação do CNPJ</label>
+                <select id="custom-cnpj-status" onchange="ccState.docAtivo = this.value==='ativo';">
+                  <option value="ativo">Ativo</option>
+                  <option value="irregular">Irregular</option>
+                </select>
+              </div></div>
+            </div>
+            <div class="subcard">
+              <h4>Sócio(a)</h4>
+              <div class="field-row single"><div><label>Nome do sócio</label><input type="text" id="custom-socio-nome" placeholder="Nome completo"></div></div>
+              <div class="field-row single"><div><label>CPF do sócio</label><input type="text" id="custom-socio-cpf" placeholder="000.000.000-00"></div></div>
+              <div class="field-row single"><div><label>Situação financeira do sócio</label>
+                <select id="custom-socio-status" onchange="ccState.socioAtivo = this.value==='sem-pendencia';">
+                  <option value="sem-pendencia">Sem pendências</option>
+                  <option value="com-pendencia">Com pendências</option>
+                </select>
+              </div></div>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset id="fieldset-alvara-doc" style="display:none;">
+        <legend>Alvará sanitário</legend>
+        <div class="hint" style="margin-bottom:10px;">Município detectado a partir do endereço do CNPJ acima. Consulte para trazer situação, vencimento e o comprovante da consulta.</div>
+        <div class="lookup-row">
+          <div>
+            <label>Município identificado</label>
+            <input type="text" id="alvara-municipio-auto" value="—" disabled>
+          </div>
+          <button type="button" class="btn-consultar" id="btn-consultar-alvara" onclick="ccConsultarAlvara()">Consultar alvará</button>
+        </div>
+        <div id="alvara-resultado" class="readonly-result pending">Aguardando consulta.</div>
+      </fieldset>
+
+      <fieldset id="fieldset-pendencias-pf">
+        <legend>Pendências financeiras — CPF</legend>
+        <div id="pend-pf-normal" class="normal-view">
+          <div class="score-box">
+            <div id="score-visual-pf" class="score-num">—</div>
+            <div>
+              <div id="score-texto-pf" style="font-size:14px;"></div>
+              <div id="score-recomendacao-pf" class="hint" style="margin-top:2px;"></div>
+            </div>
+          </div>
+          <div class="ccKv-grid" id="renda-ccKv-pf"></div>
+        </div>
+        <div id="pend-pf-custom" class="custom-view" style="display:none;">
+          <div class="field-row">
+            <div><label>Score Serasa (0–1000)</label><input type="number" id="custom-score-pf" min="0" max="1000" value="500" oninput="ccState.score = parseInt(this.value)||0;"></div>
+            <div><label>Recomendação</label>
+              <select id="custom-rec-pf" onchange="ccState.recomendacaoNegativa = this.value==='negativa';">
+                <option value="negativa">Negativa</option>
+                <option value="positiva">Positiva</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row single"><div><label>Renda estimada</label><input type="text" id="custom-renda-pf" placeholder="Ex: R$ 5.000,00 por mês"></div></div>
+        </div>
+        <table class="debts"><thead><tr><th>Ocorrência</th><th>Modalidade / origem</th><th>Data</th><th class="val">Valor</th><th></th></tr></thead>
+          <tbody id="tabela-pf-body"></tbody>
+        </table>
+        <button type="button" id="btn-add-pf" class="btn-add-row" style="display:none;" onclick="ccAddRow('tabela-pf-body',4)">+ Adicionar pendência</button>
+      </fieldset>
+
+      <fieldset id="fieldset-pendencias-pj" style="display:none;">
+        <legend>Pendências financeiras — empresa</legend>
+        <div id="pend-pj-normal" class="normal-view">
+          <div class="score-box">
+            <div id="score-visual-pj" class="score-num">—</div>
+            <div>
+              <div id="score-texto-pj" style="font-size:14px;"></div>
+              <div id="score-recomendacao-pj" class="hint" style="margin-top:2px;"></div>
+            </div>
+          </div>
+          <div class="ccKv-grid" id="empresa-extra-ccKv"></div>
+        </div>
+        <div id="pend-pj-custom" class="custom-view" style="display:none;">
+          <div class="field-row">
+            <div><label>Score Serasa (0–1000)</label><input type="number" id="custom-score-pj" min="0" max="1000" value="500" oninput="ccState.score = parseInt(this.value)||0;"></div>
+            <div><label>Recomendação</label>
+              <select id="custom-rec-pj" onchange="ccState.recomendacaoNegativa = this.value==='negativa';">
+                <option value="negativa">Negativa</option>
+                <option value="positiva">Positiva</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row single"><div><label>Faturamento estimado</label><input type="text" id="custom-faturamento-pj" placeholder="Ex: Acima de R$ 60.000,00 ao ano"></div></div>
+        </div>
+        <table class="debts"><thead><tr><th>Ocorrência</th><th>Modalidade / origem</th><th>Data</th><th class="val">Valor</th><th></th></tr></thead>
+          <tbody id="tabela-pj-empresa-body"></tbody>
+        </table>
+        <button type="button" id="btn-add-pj-empresa" class="btn-add-row" style="display:none;" onclick="ccAddRow('tabela-pj-empresa-body',4)">+ Adicionar pendência da empresa</button>
+
+        <div class="hint" style="margin:14px 0 6px;font-weight:600;color:var(--ink);">Pendências financeiras — sócio(a)</div>
+        <table class="debts"><thead><tr><th>Ocorrência</th><th>Titular</th><th>Data</th><th class="val">Valor</th><th></th></tr></thead>
+          <tbody id="tabela-pj-socio-body"></tbody>
+        </table>
+        <button type="button" id="btn-add-pj-socio" class="btn-add-row" style="display:none;" onclick="ccAddRow('tabela-pj-socio-body',4)">+ Adicionar pendência do sócio</button>
+      </fieldset>
+
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn btn-ghost" onclick="ccGoStep(1)">← Voltar</button>
+      <button class="btn btn-primary" id="btn-gerar-parecer" onclick="ccGerarParecer()" disabled>Gerar parecer →</button>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="panel" id="panel-3">
+    <div id="parecer-vazio" class="empty-ccState">
+      <div class="icon">📋</div>
+      Complete a etapa de documentos para gerar o parecer.
+    </div>
+    <div id="parecer-conteudo" style="display:none;"></div>
+
+    <div class="nav-buttons" id="parecer-nav" style="display:none;">
+      <button class="btn btn-ghost" onclick="ccGoStep(2)">← Voltar</button>
+      <div class="right-group">
+        <button class="btn btn-ghost" onclick="ccPrevisualizarDoc()">👁 Pré-visualizar dossiê</button>
+        <button class="btn btn-print" onclick="ccMontarDocFinal(); window.print();">🖨 Imprimir / Salvar dossiê completo</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="doc-final"></div>
+
+  
+
+<!-- MODAL DE ANEXO -->
+<div id="anexo-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this) ccFecharAnexo()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span id="anexo-modal-title">Anexo</span>
+      <button type="button" onclick="ccFecharAnexo()">✕</button>
+    </div>
+    <div id="anexo-modal-body" class="modal-body"></div>
+  </div>
+</div>
+</div>`;
+
+
+let ccState = {
+  pj:false,
+  conselhoConsultado:false, conselhoAtivo:true,
+  serasaProcessado:false,
+  docAtivo:true,
+  socioAtivo:true,
+  alvaraProcessado:false, alvaraAtivo:true, alvaraMunicipio:'—', alvaraVencimento:'—',
+  score:350, recomendacaoNegativa:true, correspondenciaOk:true
+};
+
+function ccGoStep(n){
+  document.querySelectorAll('.step-btn').forEach(b=>b.classList.toggle('active', b.dataset.step==n));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+n).classList.add('active');
+}
+
+function ccOnTipoChange(){
+  ccState.pj = document.querySelector('input[name=tipo]:checked').value === 'PJ';
+  document.getElementById('label-nome').textContent = ccState.pj ? 'Razão social' : 'Nome completo';
+  document.getElementById('label-doc').textContent = ccState.pj ? 'CNPJ' : 'CPF';
+  document.getElementById('documento').placeholder = ccState.pj ? '00.000.000/0000-00' : '000.000.000-00';
+  document.getElementById('fieldset-situacao-pf').style.display = ccState.pj ? 'none' : 'block';
+  document.getElementById('fieldset-situacao-pj').style.display = ccState.pj ? 'block' : 'none';
+  document.getElementById('fieldset-alvara-doc').style.display = ccState.pj ? 'block' : 'none';
+  document.getElementById('fieldset-pendencias-pf').style.display = ccState.pj ? 'none' : 'block';
+  document.getElementById('fieldset-pendencias-pj').style.display = ccState.pj ? 'block' : 'none';
+}
+
+function ccClearFieldError(id){
+  document.getElementById(id).classList.remove('field-invalid');
+  const err = document.getElementById('erro-'+id);
+  if(err) err.classList.remove('show');
+}
+function ccMarkFieldError(id){
+  document.getElementById(id).classList.add('field-invalid');
+  const err = document.getElementById('erro-'+id);
+  if(err) err.classList.add('show');
+}
+function ccConsultarConselho(){
+  const numero = document.getElementById('conselho-numero').value;
+  const nome = document.getElementById('conselho-nome').value.trim();
+  const cpf = document.getElementById('conselho-cpf').value.trim();
+  let temErro = false;
+  if(!nome){ ccMarkFieldError('conselho-nome'); temErro = true; } else { ccClearFieldError('conselho-nome'); }
+  if(!cpf){ ccMarkFieldError('conselho-cpf'); temErro = true; } else { ccClearFieldError('conselho-cpf'); }
+  if(temErro){
+    alert('Nome completo e CPF do profissional são obrigatórios antes de consultar.');
+    return;
+  }
+  if(!numero){
+    alert('Informe o número de inscrição do profissional antes de consultar.');
+    return;
+  }
+  const tipo = document.getElementById('conselho-tipo').value;
+  const inativo = /0$/.test(numero.trim());
+  ccState.conselhoConsultado = true;
+  ccState.conselhoAtivo = !inativo;
+  const dataConsulta = new Date().toLocaleDateString('pt-BR');
+  const el = document.getElementById('conselho-resultado');
+  el.className = 'readonly-result ' + (ccState.conselhoAtivo ? 'ok' : 'bad');
+  el.innerHTML = (ccState.conselhoAtivo
+    ? `Inscrição ativa em ${tipo}.`
+    : `Inscrição inativa ou não localizada em ${tipo}.`)
+    + `<span class="src">Consulta realizada no site oficial do conselho — ${dataConsulta}</span>`
+    + `<button type="button" class="doc-chip" onclick="ccAbrirAnexo('conselho')">📎 comprovante_consulta_conselho.pdf — abrir anexo</button>`;
+  ccCheckStep1Ready();
+}
+
+function ccGetEquipamentosSelecionados(){
+  return Array.from(document.querySelectorAll('input[name=equipamento]:checked')).map(el=>el.value);
+}
+
+function ccCheckStep1Ready(marcarErros){
+  const nome = document.getElementById('nome').value.trim();
+  const documento = document.getElementById('documento').value.trim();
+  const equipSelecionados = ccGetEquipamentosSelecionados();
+  if(marcarErros){
+    nome ? ccClearFieldError('nome') : ccMarkFieldError('nome');
+    documento ? ccClearFieldError('documento') : ccMarkFieldError('documento');
+  }
+  document.getElementById('erro-equipamento').classList.toggle('show', marcarErros ? equipSelecionados.length===0 : false);
+  const pronto = !!nome && !!documento && equipSelecionados.length > 0 && ccState.conselhoConsultado;
+  document.getElementById('btn-avancar-1').disabled = !pronto;
+  return pronto;
+}
+
+function ccSetCustomVisibility(isCustom){
+  const base = ccState.pj ? ['situacao-pj','pend-pj'] : ['situacao-pf','pend-pf'];
+  base.forEach(b=>{
+    const normal = document.getElementById(b+'-normal');
+    const custom = document.getElementById(b+'-custom');
+    if(normal) normal.style.display = isCustom ? 'none' : 'block';
+    if(custom) custom.style.display = isCustom ? 'block' : 'none';
+  });
+  if(ccState.pj){
+    document.getElementById('btn-add-pj-empresa').style.display = isCustom ? 'inline-block' : 'none';
+    document.getElementById('btn-add-pj-socio').style.display = isCustom ? 'inline-block' : 'none';
+  } else {
+    document.getElementById('btn-add-pf').style.display = isCustom ? 'inline-block' : 'none';
+  }
+}
+
+const CC_IDENTIFICACAO_EXEMPLOS = {
+  nathalia: {nome:'Nathalia Braga', doc:'138.597.367-60'},
+  collucci: {nome:'Collucci Agência de Viagens', doc:'54.316.550/0001-43'},
+  vivere: {nome:'Vivere Estética LTDA EPP', doc:'63.718.314/0001-44'}
+};
+
+function ccNormalizarDoc(s){ return (s||'').replace(/\D/g,''); }
+function ccNormalizarNome(s){ return (s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+function ccNomesCompativeis(a,b){
+  a = ccNormalizarNome(a); b = ccNormalizarNome(b);
+  if(!a || !b) return true;
+  if(a===b || a.includes(b) || b.includes(a)) return true;
+  const wa = a.split(' ').filter(w=>w.length>2);
+  const wb = b.split(' ').filter(w=>w.length>2);
+  if(!wa.length || !wb.length) return false;
+  const comuns = wa.filter(w=>wb.includes(w));
+  return comuns.length >= Math.min(wa.length, wb.length) * 0.5;
+}
+
+function ccValidarCorrespondencia(nomeDoc, docDoc){
+  const nomeDados = document.getElementById('nome').value.trim();
+  const docDados = document.getElementById('documento').value.trim();
+  const box = document.getElementById('validacao-correspondencia');
+  box.style.display = 'block';
+
+  if(!nomeDados && !docDados){
+    box.className = 'readonly-result pending';
+    box.innerHTML = 'Preencha nome e documento na etapa Dados para validar a correspondência com o relatório importado.';
+    ccState.correspondenciaOk = true;
+    ccChecarLiberacaoParecer();
+    return;
+  }
+  if(!docDoc){
+    box.className = 'readonly-result pending';
+    box.innerHTML = 'Informe o CPF/CNPJ como consta no documento importado para conferir a correspondência.';
+    ccState.correspondenciaOk = true;
+    ccChecarLiberacaoParecer();
+    return;
+  }
+
+  const docBate = ccNormalizarDoc(docDados) === ccNormalizarDoc(docDoc);
+  const nomeBate = ccNomesCompativeis(nomeDados, nomeDoc);
+
+  if(docBate && nomeBate){
+    box.className = 'readonly-result ok';
+    box.innerHTML = 'Nome/documento do relatório importado conferem com o que foi digitado na etapa Dados.';
+    ccState.correspondenciaOk = true;
+  } else {
+    box.className = 'readonly-result bad';
+    box.innerHTML = `⚠ O documento importado (<strong>${nomeDoc}</strong> — ${docDoc}) não confere com o que foi digitado em Dados (<strong>${nomeDados||'—'}</strong> — ${docDados||'—'}). Confira se não foi lançada a consulta de outro cliente antes de gerar o parecer.`;
+    ccState.correspondenciaOk = false;
+  }
+  ccChecarLiberacaoParecer();
+}
+
+function ccAtualizarValidacaoCustom(){
+  if(!ccState.serasaProcessado) return;
+  const nomeDoc = document.getElementById('custom-doc-nome').value.trim();
+  const docDoc = document.getElementById('custom-doc-cpf').value.trim();
+  ccValidarCorrespondencia(nomeDoc, docDoc);
+}
+
+function ccOnFonteChange(){
+  const isCustom = document.getElementById('serasa-fonte').value === 'custom';
+  document.getElementById('fieldset-validacao-custom').style.display = isCustom ? 'block' : 'none';
+}
+
+function ccProcessarSerasa(){
+  const fonte = document.getElementById('serasa-fonte').value;
+  const btn = document.getElementById('btn-anexo');
+  btn.textContent = 'Carregado ✓';
+  ccState.serasaProcessado = true;
+  document.getElementById('serasa-pendente').style.display = 'none';
+  document.getElementById('bloco-pos-serasa').style.display = 'block';
+
+  if(fonte === 'nathalia'){
+    document.querySelector('input[name=tipo][value=PF]').checked = true;
+    ccOnTipoChange();
+    ccSetCustomVisibility(false);
+    ccCarregarExemploNathalia();
+    ccValidarCorrespondencia(CC_IDENTIFICACAO_EXEMPLOS.nathalia.nome, CC_IDENTIFICACAO_EXEMPLOS.nathalia.doc);
+  } else if(fonte === 'collucci'){
+    document.querySelector('input[name=tipo][value=PJ]').checked = true;
+    ccOnTipoChange();
+    ccSetCustomVisibility(false);
+    ccCarregarExemploCollucci();
+    ccValidarCorrespondencia(CC_IDENTIFICACAO_EXEMPLOS.collucci.nome, CC_IDENTIFICACAO_EXEMPLOS.collucci.doc);
+  } else if(fonte === 'vivere'){
+    document.querySelector('input[name=tipo][value=PJ]').checked = true;
+    ccOnTipoChange();
+    ccSetCustomVisibility(false);
+    ccCarregarExemploVivere();
+    ccValidarCorrespondencia(CC_IDENTIFICACAO_EXEMPLOS.vivere.nome, CC_IDENTIFICACAO_EXEMPLOS.vivere.doc);
+  } else {
+    ccSetCustomVisibility(true);
+    ccCarregarPersonalizado();
+    ccValidarCorrespondencia(document.getElementById('custom-doc-nome').value.trim(), document.getElementById('custom-doc-cpf').value.trim());
+  }
+  ccChecarLiberacaoParecer();
+}
+
+function ccCarregarExemploNathalia(){
+  ccState.docAtivo = true;
+  const el = document.getElementById('doc-resultado');
+  el.className = 'readonly-result ok';
+  el.innerHTML = 'CPF regular perante a Receita Federal.<span class="src">Extraído da identificação cadastral do relatório Serasa</span>';
+
+  ccState.score = 350; ccState.recomendacaoNegativa = true;
+  document.getElementById('renda-ccKv-pf').innerHTML = ccKv({'Renda estimada':'Entre R$ 5.001,00 e R$ 6.000,00 por mês', 'Serasa Score':'350/1000 (64,1% de chance de pagar em dia em 6 meses)'});
+  ccSetScore('pf', 350, true);
+  ccRenderTable('tabela-pf-body', [
+    {tipo:'REFIN — bancos e instituições financeiras', origem:'Ativos S.A. · Créd. cartão', data:'05/09/2023', valor:'R$ 8.283,00'},
+    {tipo:'PEFIN — comércio e serviços', origem:'Enel Rio · Energia elétrica', data:'20/08/2026', valor:'R$ 274,00'},
+    {tipo:'PEFIN — comércio e serviços', origem:'Realize Sociedade de Crédito', data:'18/01/2026', valor:'R$ 98,00'},
+    {tipo:'PEFIN — comércio e serviços', origem:'FIDC Ipanema VI', data:'12/04/2022', valor:'R$ 552,00'},
+    {tipo:'CONVEM — outros segmentos', origem:'Universidade Estácio de Sá', data:'25/08/2025', valor:'R$ 199,00'},
+    {tipo:'Protesto nacional', origem:'Cartório 13 · Niterói', data:'04/02/2025', valor:'R$ 4.159,00'},
+  ]);
+}
+
+function ccCarregarExemploCollucci(){
+  ccState.docAtivo = true; ccState.socioAtivo = false;
+  ccState.alvaraMunicipio = 'Santo André (fora da cobertura padrão RJ)';
+  document.getElementById('alvara-municipio-auto').value = ccState.alvaraMunicipio;
+  document.getElementById('alvara-resultado').textContent = 'Município identificado — pronto para consultar.';
+
+  document.getElementById('empresa-razao').textContent = 'Collucci Agência de Viagens LTDA ME';
+  document.getElementById('empresa-ccKv').innerHTML = ccKv({'CNPJ':'54.316.550/0001-43','Fundação':'13/03/2024','Endereço':'R. Japão 1608, Santo André, SP','Capital social':'R$ 10.000,00 (realizado)'});
+  const elE = document.getElementById('doc-resultado-empresa');
+  elE.className = 'readonly-result ok';
+  elE.innerHTML = 'CNPJ ativo na Receita Federal.<span class="src">Extraído da identificação cadastral do relatório Serasa</span>';
+
+  document.getElementById('socio-nome').textContent = 'Julia Marques Collucci';
+  document.getElementById('socio-ccKv').innerHTML = ccKv({'CPF':'095.937.936-31','Vínculo':'Sócia / Administradora','Participação':'100% do capital','Endereço':'Olinda, Uberaba, MG'});
+  const elS = document.getElementById('doc-resultado-socio');
+  elS.className = 'readonly-result bad';
+  elS.innerHTML = 'Sócia com pendências financeiras registradas.<span class="src">Extraído do quadro societário do relatório Serasa</span>';
+
+  ccState.score = 166; ccState.recomendacaoNegativa = true;
+  document.getElementById('empresa-extra-ccKv').innerHTML = ccKv({'Faturamento estimado':'Acima de R$ 60.000,00 ao ano','Sugestão Serasa':'Venda 50% à vista, restante parcelado','Tempo de operação':'Cerca de 2 anos e 6 meses'});
+  ccSetScore('pj', 166, true);
+  ccRenderTable('tabela-pj-empresa-body', []);
+  ccRenderTable('tabela-pj-socio-body', [
+    {tipo:'Pefin', origem:'Julia Marques Collucci', data:'—', valor:'R$ 35,00'},
+    {tipo:'Refin', origem:'Julia Marques Collucci', data:'—', valor:'R$ 19.117,00'},
+    {tipo:'Protesto', origem:'Julia Marques Collucci', data:'—', valor:'R$ 4.259,00'},
+  ]);
+}
+
+function ccCarregarExemploVivere(){
+  ccState.docAtivo = true; ccState.socioAtivo = true;
+  ccState.alvaraMunicipio = 'Rio de Janeiro';
+  document.getElementById('alvara-municipio-auto').value = ccState.alvaraMunicipio;
+  document.getElementById('alvara-resultado').textContent = 'Município identificado — pronto para consultar.';
+
+  document.getElementById('empresa-razao').textContent = 'Vivere Estética LTDA EPP';
+  document.getElementById('empresa-ccKv').innerHTML = ccKv({'CNPJ':'63.718.314/0001-44','Fundação':'18/11/2025','Endereço':'R. do Pinheiro 50, Loja C1, Rio de Janeiro, RJ, 22220-050','Telefone':'(21) 99175-4915','Capital social':'R$ 10.000,00 (realizado)','Controle':'Brasil · Natureza fechada'});
+  const elE = document.getElementById('doc-resultado-empresa');
+  elE.className = 'readonly-result ok';
+  elE.innerHTML = 'CNPJ ativo na Receita Federal — situação cadastral ATIVA.<span class="src">Extraído da identificação cadastral do relatório Serasa</span>';
+
+  document.getElementById('socio-nome').textContent = 'Marcelo Pfaender de Lima';
+  document.getElementById('socio-ccKv').innerHTML = ccKv({'CPF':'042.980.837-21','Vínculo':'Sócio / Administrador','Participação':'100% do capital votante','Endereço':'Av. Rui Barbosa 10, ap. 102, Flamengo, Rio de Janeiro, RJ'});
+  const elS = document.getElementById('doc-resultado-socio');
+  elS.className = 'readonly-result ok';
+  elS.innerHTML = 'Sócio sem pendências financeiras — Pefin, Refin, protesto, cheques e ações judiciais: nada consta.<span class="src">Extraído do quadro societário do relatório Serasa</span>';
+
+  ccState.score = 625; ccState.recomendacaoNegativa = false;
+  document.getElementById('empresa-extra-ccKv').innerHTML = ccKv({'Indicativo de risco':'Baixo risco','Faturamento estimado':'Acima de R$ 600.000,00 ao ano','Limite mensal sugerido':'R$ 5.000,00','Sugestão Serasa':'Negociar a prazo, com boas condições de parcelamento e ações de fidelização'});
+  ccSetScore('pj', 625, false);
+  ccRenderTable('tabela-pj-empresa-body', []);
+  ccRenderTable('tabela-pj-socio-body', []);
+}
+
+function ccCarregarPersonalizado(){
+  if(!ccState.pj){
+    ccState.docAtivo = true;
+    document.getElementById('custom-cpf-status').value = 'ativo';
+    ccState.score = 500; ccState.recomendacaoNegativa = true;
+    document.getElementById('custom-score-pf').value = 500;
+    document.getElementById('custom-rec-pf').value = 'negativa';
+    document.getElementById('custom-renda-pf').value = '';
+    ccRenderCustomTable('tabela-pf-body', 4);
+  } else {
+    ccState.docAtivo = true; ccState.socioAtivo = true;
+    document.getElementById('custom-cnpj-status').value = 'ativo';
+    document.getElementById('custom-empresa-razao').value = '';
+    document.getElementById('custom-empresa-cnpj').value = '';
+    document.getElementById('custom-empresa-endereco').value = '';
+    document.getElementById('custom-socio-nome').value = '';
+    document.getElementById('custom-socio-cpf').value = '';
+    document.getElementById('custom-socio-status').value = 'sem-pendencia';
+    ccState.alvaraMunicipio = '—';
+    document.getElementById('alvara-municipio-auto').value = '—';
+    document.getElementById('alvara-resultado').textContent = 'Preencha o endereço da empresa acima e consulte.';
+    ccState.score = 500; ccState.recomendacaoNegativa = true;
+    document.getElementById('custom-score-pj').value = 500;
+    document.getElementById('custom-rec-pj').value = 'negativa';
+    document.getElementById('custom-faturamento-pj').value = '';
+    ccRenderCustomTable('tabela-pj-empresa-body', 4);
+    ccRenderCustomTable('tabela-pj-socio-body', 4);
+  }
+}
+
+function ccKv(obj){
+  return Object.entries(obj).map(([k,v])=>`<div class="k">${k}</div><div>${v}</div>`).join('');
+}
+function ccSetScore(prefix, score, negativa){
+  const s = document.getElementById('score-visual-'+prefix);
+  s.textContent = score;
+  s.className = 'score-num ' + (score < 500 ? 'low' : 'high');
+  document.getElementById('score-texto-'+prefix).textContent = `Serasa Score: ${score}/1000`;
+  document.getElementById('score-recomendacao-'+prefix).textContent = negativa
+    ? 'Recomendação Serasa: negativa — indicativo de cautela.'
+    : 'Recomendação Serasa: positiva — sem restrição relevante.';
+}
+function ccRenderTable(id, lista){
+  const body = document.getElementById(id);
+  if(lista.length===0){ body.innerHTML = '<tr><td colspan="5" style="color:var(--ink-soft);">Não constam pendências no relatório.</td></tr>'; return; }
+  body.innerHTML = lista.map(p=>`<tr><td>${p.tipo}</td><td>${p.origem}</td><td>${p.data}</td><td class="val">${p.valor}</td><td></td></tr>`).join('');
+}
+function ccRenderCustomTable(tbodyId, ncols){
+  document.getElementById(tbodyId).innerHTML = '';
+  ccAddRow(tbodyId, ncols);
+}
+function ccAddRow(tbodyId, ncols){
+  const tbody = document.getElementById(tbodyId);
+  const tr = document.createElement('tr');
+  let tds = '';
+  for(let i=0;i<ncols;i++){
+    tds += `<td><input type="text" placeholder="${i===0?'Ex: Refin':i===1?'Ex: Banco X':i===2?'dd/mm/aaaa':'R$ 0,00'}"></td>`;
+  }
+  tds += `<td><button type="button" class="btn-remove-row" onclick="this.closest('tr').remove()">✕</button></td>`;
+  tr.innerHTML = tds;
+  tbody.appendChild(tr);
+}
+
+function ccConsultarAlvara(){
+  ccState.alvaraProcessado = true;
+  ccState.alvaraAtivo = true;
+  ccState.alvaraVencimento = '14/03/2027';
+  const dataConsulta = new Date().toLocaleDateString('pt-BR');
+  const el = document.getElementById('alvara-resultado');
+  el.className = 'readonly-result ok';
+  el.innerHTML = `Alvará sanitário válido — vencimento em ${ccState.alvaraVencimento}.`
+    + `<span class="src">Consulta pública — Vigilância Sanitária de ${ccState.alvaraMunicipio}, ${dataConsulta}</span>`
+    + `<button type="button" class="doc-chip" onclick="ccAbrirAnexo('alvara')">📎 print_consulta_alvara.pdf — abrir anexo</button>`;
+  ccChecarLiberacaoParecer();
+}
+
+function ccChecarLiberacaoParecer(){
+  const alvaraOk = !ccState.pj || ccState.alvaraProcessado;
+  const correspondenciaOk = ccState.correspondenciaOk !== false;
+  document.getElementById('btn-gerar-parecer').disabled = !(ccState.serasaProcessado && alvaraOk && correspondenciaOk);
+}
+
+function ccAbrirAnexo(tipo){
+  const modal = document.getElementById('anexo-modal');
+  const title = document.getElementById('anexo-modal-title');
+  const body = document.getElementById('anexo-modal-body');
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  if(tipo === 'conselho'){
+    const tipoConselho = document.getElementById('conselho-tipo').value;
+    const numero = document.getElementById('conselho-numero').value || '(não informado)';
+    const nomeProf = document.getElementById('conselho-nome').value || '(não informado)';
+    title.textContent = 'Comprovante de consulta — Conselho profissional';
+    body.innerHTML = `
+      <div class="mock-doc">
+        <div class="mock-header">${tipoConselho} — Consulta pública de registro</div>
+        <div class="mock-row"><span>Profissional</span><strong>${nomeProf}</strong></div>
+        <div class="mock-row"><span>Inscrição</span><strong>${numero}</strong></div>
+        <div class="mock-row"><span>Situação</span><strong>${ccState.conselhoAtivo ? 'ATIVO' : 'INATIVO'}</strong></div>
+        <div class="mock-row"><span>Data da consulta</span><strong>${hoje}</strong></div>
+        <span class="mock-stamp ${ccState.conselhoAtivo?'':'bad'}">${ccState.conselhoAtivo?'Registro ativo':'Registro inativo'}</span>
+      </div>
+      <p class="hint" style="margin-top:12px;">Simulação de como o comprovante apareceria — em produção, será o print real ou PDF gerado pelo site oficial do conselho.</p>`;
+  } else if(tipo === 'alvara'){
+    title.textContent = 'Comprovante de consulta — Alvará sanitário';
+    body.innerHTML = `
+      <div class="mock-doc">
+        <div class="mock-header">Vigilância Sanitária — Consulta pública de alvará</div>
+        <div class="mock-row"><span>Município</span><strong>${ccState.alvaraMunicipio}</strong></div>
+        <div class="mock-row"><span>Situação</span><strong>${ccState.alvaraAtivo ? 'VÁLIDO' : 'IRREGULAR'}</strong></div>
+        <div class="mock-row"><span>Vencimento</span><strong>${ccState.alvaraVencimento}</strong></div>
+        <div class="mock-row"><span>Data da consulta</span><strong>${hoje}</strong></div>
+        <span class="mock-stamp ${ccState.alvaraAtivo?'':'bad'}">${ccState.alvaraAtivo?'Alvará válido':'Alvará irregular'}</span>
+      </div>
+      <p class="hint" style="margin-top:12px;">Simulação de como o comprovante apareceria — em produção, será o print real da consulta pública municipal.</p>`;
+  }
+  modal.style.display = 'flex';
+}
+function ccFecharAnexo(){ document.getElementById('anexo-modal').style.display = 'none'; }
+
+const CC_EQUIP_LABEL = {lavieen:'Lavieen', criodermis:'Criodermis 2.0', endolaser:'Endolaser Pioon 1470', ultraformer:'Ultraformer MPT'};
+const CC_EQUIP_FIXO = ['lavieen','criodermis','endolaser'];
+
+function ccAvaliar(){
+  const nome = document.getElementById('nome').value || (ccState.pj ? 'Empresa não informada' : 'Cliente não informado');
+  const documento = document.getElementById('documento').value || '—';
+  const equipamentos = ccGetEquipamentosSelecionados();
+  const equipLabelStr = equipamentos.length ? equipamentos.map(e=>CC_EQUIP_LABEL[e]).join(', ') : '(nenhum equipamento selecionado)';
+  const financeiroRuim = ccState.recomendacaoNegativa || ccState.score < 500;
+  const cadastralImpeditivo = !ccState.docAtivo || (ccState.pj && !ccState.alvaraAtivo);
+  const profissionalOk = ccState.conselhoAtivo;
+  const eliminatorio = cadastralImpeditivo || !profissionalOk;
+
+  const fixosSelecionados = equipamentos.filter(e=>CC_EQUIP_FIXO.includes(e));
+  const ultraformerSelecionado = equipamentos.includes('ultraformer');
+
+  let veredito, conclusaoClasse, conclusaoTitulo, conclusaoTexto, mostrarAprovacaoManual=false;
+
+  if(eliminatorio){
+    veredito = {cadastral: cadastralImpeditivo?'bad':'ok', financeiro:'warn', profissional: profissionalOk?'ok':'bad'};
+    conclusaoClasse = 'bad'; conclusaoTitulo = 'Cadastro reprovado';
+    conclusaoTexto = cadastralImpeditivo
+      ? 'Dado cadastral com impeditivo (documento ou alvará irregular). Não é possível prosseguir com a locação até regularização.'
+      : 'Conselho profissional inativo. Não é possível prosseguir com a locação enquanto essa pendência não for resolvida.';
+  } else if(!financeiroRuim){
+    veredito = {cadastral:'ok', financeiro:'ok', profissional:'ok'};
+    conclusaoClasse = 'ok'; conclusaoTitulo = 'Cadastro aprovado';
+    conclusaoTexto = `Análise financeira sem restrição relevante. Aprovado para locação de ${equipLabelStr} nas condições comerciais padrão.`;
+  } else if(fixosSelecionados.length && !ultraformerSelecionado){
+    veredito = {cadastral:'ok', financeiro:'warn', profissional:'ok'};
+    conclusaoClasse = 'warn'; conclusaoTitulo = 'Aprovado com restrição — pagamento antecipado';
+    conclusaoTexto = `Financeiro restritivo, mas como ${equipLabelStr} ${fixosSelecionados.length>1?'têm':'tem'} valor fixo de locação, o cadastro é aprovado somente para pagamento antecipado. Venda de manta ou fibra (quando aplicável) também deve ser cobrada antecipadamente.`;
+  } else if(ultraformerSelecionado && !fixosSelecionados.length){
+    veredito = {cadastral:'ok', financeiro:'bad', profissional:'ok'};
+    conclusaoClasse = 'warn'; conclusaoTitulo = 'Pendente de aprovação manual';
+    conclusaoTexto = `Financeiro restritivo e Ultraformer MPT tem valor variável por distância — não é possível aprovar automaticamente. Necessária decisão do Victor.`;
+    mostrarAprovacaoManual = true;
+  } else {
+    veredito = {cadastral:'ok', financeiro:'bad', profissional:'ok'};
+    conclusaoClasse = 'warn'; conclusaoTitulo = 'Aprovação mista — parte antecipada, parte manual';
+    conclusaoTexto = `Financeiro restritivo. ${fixosSelecionados.map(e=>CC_EQUIP_LABEL[e]).join(', ')} (valor fixo) fica aprovado somente para pagamento antecipado. Já o Ultraformer MPT (valor variável por distância) é reprovado automaticamente e depende de decisão manual do Victor.`;
+    mostrarAprovacaoManual = true;
+  }
+  return {nome, documento, equipamentos, equipLabelStr, veredito, conclusaoClasse, conclusaoTitulo, conclusaoTexto, mostrarAprovacaoManual, eliminatorio, financeiroRuim};
+}
+
+function ccGerarParecer(){
+  const r = ccAvaliar();
+  const chip = (v)=> v==='ok' ? '<span class="verdict-chip ok">Aprovado</span>' : v==='bad' ? '<span class="verdict-chip bad">Reprovado</span>' : '<span class="verdict-chip warn">Atenção</span>';
+
+  let cadastralItens = [`${ccState.pj?'CNPJ':'CPF'} ${r.documento}: ${ccState.docAtivo?'situação regular / ativa':'situação irregular — impeditivo'}`];
+  if(ccState.pj) cadastralItens.push(`Alvará sanitário (${ccState.alvaraMunicipio}): ${ccState.alvaraAtivo? 'válido, vencimento em '+ccState.alvaraVencimento : 'vencido ou não localizado — impeditivo'}`);
+
+  let financeiroItens = [`Serasa Score: ${ccState.score}/1000`, ccState.recomendacaoNegativa? 'Recomendação Serasa: negativa, indicativo de cautela' : 'Recomendação Serasa: positiva, sem restrição relevante'];
+  if(ccState.pj) financeiroItens.push(ccState.socioAtivo===false ? 'Sócia com pendências financeiras registradas — pesa na avaliação de risco.' : 'Sócio(a) sem pendências financeiras relevantes.');
+  if(r.eliminatorio) financeiroItens.push('Não avaliado a fundo — reprovação em etapa anterior é impeditiva.');
+
+  const tipoConselho = document.getElementById('conselho-tipo').value;
+  const numeroConselho = document.getElementById('conselho-numero').value || '(número não informado)';
+  const nomeProfissional = document.getElementById('conselho-nome').value || '(nome não informado)';
+  let profissionalItens = [`${tipoConselho} — inscrição ${numeroConselho}, responsável técnico ${nomeProfissional}: ${ccState.conselhoAtivo?'ativa':'inativa — impeditivo'}`];
+
+  let html = `
+    <div class="laudo-block"><div class="laudo-head"><span class="idx">1</span><span class="title">Análise cadastral</span>${chip(r.veredito.cadastral)}</div><div class="laudo-body"><ul>${cadastralItens.map(i=>`<li>${i}</li>`).join('')}</ul></div></div>
+    <div class="laudo-block"><div class="laudo-head"><span class="idx">2</span><span class="title">Análise financeira</span>${chip(r.veredito.financeiro)}</div><div class="laudo-body"><ul>${financeiroItens.map(i=>`<li>${i}</li>`).join('')}</ul></div></div>
+    <div class="laudo-block"><div class="laudo-head"><span class="idx">3</span><span class="title">Análise de perfil profissional</span>${chip(r.veredito.profissional)}</div><div class="laudo-body"><ul>${profissionalItens.map(i=>`<li>${i}</li>`).join('')}</ul></div></div>
+    <div class="conclusion ${r.conclusaoClasse}">
+      <h3>${r.conclusaoTitulo}</h3><p style="margin:0;">${r.conclusaoTexto}</p>
+      ${r.mostrarAprovacaoManual ? `<div class="manual-approval"><div class="radio-group"><label><input type="radio" name="vitorLiberou"> Vitor liberou</label><label><input type="radio" name="vitorLiberou"> Vitor não liberou</label></div></div>` : ''}
+    </div>`;
+
+  document.getElementById('parecer-conteudo').innerHTML =
+    `<h3 style="margin:0 0 4px;">${r.nome}</h3><p style="margin:0 0 18px;color:var(--ink-soft);font-size:13.5px;">${ccState.pj?'CNPJ':'CPF'} ${r.documento} · Equipamento(s): ${r.equipLabelStr}</p>` + html;
+  document.getElementById('parecer-conteudo').style.display = 'block';
+  document.getElementById('parecer-vazio').style.display = 'none';
+  document.getElementById('parecer-nav').style.display = 'flex';
+  ccGoStep(3);
+}
+
+function ccSnapshotEditable(fieldsetId){
+  const src = document.getElementById(fieldsetId);
+  const clone = src.cloneNode(true);
+  const liveInputs = src.querySelectorAll('input, select, textarea');
+  const cloneInputs = clone.querySelectorAll('input, select, textarea');
+  liveInputs.forEach((el, i)=>{
+    let val;
+    if(el.tagName === 'SELECT'){ val = el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : ''; }
+    else { val = el.value; }
+    const span = document.createElement('span');
+    span.textContent = (val && String(val).trim() !== '') ? val : '—';
+    span.style.fontWeight = '600';
+    if(cloneInputs[i]) cloneInputs[i].replaceWith(span);
+  });
+  clone.querySelectorAll('button, legend').forEach(el=>el.remove());
+  return clone.innerHTML;
+}
+
+function ccMontarDocFinal(){
+  const r = ccAvaliar();
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const chip = (v)=> v==='ok' ? '<span class="verdict-chip ok">Aprovado</span>' : v==='bad' ? '<span class="verdict-chip bad">Reprovado</span>' : '<span class="verdict-chip warn">Atenção</span>';
+
+  const situacaoHtml = ccSnapshotEditable(ccState.pj ? 'fieldset-situacao-pj' : 'fieldset-situacao-pf');
+  const pendenciasHtml = ccSnapshotEditable(ccState.pj ? 'fieldset-pendencias-pj' : 'fieldset-pendencias-pf');
+  const alvaraHtml = ccState.pj ? ccSnapshotEditable('fieldset-alvara-doc') : '';
+
+  document.getElementById('doc-final').innerHTML = `
+    <button type="button" class="btn btn-ghost no-print-btn" style="margin-bottom:14px;" onclick="document.getElementById('doc-final').style.display='none';">✕ Fechar pré-visualização</button>
+    <div class="doc-page">
+      <h2 class="doc-title">Dossiê de cadastro de cliente</h2>
+      <div class="doc-sub">RJX Locações · gerado em ${hoje} · ${r.nome} · ${ccState.pj?'CNPJ':'CPF'} ${r.documento} · Equipamento(s): ${r.equipLabelStr}</div>
+
+      <div class="doc-section">
+        <h3>1. Situação cadastral</h3>
+        ${situacaoHtml}
+      </div>
+
+      ${ccState.pj ? `<div class="doc-section"><h3>Alvará sanitário</h3>${alvaraHtml}
+      <div class="doc-attach-thumb"><span class="fname">📎 print_consulta_alvara.pdf</span> — comprovante da consulta pública anexado a este dossiê.</div></div>` : ''}
+
+      <div class="doc-section">
+        <h3>2. Pendências financeiras (relatório Serasa)</h3>
+        ${pendenciasHtml}
+        <div class="doc-attach-thumb"><span class="fname">📎 SERASA_RELATORIO.pdf</span> — relatório completo anexado a este dossiê.</div>
+      </div>
+
+      <div class="doc-section">
+        <h3>3. Perfil profissional</h3>
+        <p>${document.getElementById('conselho-tipo').value} — inscrição ${document.getElementById('conselho-numero').value || '(não informado)'}, responsável técnico ${document.getElementById('conselho-nome').value || '(não informado)'}: <strong>${ccState.conselhoAtivo?'ativa':'inativa'}</strong>.</p>
+        <div class="doc-attach-thumb"><span class="fname">📎 comprovante_consulta_conselho.pdf</span> — comprovante da consulta ao site oficial do conselho anexado a este dossiê.</div>
+      </div>
+
+      <div class="doc-section">
+        <h3>4. Parecer final</h3>
+        <p>${chip(r.veredito.cadastral)} Cadastral &nbsp; ${chip(r.veredito.financeiro)} Financeiro &nbsp; ${chip(r.veredito.profissional)} Profissional</p>
+        <p><strong>${r.conclusaoTitulo}.</strong> ${r.conclusaoTexto}</p>
+        ${r.mostrarAprovacaoManual ? '<p><strong>Decisão do Victor:</strong> ____________________</p>' : ''}
+      </div>
+    </div>
+  `;
+}
+
+function ccPrevisualizarDoc(){
+  ccMontarDocFinal();
+  const docFinal = document.getElementById('doc-final');
+  docFinal.style.display = 'block';
+  docFinal.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+</script>
 </body>
 </html>
