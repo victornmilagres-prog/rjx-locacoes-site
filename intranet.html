@@ -4515,7 +4515,7 @@ function selectFinanceiroSubtab(tab){
 
 /* ===== Módulo Cadastro de Cliente (protótipo) ===== */
 const CC_MODULE_HTML = `<div class="cc-mod">
-<p class="cc-disclaimer">Os resultados de conselho, Serasa e alvará abaixo são simulados no protótipo; em produção virão da leitura automática dos documentos e das consultas reais aos sites oficiais.</p>
+<p class="cc-disclaimer">Os resultados do conselho e do alvará abaixo ainda são simulados; anexe o relatório de crédito real e preencha os campos com o que ele mostra.</p>
 <div class="steps">
     <button class="step-btn active" data-step="1" onclick="ccGoStep(1)"><span class="num">1</span>Dados</button>
     <button class="step-btn" data-step="2" onclick="ccGoStep(2)"><span class="num">2</span>Documentos</button>
@@ -4612,17 +4612,13 @@ const CC_MODULE_HTML = `<div class="cc-mod">
       <legend>Consulta Serasa</legend>
       <div class="lookup-row">
         <div>
-          <label>Fonte dos dados</label>
-          <select id="serasa-fonte" onchange="ccOnFonteChange()">
-            <option value="nathalia">Exemplo — Nathalia (CPF)</option>
-            <option value="collucci">Exemplo — Collucci (CNPJ, restritivo)</option>
-            <option value="vivere">Exemplo — Vivere Estética (CNPJ, aprovado)</option>
-            <option value="custom">Personalizado — preencher com qualquer consulta</option>
-          </select>
+          <label>Relatório de crédito (Serasa)</label>
+          <input type="file" id="serasa-arquivo-input" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="ccAnexarSerasa(this.files[0])">
+          <button type="button" class="btn-consultar" onclick="document.getElementById(&quot;serasa-arquivo-input&quot;).click()">📎 Anexar relatório do Serasa</button>
         </div>
-        <button class="btn-consultar" id="btn-anexo" onclick="ccProcessarSerasa()">Carregar e processar</button>
+        <div id="serasa-arquivo-nome" class="hint" style="align-self:center;"></div>
       </div>
-      <div id="fieldset-validacao-custom" style="display:none;margin-top:14px;">
+      <div id="fieldset-validacao-custom" style="margin-top:14px;">
         <div class="field-row">
           <div>
             <label>Nome ou razão social no documento importado</label>
@@ -4635,7 +4631,7 @@ const CC_MODULE_HTML = `<div class="cc-mod">
         </div>
         <div class="hint">Usado só para conferir se o relatório carregado é mesmo do cliente informado na etapa Dados.</div>
       </div>
-      <div id="serasa-pendente" class="readonly-result pending">Aguardando importação do relatório.</div>
+      <div id="serasa-pendente" class="readonly-result pending">Aguardando anexar o relatório.</div>
       <div id="validacao-correspondencia" class="readonly-result pending" style="display:none;margin-top:8px;"></div>
     </fieldset>
 
@@ -4989,42 +4985,15 @@ function ccAtualizarValidacaoCustom(){
   ccValidarCorrespondencia(nomeDoc, docDoc);
 }
 
-function ccOnFonteChange(){
-  const isCustom = document.getElementById('serasa-fonte').value === 'custom';
-  document.getElementById('fieldset-validacao-custom').style.display = isCustom ? 'block' : 'none';
-}
-
-function ccProcessarSerasa(){
-  const fonte = document.getElementById('serasa-fonte').value;
-  const btn = document.getElementById('btn-anexo');
-  btn.textContent = 'Carregado ✓';
+function ccAnexarSerasa(file){
+  if(!file) return;
+  document.getElementById('serasa-arquivo-nome').textContent = '📄 ' + file.name + ' — anexado';
   ccState.serasaProcessado = true;
   document.getElementById('serasa-pendente').style.display = 'none';
   document.getElementById('bloco-pos-serasa').style.display = 'block';
-
-  if(fonte === 'nathalia'){
-    document.querySelector('input[name=tipo][value=PF]').checked = true;
-    ccOnTipoChange();
-    ccSetCustomVisibility(false);
-    ccCarregarExemploNathalia();
-    ccValidarCorrespondencia(CC_IDENTIFICACAO_EXEMPLOS.nathalia.nome, CC_IDENTIFICACAO_EXEMPLOS.nathalia.doc);
-  } else if(fonte === 'collucci'){
-    document.querySelector('input[name=tipo][value=PJ]').checked = true;
-    ccOnTipoChange();
-    ccSetCustomVisibility(false);
-    ccCarregarExemploCollucci();
-    ccValidarCorrespondencia(CC_IDENTIFICACAO_EXEMPLOS.collucci.nome, CC_IDENTIFICACAO_EXEMPLOS.collucci.doc);
-  } else if(fonte === 'vivere'){
-    document.querySelector('input[name=tipo][value=PJ]').checked = true;
-    ccOnTipoChange();
-    ccSetCustomVisibility(false);
-    ccCarregarExemploVivere();
-    ccValidarCorrespondencia(CC_IDENTIFICACAO_EXEMPLOS.vivere.nome, CC_IDENTIFICACAO_EXEMPLOS.vivere.doc);
-  } else {
-    ccSetCustomVisibility(true);
-    ccCarregarPersonalizado();
-    ccValidarCorrespondencia(document.getElementById('custom-doc-nome').value.trim(), document.getElementById('custom-doc-cpf').value.trim());
-  }
+  ccSetCustomVisibility(true);
+  ccCarregarPersonalizado();
+  ccValidarCorrespondencia(document.getElementById('custom-doc-nome').value.trim(), document.getElementById('custom-doc-cpf').value.trim());
   ccChecarLiberacaoParecer();
 }
 
