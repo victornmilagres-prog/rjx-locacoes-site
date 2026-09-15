@@ -4610,16 +4610,27 @@ const CC_MODULE_HTML = `<div class="cc-mod">
       <div id="conselho-acao-crbm" style="display:none;">
         <div class="lookup-row">
           <div></div>
-          <button type="button" class="btn-consultar" onclick="window.open(&quot;https://cfbm-br.implanta.net.br/visaonacional/publico/consulta-publica/index&quot;,&quot;_blank&quot;)">🔗 Abrir consulta nacional do CRBM</button>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn-consultar" onclick="window.open(&quot;https://cfbm-br.implanta.net.br/visaonacional/publico/consulta-publica/index&quot;,&quot;_blank&quot;)">🔗 Abrir consulta nacional do CRBM</button>
+            <button type="button" class="btn-ghost" onclick="ccCopiarDadosConselho(this)">📋 Copiar número e nome</button>
+          </div>
         </div>
         <div class="hint">Site oficial do CFBM (Visão Nacional). Pesquise pelo número de inscrição ou nome — profissionais do Rio de Janeiro e Espírito Santo ficam no CRBM 07.</div>
         <div class="field-row" style="margin-top:10px;">
+          <div>
+            <label>Carteira do conselho (enviada pela Dra.)</label>
+            <input type="file" id="conselho-carteira-input" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="ccAnexarCarteiraConselho(this.files[0])">
+            <button type="button" class="btn-consultar" onclick="document.getElementById(&quot;conselho-carteira-input&quot;).click()">📎 Anexar carteira do conselho</button>
+            <div id="conselho-carteira-nome" class="hint"></div>
+          </div>
           <div>
             <label>Print da consulta</label>
             <input type="file" id="conselho-print-input" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="ccAnexarPrintConselho(this.files[0])">
             <button type="button" class="btn-consultar" onclick="document.getElementById(&quot;conselho-print-input&quot;).click()">📎 Anexar print da tela</button>
             <div id="conselho-print-nome" class="hint"></div>
           </div>
+        </div>
+        <div class="field-row single" style="margin-top:10px;">
           <div>
             <label>Situação encontrada</label>
             <select id="conselho-situacao-manual" onchange="ccAtualizarSituacaoConselhoManual()">
@@ -4931,6 +4942,32 @@ function ccOnConselhoTipoChange(){
   document.getElementById('conselho-acao-crbm').style.display = isCRBM ? 'block' : 'none';
 }
 
+function ccCopiarDadosConselho(btn){
+  const numero = document.getElementById('conselho-numero').value.trim();
+  const nome = document.getElementById('conselho-nome').value.trim();
+  if(!numero && !nome){ alert('Preencha o número de inscrição e/ou o nome do profissional antes de copiar.'); return; }
+  const texto = [numero, nome].filter(Boolean).join(' — ');
+  navigator.clipboard.writeText(texto).then(function(){
+    const original = btn.textContent;
+    btn.textContent = '✓ Copiado!';
+    setTimeout(function(){ btn.textContent = original; }, 1500);
+  });
+}
+
+function ccAnexarCarteiraConselho(file){
+  if(!file) return;
+  ccState.conselhoCarteiraNome = file.name;
+  ccState.conselhoCarteiraFile = file;
+  document.getElementById('conselho-carteira-nome').textContent = '📄 ' + file.name + ' — anexado';
+  ccAtualizarSituacaoConselhoManual();
+}
+
+function ccAbrirCarteiraConselhoReal(){
+  if(ccState.conselhoCarteiraFile){
+    window.open(URL.createObjectURL(ccState.conselhoCarteiraFile), '_blank');
+  }
+}
+
 function ccAnexarPrintConselho(file){
   if(!file) return;
   ccState.conselhoPrintNome = file.name;
@@ -4941,7 +4978,7 @@ function ccAnexarPrintConselho(file){
 
 function ccAtualizarSituacaoConselhoManual(){
   const situacao = document.getElementById('conselho-situacao-manual').value;
-  if(!ccState.conselhoPrintNome || !situacao) return;
+  if(!ccState.conselhoPrintNome || !ccState.conselhoCarteiraNome || !situacao) return;
   const nome = document.getElementById('conselho-nome').value.trim();
   if(!nome){ ccMarkFieldError('conselho-nome'); alert('Preencha o nome completo do profissional antes de confirmar.'); return; }
   ccClearFieldError('conselho-nome');
@@ -4954,6 +4991,7 @@ function ccAtualizarSituacaoConselhoManual(){
     ? 'Inscrição ativa no CRBM (Visão Nacional).'
     : 'Inscrição não ativa no CRBM (inativa, suspensa ou outra situação).')
     + `<span class="src">Consulta feita na Visão Nacional do CFBM — ${dataConsulta}</span>`
+    + `<button type="button" class="doc-chip" onclick="ccAbrirCarteiraConselhoReal()">📎 ${ccState.conselhoCarteiraNome} — abrir anexo</button>`
     + `<button type="button" class="doc-chip" onclick="ccAbrirPrintConselhoReal()">📎 ${ccState.conselhoPrintNome} — abrir anexo</button>`;
   ccCheckStep1Ready();
 }
@@ -5397,6 +5435,7 @@ function ccMontarDocFinal(){
       <div class="doc-section">
         <h3>3. Perfil profissional</h3>
         <p>${document.getElementById('conselho-tipo').value} — inscrição ${document.getElementById('conselho-numero').value || '(não informado)'}, responsável técnico ${document.getElementById('conselho-nome').value || '(não informado)'}: <strong>${ccState.conselhoAtivo?'ativa':'inativa'}</strong>.</p>
+        ${ccState.conselhoCarteiraNome ? `<div class="doc-attach-thumb"><span class="fname">📎 ${ccState.conselhoCarteiraNome}</span> — carteira do conselho enviada pela profissional, anexada a este dossiê.</div>` : ''}
         <div class="doc-attach-thumb"><span class="fname">📎 ${ccState.conselhoPrintNome || 'comprovante_consulta_conselho.pdf'}</span> — comprovante da consulta ao site oficial do conselho anexado a este dossiê.</div>
       </div>
 
