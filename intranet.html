@@ -1831,7 +1831,10 @@ async function carregarListaAbertasComercial(){
         '<button class="btn btn-primary" onclick="salvarEdicaoMotoristaPremiacao(&quot;' + loc.id + '&quot;)">Salvar</button>' +
         '<button class="btn btn-ghost" onclick="cancelarEdicaoMotoristaPremiacao()">Cancelar</button></div>';
     } else {
-      actionHtml = '<button class="btn btn-ghost" style="margin-top:8px;" onclick="abrirEdicaoMotoristaPremiacao(&quot;' + loc.id + '&quot;)">Editar motorista</button>';
+      actionHtml = '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">' +
+        '<button class="btn btn-ghost" onclick="abrirEdicaoMotoristaPremiacao(&quot;' + loc.id + '&quot;)">Editar motorista</button>' +
+        '<button class="btn btn-ghost" style="border-color:var(--alert);color:var(--alert);" onclick="excluirLocacaoPremiacao(&quot;' + loc.id + '&quot;,&quot;' + escapeHtml(loc.numero) + '&quot;)">Excluir lançamento</button>' +
+        '</div>';
     }
     return '<div class="card" style="padding:12px 14px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
       '<div><b>Locação #' + escapeHtml(loc.numero) + '</b><div style="font-size:12px;color:var(--gray);">' + eq.label + ' - ' + premiacaoDataBR(loc.data_locacao) + '</div></div>' +
@@ -1845,6 +1848,16 @@ async function salvarEdicaoMotoristaPremiacao(locId){
   const sel = document.getElementById('pc-edit-select-' + locId);
   await sb.from('premiacao_locacoes').update({ motorista_id: sel.value, atualizado_em: new Date().toISOString() }).eq('id', locId);
   pcEditandoId = null;
+  await carregarListaAbertasComercial();
+}
+
+async function excluirLocacaoPremiacao(locId, numero){
+  const ok = confirm('Tem certeza que deseja excluir a locação #' + numero + '?\n\nIsso remove o lançamento e as etapas de premiação registradas para essa locação. Essa ação não pode ser desfeita.');
+  if(!ok) return;
+  await sb.from('premiacao_etapas').delete().eq('locacao_id', locId);
+  await sb.from('premiacao_contestacoes').delete().eq('locacao_id', locId);
+  await sb.from('premiacao_locacoes').delete().eq('id', locId);
+  toast('Lançamento excluído.');
   await carregarListaAbertasComercial();
 }
 
