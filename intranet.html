@@ -372,6 +372,8 @@ textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--lin
   .cc-mod .readonly-result.bad{background:var(--bad-bg);border-color:var(--bad-line);color:var(--bad-ink);}
   .cc-mod .readonly-result .src{font-size:11.5px;opacity:0.85;}
   .cc-mod .doc-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:inherit;background:rgba(255,255,255,0.6);border:1px solid currentColor;border-radius:20px;padding:3px 10px;width:fit-content;margin-top:2px;cursor:pointer;}
+  .cc-mod .copy-mini{background:transparent;border:1px solid var(--line);border-radius:4px;width:22px;height:22px;font-size:11px;cursor:pointer;line-height:1;padding:0;color:var(--ink-soft);flex-shrink:0;}
+  .cc-mod .copy-mini:hover{border-color:var(--wine);color:var(--wine);}
   .cc-mod .doc-chip:hover{background:rgba(255,255,255,0.95);}
   .cc-mod .locked-note{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--ink-soft);background:#F3F1EC;border-radius:6px;padding:8px 10px;margin-bottom:14px;}
   .cc-mod .split-two{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
@@ -4587,18 +4589,18 @@ const CC_MODULE_HTML = `<div class="cc-mod">
           </select>
         </div>
         <div>
-          <label>Número de inscrição</label>
+          <label style="display:flex;align-items:center;justify-content:space-between;">Número de inscrição <button type="button" class="copy-mini" title="Copiar número" onclick="ccCopiarCampo(&quot;conselho-numero&quot;, this)">📋</button></label>
           <input type="text" id="conselho-numero" placeholder="Ex: 123456-RJ">
         </div>
       </div>
       <div class="field-row">
         <div>
-          <label>Nome completo do profissional *</label>
+          <label style="display:flex;align-items:center;justify-content:space-between;">Nome completo do profissional * <button type="button" class="copy-mini" title="Copiar nome" onclick="ccCopiarCampo(&quot;conselho-nome&quot;, this)">📋</button></label>
           <input type="text" id="conselho-nome" placeholder="Nome de quem realiza o procedimento" oninput="ccClearFieldError('conselho-nome')">
           <div class="field-error" id="erro-conselho-nome">Campo obrigatório.</div>
         </div>
         <div>
-          <label>CPF do profissional *</label>
+          <label style="display:flex;align-items:center;justify-content:space-between;">CPF do profissional * <button type="button" class="copy-mini" title="Copiar CPF" onclick="ccCopiarCampo(&quot;conselho-cpf&quot;, this)">📋</button></label>
           <input type="text" id="conselho-cpf" placeholder="000.000.000-00" oninput="ccClearFieldError('conselho-cpf')">
           <div class="field-error" id="erro-conselho-cpf">Campo obrigatório.</div>
         </div>
@@ -4610,27 +4612,30 @@ const CC_MODULE_HTML = `<div class="cc-mod">
       <div id="conselho-acao-crbm" style="display:none;">
         <div class="lookup-row">
           <div></div>
-          <div style="display:flex;gap:8px;">
-            <button type="button" class="btn-consultar" onclick="window.open(&quot;https://cfbm-br.implanta.net.br/visaonacional/publico/consulta-publica/index&quot;,&quot;_blank&quot;)">🔗 Abrir consulta nacional do CRBM</button>
-            <button type="button" class="btn-ghost" onclick="ccCopiarDadosConselho(this)">📋 Copiar número e nome</button>
-          </div>
+          <button type="button" class="btn-consultar" onclick="window.open(&quot;https://cfbm-br.implanta.net.br/visaonacional/publico/consulta-publica/index&quot;,&quot;_blank&quot;)">🔗 Abrir consulta nacional do CRBM</button>
         </div>
-        <div class="hint">Site oficial do CFBM (Visão Nacional). Pesquise pelo número de inscrição ou nome — profissionais do Rio de Janeiro e Espírito Santo ficam no CRBM 07.</div>
+        <div class="hint">Site oficial do CFBM (Visão Nacional). Pesquise pelo número de inscrição ou nome — profissionais do Rio de Janeiro e Espírito Santo ficam no CRBM 07. Use os botões 📋 ao lado dos campos acima pra copiar cada um.</div>
         <div class="field-row" style="margin-top:10px;">
           <div>
-            <label>Carteira do conselho (enviada pela Dra.)</label>
-            <input type="file" id="conselho-carteira-input" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="ccAnexarCarteiraConselho(this.files[0])">
-            <button type="button" class="btn-consultar" onclick="document.getElementById(&quot;conselho-carteira-input&quot;).click()">📎 Anexar carteira do conselho</button>
-            <div id="conselho-carteira-nome" class="hint"></div>
+            <label>Carteira do conselho — frente</label>
+            <input type="file" id="conselho-carteira-frente-input" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="ccAnexarCarteiraConselho(&quot;frente&quot;, this.files[0])">
+            <button type="button" class="btn-consultar" onclick="document.getElementById(&quot;conselho-carteira-frente-input&quot;).click()">📎 Anexar frente</button>
+            <div id="conselho-carteira-frente-nome" class="hint"></div>
           </div>
+          <div>
+            <label>Carteira do conselho — verso</label>
+            <input type="file" id="conselho-carteira-verso-input" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="ccAnexarCarteiraConselho(&quot;verso&quot;, this.files[0])">
+            <button type="button" class="btn-consultar" onclick="document.getElementById(&quot;conselho-carteira-verso-input&quot;).click()">📎 Anexar verso</button>
+            <div id="conselho-carteira-verso-nome" class="hint"></div>
+          </div>
+        </div>
+        <div class="field-row" style="margin-top:10px;">
           <div>
             <label>Print da consulta</label>
             <input type="file" id="conselho-print-input" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="ccAnexarPrintConselho(this.files[0])">
             <button type="button" class="btn-consultar" onclick="document.getElementById(&quot;conselho-print-input&quot;).click()">📎 Anexar print da tela</button>
             <div id="conselho-print-nome" class="hint"></div>
           </div>
-        </div>
-        <div class="field-row single" style="margin-top:10px;">
           <div>
             <label>Situação encontrada</label>
             <select id="conselho-situacao-manual" onchange="ccAtualizarSituacaoConselhoManual()">
@@ -4942,29 +4947,39 @@ function ccOnConselhoTipoChange(){
   document.getElementById('conselho-acao-crbm').style.display = isCRBM ? 'block' : 'none';
 }
 
-function ccCopiarDadosConselho(btn){
-  const numero = document.getElementById('conselho-numero').value.trim();
-  const nome = document.getElementById('conselho-nome').value.trim();
-  if(!numero && !nome){ alert('Preencha o número de inscrição e/ou o nome do profissional antes de copiar.'); return; }
-  const texto = [numero, nome].filter(Boolean).join(' — ');
-  navigator.clipboard.writeText(texto).then(function(){
+function ccCopiarCampo(fieldId, btn){
+  const valor = document.getElementById(fieldId).value.trim();
+  if(!valor){ alert('Campo vazio — nada para copiar.'); return; }
+  navigator.clipboard.writeText(valor).then(function(){
     const original = btn.textContent;
-    btn.textContent = '✓ Copiado!';
-    setTimeout(function(){ btn.textContent = original; }, 1500);
+    btn.textContent = '✓';
+    setTimeout(function(){ btn.textContent = original; }, 1200);
   });
 }
 
-function ccAnexarCarteiraConselho(file){
+function ccAnexarCarteiraConselho(lado, file){
   if(!file) return;
-  ccState.conselhoCarteiraNome = file.name;
-  ccState.conselhoCarteiraFile = file;
-  document.getElementById('conselho-carteira-nome').textContent = '📄 ' + file.name + ' — anexado';
+  if(lado === 'frente'){
+    ccState.conselhoCarteiraFrenteNome = file.name;
+    ccState.conselhoCarteiraFrenteFile = file;
+    document.getElementById('conselho-carteira-frente-nome').textContent = '📄 ' + file.name + ' — anexado';
+  } else {
+    ccState.conselhoCarteiraVersoNome = file.name;
+    ccState.conselhoCarteiraVersoFile = file;
+    document.getElementById('conselho-carteira-verso-nome').textContent = '📄 ' + file.name + ' — anexado';
+  }
   ccAtualizarSituacaoConselhoManual();
 }
 
-function ccAbrirCarteiraConselhoReal(){
-  if(ccState.conselhoCarteiraFile){
-    window.open(URL.createObjectURL(ccState.conselhoCarteiraFile), '_blank');
+function ccAbrirCarteiraFrenteReal(){
+  if(ccState.conselhoCarteiraFrenteFile){
+    window.open(URL.createObjectURL(ccState.conselhoCarteiraFrenteFile), '_blank');
+  }
+}
+
+function ccAbrirCarteiraVersoReal(){
+  if(ccState.conselhoCarteiraVersoFile){
+    window.open(URL.createObjectURL(ccState.conselhoCarteiraVersoFile), '_blank');
   }
 }
 
@@ -4978,7 +4993,7 @@ function ccAnexarPrintConselho(file){
 
 function ccAtualizarSituacaoConselhoManual(){
   const situacao = document.getElementById('conselho-situacao-manual').value;
-  if(!ccState.conselhoPrintNome || !ccState.conselhoCarteiraNome || !situacao) return;
+  if(!ccState.conselhoPrintNome || !ccState.conselhoCarteiraFrenteNome || !ccState.conselhoCarteiraVersoNome || !situacao) return;
   const nome = document.getElementById('conselho-nome').value.trim();
   if(!nome){ ccMarkFieldError('conselho-nome'); alert('Preencha o nome completo do profissional antes de confirmar.'); return; }
   ccClearFieldError('conselho-nome');
@@ -4991,7 +5006,8 @@ function ccAtualizarSituacaoConselhoManual(){
     ? 'Inscrição ativa no CRBM (Visão Nacional).'
     : 'Inscrição não ativa no CRBM (inativa, suspensa ou outra situação).')
     + `<span class="src">Consulta feita na Visão Nacional do CFBM — ${dataConsulta}</span>`
-    + `<button type="button" class="doc-chip" onclick="ccAbrirCarteiraConselhoReal()">📎 ${ccState.conselhoCarteiraNome} — abrir anexo</button>`
+    + `<button type="button" class="doc-chip" onclick="ccAbrirCarteiraFrenteReal()">📎 ${ccState.conselhoCarteiraFrenteNome} — abrir anexo</button>`
+    + `<button type="button" class="doc-chip" onclick="ccAbrirCarteiraVersoReal()">📎 ${ccState.conselhoCarteiraVersoNome} — abrir anexo</button>`
     + `<button type="button" class="doc-chip" onclick="ccAbrirPrintConselhoReal()">📎 ${ccState.conselhoPrintNome} — abrir anexo</button>`;
   ccCheckStep1Ready();
 }
@@ -5435,7 +5451,8 @@ function ccMontarDocFinal(){
       <div class="doc-section">
         <h3>3. Perfil profissional</h3>
         <p>${document.getElementById('conselho-tipo').value} — inscrição ${document.getElementById('conselho-numero').value || '(não informado)'}, responsável técnico ${document.getElementById('conselho-nome').value || '(não informado)'}: <strong>${ccState.conselhoAtivo?'ativa':'inativa'}</strong>.</p>
-        ${ccState.conselhoCarteiraNome ? `<div class="doc-attach-thumb"><span class="fname">📎 ${ccState.conselhoCarteiraNome}</span> — carteira do conselho enviada pela profissional, anexada a este dossiê.</div>` : ''}
+        ${ccState.conselhoCarteiraFrenteNome ? `<div class="doc-attach-thumb"><span class="fname">📎 ${ccState.conselhoCarteiraFrenteNome}</span> — carteira do conselho (frente), anexada a este dossiê.</div>` : ''}
+        ${ccState.conselhoCarteiraVersoNome ? `<div class="doc-attach-thumb"><span class="fname">📎 ${ccState.conselhoCarteiraVersoNome}</span> — carteira do conselho (verso), anexada a este dossiê.</div>` : ''}
         <div class="doc-attach-thumb"><span class="fname">📎 ${ccState.conselhoPrintNome || 'comprovante_consulta_conselho.pdf'}</span> — comprovante da consulta ao site oficial do conselho anexado a este dossiê.</div>
       </div>
 
