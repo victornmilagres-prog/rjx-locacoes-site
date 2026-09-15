@@ -4605,16 +4605,12 @@ const CC_MODULE_HTML = `<div class="cc-mod">
           <div class="field-error" id="erro-conselho-cpf">Campo obrigatório.</div>
         </div>
       </div>
-      <div class="lookup-row" id="conselho-acao-padrao">
-        <div></div>
-        <button type="button" class="btn-consultar" onclick="ccConsultarConselho()">Consultar no site do conselho</button>
-      </div>
-      <div id="conselho-acao-crbm" style="display:none;">
+      <div id="conselho-acao-crbm">
         <div class="lookup-row">
           <div></div>
-          <button type="button" class="btn-consultar" onclick="window.open(&quot;https://cfbm-br.implanta.net.br/visaonacional/publico/consulta-publica/index&quot;,&quot;_blank&quot;)">🔗 Abrir consulta nacional do CRBM</button>
+          <button type="button" class="btn-consultar" id="btn-abrir-site-conselho" onclick="window.open('https://crmvirtual.cfm.org.br/BR/servico/pesquisa-por-medicos','_blank')">🔗 Abrir pesquisa por médicos (CFM)</button>
         </div>
-        <div class="hint">Site oficial do CFBM (Visão Nacional). Pesquise pelo número de inscrição ou nome — profissionais do Rio de Janeiro e Espírito Santo ficam no CRBM 07. Use os botões 📋 ao lado dos campos acima pra copiar cada um.</div>
+        <div class="hint" id="hint-site-conselho">Site oficial do CFM — busca nacional por nome ou CRM. Use os botões 📋 ao lado dos campos acima pra copiar cada um.</div>
         <div class="field-row" style="margin-top:10px;">
           <div>
             <label>Carteira do conselho — frente</label>
@@ -4911,40 +4907,21 @@ function ccMarkFieldError(id){
   const err = document.getElementById('erro-'+id);
   if(err) err.classList.add('show');
 }
-function ccConsultarConselho(){
-  const numero = document.getElementById('conselho-numero').value;
-  const nome = document.getElementById('conselho-nome').value.trim();
-  const cpf = document.getElementById('conselho-cpf').value.trim();
-  let temErro = false;
-  if(!nome){ ccMarkFieldError('conselho-nome'); temErro = true; } else { ccClearFieldError('conselho-nome'); }
-  if(!cpf){ ccMarkFieldError('conselho-cpf'); temErro = true; } else { ccClearFieldError('conselho-cpf'); }
-  if(temErro){
-    alert('Nome completo e CPF do profissional são obrigatórios antes de consultar.');
-    return;
-  }
-  if(!numero){
-    alert('Informe o número de inscrição do profissional antes de consultar.');
-    return;
-  }
-  const tipo = document.getElementById('conselho-tipo').value;
-  const inativo = /0$/.test(numero.trim());
-  ccState.conselhoConsultado = true;
-  ccState.conselhoAtivo = !inativo;
-  const dataConsulta = new Date().toLocaleDateString('pt-BR');
-  const el = document.getElementById('conselho-resultado');
-  el.className = 'readonly-result ' + (ccState.conselhoAtivo ? 'ok' : 'bad');
-  el.innerHTML = (ccState.conselhoAtivo
-    ? `Inscrição ativa em ${tipo}.`
-    : `Inscrição inativa ou não localizada em ${tipo}.`)
-    + `<span class="src">Consulta realizada no site oficial do conselho — ${dataConsulta}</span>`
-    + `<button type="button" class="doc-chip" onclick="ccAbrirAnexo('conselho')">📎 comprovante_consulta_conselho.pdf — abrir anexo</button>`;
-  ccCheckStep1Ready();
-}
+const CC_CONSELHO_LINKS = {
+  'Medicina (CRM)': { url: 'https://crmvirtual.cfm.org.br/BR/servico/pesquisa-por-medicos', label: '🔗 Abrir pesquisa por médicos (CFM)', hint: 'Site oficial do CFM — busca nacional por nome ou CRM.' },
+  'Odontologia (CRO)': { url: 'https://website.cfo.org.br/consulta-inscritos/', label: '🔗 Abrir consulta de inscritos (CFO)', hint: 'Site oficial do CFO — consulta nacional de profissionais.' },
+  'Fisioterapia (CREFITO)': { url: 'https://www.crefito2.com.br/spw/consultacadastral/TelaConsultaPublicaCompleta.aspx', label: '🔗 Abrir consulta cadastral (CREFITO-2)', hint: 'CREFITO-2 cobre o Rio de Janeiro. Se o profissional for de outro estado, busque o CREFITO da região dele.' },
+  'Biomedicina (CRBM)': { url: 'https://cfbm-br.implanta.net.br/visaonacional/publico/consulta-publica/index', label: '🔗 Abrir consulta nacional do CRBM', hint: 'Site oficial do CFBM (Visão Nacional) — profissionais do Rio de Janeiro e Espírito Santo ficam no CRBM 07.' },
+  'Farmácia (CRF)': { url: 'https://crf-rj.org.br/crf/php/consultas/farmaceuticos.html', label: '🔗 Abrir consulta de farmacêuticos (CRF-RJ)', hint: 'CRF-RJ cobre o Rio de Janeiro. Se o profissional for de outro estado, busque o CRF da região dele.' }
+};
 
 function ccOnConselhoTipoChange(){
-  const isCRBM = document.getElementById('conselho-tipo').value === 'Biomedicina (CRBM)';
-  document.getElementById('conselho-acao-padrao').style.display = isCRBM ? 'none' : 'flex';
-  document.getElementById('conselho-acao-crbm').style.display = isCRBM ? 'block' : 'none';
+  const tipo = document.getElementById('conselho-tipo').value;
+  const info = CC_CONSELHO_LINKS[tipo];
+  const btn = document.getElementById('btn-abrir-site-conselho');
+  btn.textContent = info.label;
+  btn.onclick = function(){ window.open(info.url, '_blank'); };
+  document.getElementById('hint-site-conselho').textContent = info.hint + ' Use os botões 📋 ao lado dos campos acima pra copiar cada um.';
 }
 
 function ccCopiarCampo(fieldId, btn){
@@ -4999,13 +4976,14 @@ function ccAtualizarSituacaoConselhoManual(){
   ccClearFieldError('conselho-nome');
   ccState.conselhoConsultado = true;
   ccState.conselhoAtivo = situacao === 'ativo';
+  const tipo = document.getElementById('conselho-tipo').value;
   const dataConsulta = new Date().toLocaleDateString('pt-BR');
   const el = document.getElementById('conselho-resultado');
   el.className = 'readonly-result ' + (ccState.conselhoAtivo ? 'ok' : 'bad');
   el.innerHTML = (ccState.conselhoAtivo
-    ? 'Inscrição ativa no CRBM (Visão Nacional).'
-    : 'Inscrição não ativa no CRBM (inativa, suspensa ou outra situação).')
-    + `<span class="src">Consulta feita na Visão Nacional do CFBM — ${dataConsulta}</span>`
+    ? `Inscrição ativa em ${tipo}.`
+    : `Inscrição não ativa em ${tipo} (inativa, suspensa ou outra situação).`)
+    + `<span class="src">Consulta feita no site oficial — ${dataConsulta}</span>`
     + `<button type="button" class="doc-chip" onclick="ccAbrirCarteiraFrenteReal()">📎 ${ccState.conselhoCarteiraFrenteNome} — abrir anexo</button>`
     + `<button type="button" class="doc-chip" onclick="ccAbrirCarteiraVersoReal()">📎 ${ccState.conselhoCarteiraVersoNome} — abrir anexo</button>`
     + `<button type="button" class="doc-chip" onclick="ccAbrirPrintConselhoReal()">📎 ${ccState.conselhoPrintNome} — abrir anexo</button>`;
