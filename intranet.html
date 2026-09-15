@@ -4642,7 +4642,7 @@ const CC_MODULE_HTML = `<div class="cc-mod">
             <input type="text" id="custom-doc-cpf" placeholder="Como aparece no relatório de crédito" oninput="ccAtualizarValidacaoCustom()">
           </div>
         </div>
-        <div class="hint">Usado só para conferir se o relatório carregado é mesmo do cliente informado na etapa Dados.</div>
+        <div class="hint">Preenchido automaticamente com o que você informou na etapa Dados. Só corrija aqui se o relatório anexado for de outra pessoa.</div>
       </div>
       <div id="serasa-pendente" class="readonly-result pending">Aguardando anexar o relatório.</div>
       <div id="validacao-correspondencia" class="readonly-result pending" style="display:none;margin-top:8px;"></div>
@@ -5006,7 +5006,11 @@ function ccAnexarSerasa(file){
   document.getElementById('bloco-pos-serasa').style.display = 'block';
   ccSetCustomVisibility(true);
   ccCarregarPersonalizado();
-  ccValidarCorrespondencia(document.getElementById('custom-doc-nome').value.trim(), document.getElementById('custom-doc-cpf').value.trim());
+  const nomeDados = document.getElementById('nome').value.trim();
+  const docDados = document.getElementById('documento').value.trim();
+  document.getElementById('custom-doc-nome').value = nomeDados;
+  document.getElementById('custom-doc-cpf').value = docDados;
+  ccValidarCorrespondencia(nomeDados, docDados);
   ccChecarLiberacaoParecer();
 }
 
