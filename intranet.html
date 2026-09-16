@@ -5092,9 +5092,9 @@ function ccAtualizarValidacaoCustom(){
   ccValidarCorrespondencia(nomeDoc, docDoc);
 }
 
-function ccAnexarSerasa(file){
+async function ccAnexarSerasa(file){
   if(!file) return;
-  document.getElementById('serasa-arquivo-nome').textContent = '📄 ' + file.name + ' — anexado';
+  document.getElementById('serasa-arquivo-nome').textContent = '📄 ' + file.name + ' — lendo com IA...';
   ccState.serasaProcessado = true;
   document.getElementById('serasa-pendente').style.display = 'none';
   document.getElementById('bloco-pos-serasa').style.display = 'block';
@@ -5106,6 +5106,96 @@ function ccAnexarSerasa(file){
   document.getElementById('custom-doc-cpf').value = docDados;
   ccValidarCorrespondencia(nomeDados, docDados);
   ccChecarLiberacaoParecer();
+
+  try{
+    const base64 = await ccArquivoParaBase64(file);
+    const sessionResult = await sb.auth.getSession();
+    const token = sessionResult.data.session.access_token;
+    const resp = await fetch('/api/ler-serasa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ pdfBase64: base64, mimeType: file.type || 'application/pdf' })
+    });
+    const data = await resp.json();
+    if(!resp.ok || !data.dados){
+      document.getElementById('serasa-arquivo-nome').textContent = '📄 ' + file.name + ' — anexado (não deu pra ler automaticamente, preencha manualmente)';
+      return;
+    }
+    ccPreencherComDadosSerasa(data.dados);
+    document.getElementById('serasa-arquivo-nome').textContent = '📄 ' + file.name + ' — anexado e lido com IA ✓';
+  }catch(err){
+    document.getElementById('serasa-arquivo-nome').textContent = '📄 ' + file.name + ' — anexado (erro ao ler automaticamente, preencha manualmente)';
+  }
+}
+
+function ccArquivoParaBase64(file){
+  return new Promise(function(resolve, reject){
+    const reader = new FileReader();
+    reader.onload = function(){ resolve(reader.result.split(',')[1]); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function ccRenderCustomTableFromData(tbodyId, linhas){
+  const tbody = document.getElementById(tbodyId);
+  tbody.innerHTML = '';
+  if(!linhas || !linhas.length){
+    ccAddRow(tbodyId, 4);
+    return;
+  }
+  linhas.forEach(function(l){
+    ccAddRow(tbodyId, 4);
+    const tr = tbody.lastElementChild;
+    const inputs = tr.querySelectorAll('input');
+    inputs[0].value = l.tipo || '';
+    inputs[1].value = l.origem || '';
+    inputs[2].value = l.data || '';
+    inputs[3].value = l.valor || '';
+  });
+}
+
+function ccPreencherComDadosSerasa(d){
+  if(!d) return;
+  const isPJ = d.tipo === 'PJ';
+  const radio = document.querySelector('input[name=tipo][value=' + (isPJ ? 'PJ' : 'PF') + ']');
+  if(radio){ radio.checked = true; ccOnTipoChange(); }
+
+  ccState.docAtivo = !!d.situacaoAtiva;
+  ccState.score = (typeof d.score === 'number') ? d.score : ccState.score;
+  ccState.recomendacaoNegativa = !!d.recomendacaoNegativa;
+
+  if(isPJ){
+    document.getElementById('custom-empresa-razao').value = d.nome || '';
+    document.getElementById('custom-empresa-cnpj').value = d.documento || '';
+    document.getElementById('custom-empresa-endereco').value = d.endereco || '';
+    ccState.alvaraMunicipio = d.endereco || '—';
+    document.getElementById('alvara-municipio-auto').value = d.endereco || '—';
+    document.getElementById('custom-cnpj-status').value = d.situacaoAtiva ? 'ativo' : 'irregular';
+    document.getElementById('custom-score-pj').value = ccState.score;
+    document.getElementById('custom-rec-pj').value = ccState.recomendacaoNegativa ? 'negativa' : 'positiva';
+    document.getElementById('custom-faturamento-pj').value = d.rendaOuFaturamento || '';
+
+    if(d.socio){
+      document.getElementById('custom-socio-nome').value = d.socio.nome || '';
+      document.getElementById('custom-socio-cpf').value = d.socio.cpf || '';
+      const socioTemPendencia = Array.isArray(d.socio.pendencias) && d.socio.pendencias.length > 0;
+      ccState.socioAtivo = !socioTemPendencia;
+      document.getElementById('custom-socio-status').value = socioTemPendencia ? 'com-pendencia' : 'sem-pendencia';
+    }
+
+    ccRenderCustomTableFromData('tabela-pj-empresa-body', d.pendenciasPrincipal || []);
+    if(d.socio && Array.isArray(d.socio.pendencias)){
+      const linhasSocio = d.socio.pendencias.map(function(p){ return { tipo: p.tipo, origem: d.socio.nome || '', data: '—', valor: p.valor }; });
+      ccRenderCustomTableFromData('tabela-pj-socio-body', linhasSocio);
+    }
+  } else {
+    document.getElementById('custom-cpf-status').value = d.situacaoAtiva ? 'ativo' : 'irregular';
+    document.getElementById('custom-score-pf').value = ccState.score;
+    document.getElementById('custom-rec-pf').value = ccState.recomendacaoNegativa ? 'negativa' : 'positiva';
+    document.getElementById('custom-renda-pf').value = d.rendaOuFaturamento || '';
+    ccRenderCustomTableFromData('tabela-pf-body', d.pendenciasPrincipal || []);
+  }
 }
 
 function ccCarregarExemploNathalia(){
