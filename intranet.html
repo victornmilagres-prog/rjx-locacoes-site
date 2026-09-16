@@ -5098,8 +5098,6 @@ async function ccAnexarSerasa(file){
   ccState.serasaProcessado = true;
   document.getElementById('serasa-pendente').style.display = 'none';
   document.getElementById('bloco-pos-serasa').style.display = 'block';
-  ccSetCustomVisibility(true);
-  ccCarregarPersonalizado();
   const nomeDados = document.getElementById('nome').value.trim();
   const docDados = document.getElementById('documento').value.trim();
   document.getElementById('custom-doc-nome').value = nomeDados;
@@ -5118,14 +5116,31 @@ async function ccAnexarSerasa(file){
     });
     const data = await resp.json();
     if(!resp.ok || !data.dados){
-      document.getElementById('serasa-arquivo-nome').textContent = '📄 ' + file.name + ' — anexado (não deu pra ler automaticamente, preencha manualmente)';
+      ccMostrarFalhaLeituraSerasa(file.name);
       return;
     }
     ccPreencherComDadosSerasa(data.dados);
     document.getElementById('serasa-arquivo-nome').textContent = '📄 ' + file.name + ' — anexado e lido com IA ✓';
   }catch(err){
-    document.getElementById('serasa-arquivo-nome').textContent = '📄 ' + file.name + ' — anexado (erro ao ler automaticamente, preencha manualmente)';
+    ccMostrarFalhaLeituraSerasa(file.name);
   }
+}
+
+function ccMostrarFalhaLeituraSerasa(fileName){
+  ccSetCustomVisibility(false);
+  const msg = 'Não foi possível ler automaticamente este relatório. Tente anexar novamente ou avise o suporte.';
+  if(ccState.pj){
+    ['doc-resultado-empresa','doc-resultado-socio'].forEach(function(id){
+      const el = document.getElementById(id);
+      el.className = 'readonly-result bad';
+      el.textContent = msg;
+    });
+  } else {
+    const el = document.getElementById('doc-resultado');
+    el.className = 'readonly-result bad';
+    el.textContent = msg;
+  }
+  document.getElementById('serasa-arquivo-nome').textContent = '📄 ' + fileName + ' — anexado (falha na leitura automática)';
 }
 
 function ccArquivoParaBase64(file){
@@ -5137,65 +5152,70 @@ function ccArquivoParaBase64(file){
   });
 }
 
-function ccRenderCustomTableFromData(tbodyId, linhas){
-  const tbody = document.getElementById(tbodyId);
-  tbody.innerHTML = '';
-  if(!linhas || !linhas.length){
-    ccAddRow(tbodyId, 4);
-    return;
-  }
-  linhas.forEach(function(l){
-    ccAddRow(tbodyId, 4);
-    const tr = tbody.lastElementChild;
-    const inputs = tr.querySelectorAll('input');
-    inputs[0].value = l.tipo || '';
-    inputs[1].value = l.origem || '';
-    inputs[2].value = l.data || '';
-    inputs[3].value = l.valor || '';
-  });
-}
-
 function ccPreencherComDadosSerasa(d){
   if(!d) return;
-  const isPJ = d.tipo === 'PJ';
-  const radio = document.querySelector('input[name=tipo][value=' + (isPJ ? 'PJ' : 'PF') + ']');
-  if(radio){ radio.checked = true; ccOnTipoChange(); }
+  ccSetCustomVisibility(false);
 
   ccState.docAtivo = !!d.situacaoAtiva;
-  ccState.score = (typeof d.score === 'number') ? d.score : ccState.score;
+  ccState.score = (typeof d.score === 'number') ? d.score : null;
   ccState.recomendacaoNegativa = !!d.recomendacaoNegativa;
+  const situacaoTxt = d.situacaoTexto || (d.situacaoAtiva ? 'ATIVA' : 'IRREGULAR');
 
-  if(isPJ){
-    document.getElementById('custom-empresa-razao').value = d.nome || '';
-    document.getElementById('custom-empresa-cnpj').value = d.documento || '';
-    document.getElementById('custom-empresa-endereco').value = d.endereco || '';
+  if(ccState.pj){
+    document.getElementById('empresa-razao').textContent = d.nome || '—';
+    document.getElementById('empresa-ccKv').innerHTML = ccKv({
+      'CNPJ': d.documento || '—',
+      'Fundação': d.fundacao || '—',
+      'Endereço': d.endereco || '—',
+      'Capital social': d.capitalSocial || '—'
+    });
+    const elE = document.getElementById('doc-resultado-empresa');
+    elE.className = 'readonly-result ' + (ccState.docAtivo ? 'ok' : 'bad');
+    elE.innerHTML = (ccState.docAtivo ? `CNPJ ativo — situação cadastral ${situacaoTxt}.` : `CNPJ com situação cadastral irregular (${situacaoTxt}).`)
+      + '<span class="src">Extraído da identificação cadastral do relatório Serasa (lido por IA)</span>';
+
+    const socio = d.socio || {};
+    document.getElementById('socio-nome').textContent = socio.nome || '—';
+    document.getElementById('socio-ccKv').innerHTML = ccKv({
+      'CPF': socio.cpf || '—',
+      'Vínculo': socio.vinculo || '—',
+      'Participação': socio.participacao || '—',
+      'Endereço': socio.endereco || '—'
+    });
+    const socioPendencias = Array.isArray(socio.pendencias) ? socio.pendencias : [];
+    ccState.socioAtivo = socioPendencias.length === 0;
+    const elS = document.getElementById('doc-resultado-socio');
+    elS.className = 'readonly-result ' + (ccState.socioAtivo ? 'ok' : 'bad');
+    elS.innerHTML = (ccState.socioAtivo
+      ? 'Sócio sem pendências financeiras — Pefin, Refin, protesto, cheques e ações judiciais: nada consta.'
+      : 'Sócio com pendências financeiras localizadas — ver detalhes abaixo.')
+      + '<span class="src">Extraído do quadro societário do relatório Serasa (lido por IA)</span>';
+
+    document.getElementById('empresa-extra-ccKv').innerHTML = ccKv({
+      'Indicativo de risco': d.indicativoRisco || '—',
+      'Faturamento estimado': d.rendaOuFaturamento || '—',
+      'Limite mensal sugerido': d.limiteSugerido || '—'
+    });
+    ccSetScore('pj', ccState.score != null ? ccState.score : 0, ccState.recomendacaoNegativa);
+    ccRenderTable('tabela-pj-empresa-body', d.pendenciasPrincipal || []);
+    const linhasSocio = socioPendencias.map(function(p){ return { tipo: p.tipo, origem: socio.nome || '', data: '—', valor: p.valor }; });
+    ccRenderTable('tabela-pj-socio-body', linhasSocio);
+
     ccState.alvaraMunicipio = d.endereco || '—';
-    document.getElementById('alvara-municipio-auto').value = d.endereco || '—';
-    document.getElementById('custom-cnpj-status').value = d.situacaoAtiva ? 'ativo' : 'irregular';
-    document.getElementById('custom-score-pj').value = ccState.score;
-    document.getElementById('custom-rec-pj').value = ccState.recomendacaoNegativa ? 'negativa' : 'positiva';
-    document.getElementById('custom-faturamento-pj').value = d.rendaOuFaturamento || '';
-
-    if(d.socio){
-      document.getElementById('custom-socio-nome').value = d.socio.nome || '';
-      document.getElementById('custom-socio-cpf').value = d.socio.cpf || '';
-      const socioTemPendencia = Array.isArray(d.socio.pendencias) && d.socio.pendencias.length > 0;
-      ccState.socioAtivo = !socioTemPendencia;
-      document.getElementById('custom-socio-status').value = socioTemPendencia ? 'com-pendencia' : 'sem-pendencia';
-    }
-
-    ccRenderCustomTableFromData('tabela-pj-empresa-body', d.pendenciasPrincipal || []);
-    if(d.socio && Array.isArray(d.socio.pendencias)){
-      const linhasSocio = d.socio.pendencias.map(function(p){ return { tipo: p.tipo, origem: d.socio.nome || '', data: '—', valor: p.valor }; });
-      ccRenderCustomTableFromData('tabela-pj-socio-body', linhasSocio);
-    }
+    document.getElementById('alvara-municipio-auto').value = ccState.alvaraMunicipio;
   } else {
-    document.getElementById('custom-cpf-status').value = d.situacaoAtiva ? 'ativo' : 'irregular';
-    document.getElementById('custom-score-pf').value = ccState.score;
-    document.getElementById('custom-rec-pf').value = ccState.recomendacaoNegativa ? 'negativa' : 'positiva';
-    document.getElementById('custom-renda-pf').value = d.rendaOuFaturamento || '';
-    ccRenderCustomTableFromData('tabela-pf-body', d.pendenciasPrincipal || []);
+    const el = document.getElementById('doc-resultado');
+    el.className = 'readonly-result ' + (ccState.docAtivo ? 'ok' : 'bad');
+    el.innerHTML = (ccState.docAtivo ? `CPF regular — situação ${situacaoTxt}.` : `CPF com situação irregular (${situacaoTxt}).`)
+      + '<span class="src">Extraído da identificação cadastral do relatório Serasa (lido por IA)</span>';
+    document.getElementById('renda-ccKv-pf').innerHTML = ccKv({
+      'Renda estimada': d.rendaOuFaturamento || '—',
+      'Serasa Score': (ccState.score != null ? ccState.score + '/1000' : '—')
+    });
+    ccSetScore('pf', ccState.score != null ? ccState.score : 0, ccState.recomendacaoNegativa);
+    ccRenderTable('tabela-pf-body', d.pendenciasPrincipal || []);
   }
+  ccChecarLiberacaoParecer();
 }
 
 function ccCarregarExemploNathalia(){
