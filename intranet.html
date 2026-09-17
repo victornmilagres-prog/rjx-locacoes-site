@@ -455,6 +455,27 @@ textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--lin
     .cc-mod button{display:none !important;}
   }
 
+
+.discreet-add{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--gray);background:none;border:none;border-bottom:1px dashed var(--gray-soft);padding:2px 0;cursor:pointer;font-family:inherit;}
+.discreet-add:hover{color:var(--wine);border-color:var(--wine);}
+.transp-card{padding:14px 18px;margin-bottom:8px;}
+.transp-row{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;}
+.transp-name{font-weight:600;font-size:14px;}
+.transp-meta{font-size:12px;color:var(--gray-soft);margin-top:2px;}
+.transp-meta span{margin-right:10px;}
+.link-btn{background:none;border:none;color:var(--gray);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:4px 2px;}
+.link-btn:hover{color:var(--wine);}
+.badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:100px;background:var(--info-bg);color:var(--info);margin-right:6px;}
+.badge-warn{background:var(--wait-bg);color:var(--wait);}
+.inline-form{display:none;margin-top:12px;padding-top:14px;border-top:1px dashed var(--line);}
+.inline-form.open{display:block;}
+.inline-form .grid2{margin-bottom:4px;}
+.inline-form .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:4px;}
+.inline-form .field{margin-bottom:14px;}
+.inline-form label{font-size:11.5px;}
+.inline-form select,.inline-form input{padding:8px 10px;font-size:13px;}
+.inline-note{font-size:12px;color:var(--gray-soft);margin:0;padding-top:2px;}
+.inline-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px;}
 </style>
 </head>
 <body>
@@ -970,10 +991,170 @@ async function carregarFreteComercial(){
   const rTab = await sb.from("comercial_frete_tabelas").select("*");
   window.__freteTabelas = {};
   (rTab.data||[]).forEach(function(tb){ window.__freteTabelas[tb.motorista_id] = tb; });
+  const rUsu = await sb.from("usuarios").select("id,nome").eq("papel","transportes").eq("ativo", true).order("nome");
+  window.__freteUsuariosTransportes = rUsu.data || [];
   if(!window.__freteMotoristaAtual && window.__freteMotoristas.length){ window.__freteMotoristaAtual = window.__freteMotoristas[0].id; }
   window.__fretePrecoAberto = window.__fretePrecoAberto || false;
   await freteRenderConteudo();
 }
+
+function freteVinculoLabel(v){
+  return v === "pj" ? "PJ" : v === "clt" ? "CLT" : v === "pf" ? "Pessoa física" : "—";
+}
+function freteMotoristaCompleto(m){
+  return !!(m.telefone && m.veiculo_tipo && m.vinculo_tipo);
+}
+function freteRenderGestaoTransportadores(){
+  const motoristas = window.__freteMotoristas || [];
+  let html = '<div class="list-title">Transportadores</div>';
+  motoristas.forEach(function(m, i){
+    const completo = freteMotoristaCompleto(m);
+    const badge = completo
+      ? '<span class="badge">cadastro completo</span>'
+      : '<span class="badge badge-warn">só o nome cadastrado</span>';
+    const meta = completo
+      ? '<span>' + escapeHtml(m.telefone||"") + '</span><span>' + (m.veiculo_tipo === "proprio" ? "veículo próprio" : "veículo da empresa") + (m.veiculo_modelo ? " — " + escapeHtml(m.veiculo_modelo) : "") + (m.veiculo_placa ? " · " + escapeHtml(m.veiculo_placa) : "") + '</span><span>' + freteVinculoLabel(m.vinculo_tipo) + '</span>'
+      : '<span>sem telefone, veículo ou vínculo ainda</span>';
+    html += '<div class="card transp-card">' +
+      '<div class="transp-row">' +
+        '<div><div class="transp-name">' + escapeHtml(m.nome) + '</div><div class="transp-meta">' + badge + meta + '</div></div>' +
+        '<button type="button" class="link-btn" onclick="freteToggleEditar(' + i + ')">editar</button>' +
+      '</div>' +
+      (window.__freteEditIndex === i ? freteRenderFormTransportador(m, i) : '') +
+    '</div>';
+  });
+  html += '<button type="button" class="discreet-add" onclick="freteToggleNovo()">+ novo transportador</button>';
+  if(window.__freteNovoAberto){
+    html += '<div class="card transp-card">' + freteRenderFormTransportador({veiculo_tipo:"proprio", vinculo_tipo:"pj"}, null) + '</div>';
+  }
+  return html;
+}
+function freteRenderFormTransportador(m, idx){
+  const usuarios = window.__freteUsuariosTransportes || [];
+  const usuarioOptions = '<option value="">— Nenhum usuário vinculado —</option>' + usuarios.map(function(u){
+    return '<option value="' + u.id + '"' + (m.usuario_id === u.id ? ' selected' : '') + '>' + escapeHtml(u.nome) + '</option>';
+  }).join('');
+  const isNovo = idx === null;
+  const prefix = isNovo ? 'novo' : ('edit' + idx);
+  const veiculoTipo = m.veiculo_tipo || 'proprio';
+  const vinculoTipo = m.vinculo_tipo || 'pj';
+  const pjFixo = (vinculoTipo === 'pj' && m.valor_fixo) ? 'sim' : 'nao';
+  return '<div class="inline-form open">' +
+    '<div class="grid2">' +
+      '<div class="field"><label>Nome</label><input id="f-nome-' + prefix + '" value="' + escapeHtml(m.nome||'') + '" placeholder="Ex: Lucas Andrade"></div>' +
+      '<div class="field"><label>Telefone</label><input id="f-telefone-' + prefix + '" value="' + escapeHtml(m.telefone||'') + '" placeholder="(21) 99999-9999"></div>' +
+    '</div>' +
+    '<div class="grid3">' +
+      '<div class="field"><label>Veículo</label><select id="f-veiculo-' + prefix + '">' +
+        '<option value="proprio"' + (veiculoTipo==='proprio'?' selected':'') + '>Próprio do motorista</option>' +
+        '<option value="empresa"' + (veiculoTipo==='empresa'?' selected':'') + '>Da empresa</option>' +
+      '</select></div>' +
+      '<div class="field"><label>Modelo</label><input id="f-modelo-' + prefix + '" value="' + escapeHtml(m.veiculo_modelo||'') + '" placeholder="Ex: Fiorino 2021"></div>' +
+      '<div class="field"><label>Placa</label><input id="f-placa-' + prefix + '" value="' + escapeHtml(m.veiculo_placa||'') + '" placeholder="ABC1D23"></div>' +
+    '</div>' +
+    '<div class="grid2">' +
+      '<div class="field"><label>Vínculo com usuário do sistema</label><select id="f-usuario-' + prefix + '">' + usuarioOptions + '</select></div>' +
+      '<div class="field"><label>Tipo de vínculo de trabalho</label><select id="f-vinculo-' + prefix + '" onchange="freteAplicarVisibilidadeVinculo(&quot;' + prefix + '&quot;)">' +
+        '<option value="pj"' + (vinculoTipo==='pj'?' selected':'') + '>PJ</option>' +
+        '<option value="clt"' + (vinculoTipo==='clt'?' selected':'') + '>CLT</option>' +
+        '<option value="pf"' + (vinculoTipo==='pf'?' selected':'') + '>Pessoa física / autônomo</option>' +
+      '</select></div>' +
+    '</div>' +
+    '<div class="grid2 campo-pj-' + prefix + '" style="' + (vinculoTipo==='pj'?'':'display:none;') + '">' +
+      '<div class="field"><label>Tem valor fixo de contrato?</label><select id="f-pjfixo-' + prefix + '" onchange="freteAplicarVisibilidadePjFixo(&quot;' + prefix + '&quot;)">' +
+        '<option value="nao"' + (pjFixo==='nao'?' selected':'') + '>Não, só variável</option>' +
+        '<option value="sim"' + (pjFixo==='sim'?' selected':'') + '>Sim</option>' +
+      '</select></div>' +
+      '<div class="field campo-pj-valor-' + prefix + '" style="' + (pjFixo==='sim'?'':'display:none;') + '"><label>Valor fixo (R$/mês)</label><input id="f-pjvalor-' + prefix + '" type="number" step="0.01" value="' + (pjFixo==='sim' ? (m.valor_fixo||'') : '') + '" placeholder="Ex: 1000,00"></div>' +
+    '</div>' +
+    '<p class="inline-note campo-pj-nota-' + prefix + '" style="' + ((vinculoTipo==='pj' && pjFixo!=='sim') ? '' : 'display:none;') + '">Sem valor fixo — recebe só pelo variável de cada corrida, calculado automaticamente pelo Controle de Frete.</p>' +
+    '<div class="field campo-clt-' + prefix + '" style="' + (vinculoTipo==='clt'?'':'display:none;') + '"><label>Valor do salário (R$/mês)</label><input id="f-cltvalor-' + prefix + '" type="number" step="0.01" value="' + (vinculoTipo==='clt' ? (m.valor_fixo||'') : '') + '" placeholder="Ex: 1800,00"></div>' +
+    '<p class="inline-note campo-pf-' + prefix + '" style="' + (vinculoTipo==='pf'?'':'display:none;') + '">Sem contrato fixo — recebe só pelo variável de cada corrida, calculado automaticamente pelo Controle de Frete.</p>' +
+    '<div class="inline-actions">' +
+      '<button type="button" class="link-btn" onclick="' + (isNovo ? 'freteToggleNovo()' : ('freteToggleEditar(' + idx + ')')) + '">cancelar</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" onclick="' + (isNovo ? 'freteSalvarNovo()' : ('freteSalvarEdicao(' + idx + ')')) + '">Salvar</button>' +
+    '</div>' +
+  '</div>';
+}
+function freteToggleEditar(idx){
+  window.__freteEditIndex = (window.__freteEditIndex === idx) ? null : idx;
+  window.__freteNovoAberto = false;
+  freteRenderConteudo();
+}
+function freteToggleNovo(){
+  window.__freteNovoAberto = !window.__freteNovoAberto;
+  window.__freteEditIndex = null;
+  freteRenderConteudo();
+}
+function freteAplicarVisibilidadeVinculo(prefix){
+  const v = document.getElementById('f-vinculo-' + prefix).value;
+  const campoPj = document.querySelector('.campo-pj-' + prefix);
+  const notaPj = document.querySelector('.campo-pj-nota-' + prefix);
+  const campoClt = document.querySelector('.campo-clt-' + prefix);
+  const campoPf = document.querySelector('.campo-pf-' + prefix);
+  if(campoPj) campoPj.style.display = (v === 'pj') ? '' : 'none';
+  if(notaPj) notaPj.style.display = (v === 'pj') ? '' : 'none';
+  if(campoClt) campoClt.style.display = (v === 'clt') ? '' : 'none';
+  if(campoPf) campoPf.style.display = (v === 'pf') ? '' : 'none';
+  if(v === 'pj'){ freteAplicarVisibilidadePjFixo(prefix); }
+}
+function freteAplicarVisibilidadePjFixo(prefix){
+  const sel = document.getElementById('f-pjfixo-' + prefix);
+  if(!sel) return;
+  const sim = sel.value === 'sim';
+  const campoValor = document.querySelector('.campo-pj-valor-' + prefix);
+  const nota = document.querySelector('.campo-pj-nota-' + prefix);
+  if(campoValor) campoValor.style.display = sim ? '' : 'none';
+  if(nota) nota.style.display = sim ? 'none' : '';
+}
+function freteColetarForm(prefix){
+  const vinculoTipo = document.getElementById('f-vinculo-' + prefix).value;
+  let valorFixo = null;
+  if(vinculoTipo === 'pj'){
+    const sim = document.getElementById('f-pjfixo-' + prefix).value === 'sim';
+    valorFixo = sim ? (Number(document.getElementById('f-pjvalor-' + prefix).value) || null) : null;
+  } else if(vinculoTipo === 'clt'){
+    valorFixo = Number(document.getElementById('f-cltvalor-' + prefix).value) || null;
+  }
+  return {
+    nome: document.getElementById('f-nome-' + prefix).value.trim(),
+    telefone: document.getElementById('f-telefone-' + prefix).value.trim(),
+    veiculoTipo: document.getElementById('f-veiculo-' + prefix).value,
+    modelo: document.getElementById('f-modelo-' + prefix).value.trim(),
+    placa: document.getElementById('f-placa-' + prefix).value.trim(),
+    usuarioId: document.getElementById('f-usuario-' + prefix).value,
+    vinculoTipo: vinculoTipo,
+    valorFixo: valorFixo
+  };
+}
+async function freteSalvarNovo(){
+  const dados = freteColetarForm('novo');
+  if(!dados.nome){ alert('Informe o nome do transportador.'); return; }
+  const ordem = (window.__freteMotoristas || []).length;
+  const ins = await sb.from('comercial_frete_motoristas').insert({
+    nome: dados.nome, telefone: dados.telefone, ativo: true, ordem: ordem,
+    veiculo_tipo: dados.veiculoTipo, veiculo_modelo: dados.modelo, veiculo_placa: dados.placa,
+    usuario_id: dados.usuarioId || null, vinculo_tipo: dados.vinculoTipo, valor_fixo: dados.valorFixo
+  });
+  if(ins.error){ alert('Erro ao salvar: ' + ins.error.message); return; }
+  window.__freteNovoAberto = false;
+  await carregarFreteComercial();
+}
+async function freteSalvarEdicao(idx){
+  const m = (window.__freteMotoristas || [])[idx];
+  if(!m) return;
+  const dados = freteColetarForm('edit' + idx);
+  if(!dados.nome){ alert('Informe o nome do transportador.'); return; }
+  const upd = await sb.from('comercial_frete_motoristas').update({
+    nome: dados.nome, telefone: dados.telefone,
+    veiculo_tipo: dados.veiculoTipo, veiculo_modelo: dados.modelo, veiculo_placa: dados.placa,
+    usuario_id: dados.usuarioId || null, vinculo_tipo: dados.vinculoTipo, valor_fixo: dados.valorFixo
+  }).eq('id', m.id);
+  if(upd.error){ alert('Erro ao salvar: ' + upd.error.message); return; }
+  window.__freteEditIndex = null;
+  await carregarFreteComercial();
+}
+
 function freteSelecionarMotorista(id){
   window.__freteMotoristaAtual = id;
   window.__fretePrecoAberto = false;
@@ -983,13 +1164,14 @@ async function freteRenderConteudo(){
   const content = document.getElementById("comercial-content");
   const motoristas = window.__freteMotoristas || [];
   const m = motoristas.find(function(x){ return x.id === window.__freteMotoristaAtual; });
-  if(!m){ content.innerHTML = "<p class=\"empty-hint\">Nenhum motorista cadastrado.</p>"; return; }
+  const gestaoHtml = freteRenderGestaoTransportadores();
+  if(!m){ content.innerHTML = gestaoHtml + "<p class=\"empty-hint\">Nenhum motorista cadastrado.</p>"; return; }
   const tabela = window.__freteTabelas[m.id] || {};
   const rLanc = await sb.from("comercial_frete_lancamentos").select("*").eq("motorista_id", m.id).order("data", { ascending:false }).order("criado_em", { ascending:false });
   const lancamentos = rLanc.data || [];
   window.__freteLancamentos = lancamentos;
 
-  let html = "";
+  let html = gestaoHtml;
   html += '<div class="subnav">' + motoristas.map(function(mm){ return '<button class="subtab' + (mm.id===m.id?" active":"") + '" onclick="freteSelecionarMotorista(&quot;' + mm.id + '&quot;)">' + escapeHtml(mm.nome) + '</button>'; }).join("") + "</div>";
 
   const totalMes = lancamentos.reduce(function(a,l){ return a + freteCalcular(l, tabela).total; }, 0);
