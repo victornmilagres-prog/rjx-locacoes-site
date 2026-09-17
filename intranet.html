@@ -476,6 +476,21 @@ textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--lin
 .inline-form select,.inline-form input{padding:8px 10px;font-size:13px;}
 .inline-note{font-size:12px;color:var(--gray-soft);margin:0;padding-top:2px;}
 .inline-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px;}
+
+.transp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:8px;}
+.transp-tile{background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:border-color .12s;}
+.transp-tile:hover{border-color:var(--wine);}
+.transp-tile.sel{border-color:var(--wine);background:#f7e9ea;}
+.transp-tile .tt-nome{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.transp-tile .tt-info{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center;}
+.tt-dot{width:7px;height:7px;border-radius:50%;background:var(--line);display:inline-block;}
+.tt-dot.on{background:var(--ok);}
+.tt-tag{font-size:10px;color:var(--gray-soft);}
+.transp-tile-add{background:none;border:1.5px dashed var(--gray-soft);border-radius:var(--radius);padding:12px 14px;cursor:pointer;color:var(--gray);font-size:13.5px;font-weight:600;font-family:inherit;display:flex;align-items:center;justify-content:center;min-height:56px;}
+.transp-tile-add:hover{border-color:var(--wine);color:var(--wine);}
+.transp-panel{margin-top:14px;padding:20px 22px;}
+.transp-panel-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
+.transp-panel-head h3{margin:0;font-size:15px;font-family:'Fraunces',Georgia,serif;font-weight:600;}
 </style>
 </head>
 <body>
@@ -1007,25 +1022,36 @@ function freteMotoristaCompleto(m){
 function freteRenderGestaoTransportadores(){
   const motoristas = window.__freteMotoristas || [];
   let html = '<div class="list-title">Transportadores</div>';
+  html += '<div class="transp-grid">';
   motoristas.forEach(function(m, i){
     const completo = freteMotoristaCompleto(m);
-    const badge = completo
-      ? '<span class="badge">cadastro completo</span>'
-      : '<span class="badge badge-warn">só o nome cadastrado</span>';
-    const meta = completo
-      ? '<span>' + escapeHtml(m.telefone||"") + '</span><span>' + (m.veiculo_tipo === "proprio" ? "veículo próprio" : "veículo da empresa") + (m.veiculo_modelo ? " — " + escapeHtml(m.veiculo_modelo) : "") + (m.veiculo_placa ? " · " + escapeHtml(m.veiculo_placa) : "") + '</span><span>' + freteVinculoLabel(m.vinculo_tipo) + '</span>'
-      : '<span>sem telefone, veículo ou vínculo ainda</span>';
-    html += '<div class="card transp-card">' +
-      '<div class="transp-row">' +
-        '<div><div class="transp-name">' + escapeHtml(m.nome) + '</div><div class="transp-meta">' + badge + meta + '</div></div>' +
-        '<button type="button" class="link-btn" onclick="freteToggleEditar(' + i + ')">editar</button>' +
+    const sel = (window.__freteEditIndex === i) ? ' sel' : '';
+    html += '<div class="transp-tile' + sel + '" onclick="freteToggleEditar(' + i + ')">' +
+      '<div class="tt-nome">' + escapeHtml(m.nome) + '</div>' +
+      '<div class="tt-info">' +
+        '<span class="tt-dot' + (m.telefone ? ' on' : '') + '" title="Telefone"></span>' +
+        '<span class="tt-dot' + (m.veiculo_tipo && m.veiculo_modelo ? ' on' : '') + '" title="Veículo"></span>' +
+        '<span class="tt-dot' + (m.vinculo_tipo ? ' on' : '') + '" title="Vínculo"></span>' +
+        '<span class="tt-tag">' + (completo ? 'completo' : 'incompleto') + '</span>' +
       '</div>' +
-      (window.__freteEditIndex === i ? freteRenderFormTransportador(m, i) : '') +
     '</div>';
   });
-  html += '<button type="button" class="discreet-add" onclick="freteToggleNovo()">+ novo transportador</button>';
-  if(window.__freteNovoAberto){
-    html += '<div class="card transp-card">' + freteRenderFormTransportador({veiculo_tipo:"proprio", vinculo_tipo:"pj"}, null) + '</div>';
+  html += '<button type="button" class="transp-tile-add" onclick="freteToggleNovo()">+ novo</button>';
+  html += '</div>';
+
+  if(window.__freteEditIndex !== null && window.__freteEditIndex !== undefined){
+    const m = motoristas[window.__freteEditIndex];
+    if(m){
+      html += '<div class="card transp-panel">' +
+        '<div class="transp-panel-head"><h3>Editar — ' + escapeHtml(m.nome) + '</h3><button type="button" class="link-btn" onclick="freteToggleEditar(' + window.__freteEditIndex + ')">fechar</button></div>' +
+        freteRenderFormTransportador(m, window.__freteEditIndex) +
+      '</div>';
+    }
+  } else if(window.__freteNovoAberto){
+    html += '<div class="card transp-panel">' +
+      '<div class="transp-panel-head"><h3>Novo transportador</h3><button type="button" class="link-btn" onclick="freteToggleNovo()">fechar</button></div>' +
+      freteRenderFormTransportador({veiculo_tipo:"proprio", vinculo_tipo:"pj"}, null) +
+    '</div>';
   }
   return html;
 }
