@@ -237,9 +237,9 @@ textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--lin
 .price-grid .field label{font-size:11px;font-weight:600;color:var(--gray);}
 .price-grid .field input{padding:6px 8px;font-size:12.5px;}
 .toggle-price{cursor:pointer;color:var(--wine);font-size:12.5px;text-decoration:underline;background:none;border:none;padding:0;font-family:inherit;}
-.summary-row{display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap;}
-.summary-box{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px 18px;flex:1;min-width:140px;}
-.summary-box .num{font-family:Fraunces,serif;font-size:22px;font-weight:600;}
+.summary-row{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+.summary-box{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:11px 14px;flex:1;min-width:120px;}
+.summary-box .num{font-family:Fraunces,serif;font-size:19px;font-weight:600;}
 .summary-box .lbl{font-size:11px;color:var(--gray);text-transform:uppercase;letter-spacing:.3px;margin-top:2px;}
 .icon-btn{background:none;border:1px solid var(--line);color:var(--gray);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;line-height:1;}
 .icon-btn:hover{border-color:var(--wine);color:var(--wine);}
@@ -1207,7 +1207,17 @@ async function freteTransportadorSalvarEdicao(idx){
 function freteSelecionarMotorista(id){
   window.__freteMotoristaAtual = id;
   window.__fretePrecoAberto = false;
+  window.__freteMesSelecionado = null;
   freteRenderConteudo();
+}
+function freteSelecionarMes(mes){
+  window.__freteMesSelecionado = mes;
+  freteRenderConteudo();
+}
+function freteMesLabel(anoMes){
+  const nomes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const p = anoMes.split("-");
+  return nomes[parseInt(p[1],10)-1] + " " + p[0];
 }
 async function freteRenderConteudo(){
   const content = document.getElementById("comercial-content");
@@ -1217,34 +1227,60 @@ async function freteRenderConteudo(){
   if(!m){ content.innerHTML = gestaoHtml + "<p class=\"empty-hint\">Nenhum motorista cadastrado.</p>"; return; }
   const tabela = window.__freteTabelas[m.id] || {};
   const rLanc = await sb.from("comercial_frete_lancamentos").select("*").eq("motorista_id", m.id).order("data", { ascending:false }).order("criado_em", { ascending:false });
-  const lancamentos = rLanc.data || [];
-  window.__freteLancamentos = lancamentos;
+  const todosLancamentos = rLanc.data || [];
+  window.__freteLancamentos = todosLancamentos;
+
+  const mesAtualReal = new Date().toISOString().slice(0,7);
+  const mesesSet = {};
+  todosLancamentos.forEach(function(l){ mesesSet[l.data.slice(0,7)] = true; });
+  mesesSet[mesAtualReal] = true;
+  const meses = Object.keys(mesesSet).sort().reverse();
+  if(!window.__freteMesSelecionado || meses.indexOf(window.__freteMesSelecionado) === -1){
+    window.__freteMesSelecionado = mesAtualReal;
+  }
+  const mesSelecionado = window.__freteMesSelecionado;
+  const isMesAtual = mesSelecionado === mesAtualReal;
+  const lancamentos = todosLancamentos.filter(function(l){ return l.data.slice(0,7) === mesSelecionado; });
 
   let html = gestaoHtml;
   html += '<div class="subnav">' + motoristas.map(function(mm){ return '<button class="subtab' + (mm.id===m.id?" active":"") + '" onclick="freteSelecionarMotorista(&quot;' + mm.id + '&quot;)">' + escapeHtml(mm.nome) + '</button>'; }).join("") + "</div>";
 
+  if(meses.length > 1){
+    html += '<div class="month-tabs" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">' + meses.map(function(mes){
+      const sel = mes === mesSelecionado;
+      return '<button type="button" class="month-tab' + (sel?' sel':'') + '" style="border:1.5px solid var(--line);background:' + (sel?'var(--wine)':'#fff') + ';color:' + (sel?'#fff':'var(--gray)') + ';font-size:12.5px;font-weight:600;padding:7px 16px;border-radius:100px;cursor:pointer;font-family:inherit;" onclick="freteSelecionarMes(&quot;' + mes + '&quot;)">' + freteMesLabel(mes) + (mes===mesAtualReal?' <span style="font-size:10px;opacity:.75;">(atual)</span>':'') + '</button>';
+    }).join('') + '</div>';
+  }
+
   const totalMes = lancamentos.reduce(function(a,l){ return a + freteCalcular(l, tabela).total; }, 0);
   const totalKm = lancamentos.reduce(function(a,l){ return a + (Number(l.km)||0); }, 0);
+  const temFixo = m.valor_fixo != null && m.valor_fixo !== '' && Number(m.valor_fixo) > 0;
+  const lblFixo = m.vinculo_tipo === 'clt' ? 'Salário fixo (mês)' : 'Valor fixo (mês)';
   html += '<div class="summary-row">' +
     '<div class="summary-box"><div class="num">' + freteFmt(totalMes) + '</div><div class="lbl">Total do mês</div></div>' +
     '<div class="summary-box"><div class="num">' + lancamentos.length + '</div><div class="lbl">Corridas lançadas</div></div>' +
     '<div class="summary-box"><div class="num">' + totalKm.toFixed(1).replace(".",",") + ' km</div><div class="lbl">KM rodados</div></div>' +
+    '<div class="summary-box"><div class="num">' + (temFixo ? freteFmt(m.valor_fixo) : '—') + '</div><div class="lbl">' + (temFixo ? lblFixo : 'Sem valor fixo — só variável') + '</div></div>' +
     "</div>";
 
-  html += '<div class="card form-card"><h3>Novo lançamento — ' + escapeHtml(m.nome) + '</h3>' +
-    '<p class="cardsub">Preencha pedido, equipamento e KM. Base e valor são calculados automaticamente pela tabela de preço deste motorista.</p>' +
-    '<div class="form-row">' +
-    '<div class="field"><label>Data</label><input type="date" id="frete-novo-data" value="' + new Date().toISOString().slice(0,10) + '"></div>' +
-    '<div class="field"><label>Pedido</label><input id="frete-novo-pedido" placeholder="Ex: 260901/001"></div>' +
-    '<div class="field"><label>Equipamento</label><select id="frete-novo-equipamento" onchange="fretePreviaAtualizar()">' + FRETE_EQUIPAMENTOS.map(function(e){ return '<option value="' + e.id + '">' + e.label + "</option>"; }).join("") + '</select></div>' +
-    '<div class="field"><label>KM</label><input type="number" step="0.1" id="frete-novo-km" placeholder="0" oninput="fretePreviaAtualizar()"></div>' +
-    '<div class="field"><label>Extra (R$)</label><input type="number" step="0.01" id="frete-novo-extra" placeholder="0,00"></div>' +
-    '<button class="btn btn-primary" onclick="freteAdicionarLancamento()">+ Adicionar</button>' +
-    "</div>" +
-    '<div class="form-row" style="margin-top:10px;">' +
-    '<div class="field"><label>Tempo de espera (opcional)</label><select id="frete-novo-espera"><option value="">Nenhum</option><option value="30min">30 min — ' + freteFmt(tabela.espera_30min) + '</option><option value="1h">1 hora — ' + freteFmt(tabela.espera_1h) + '</option></select></div>' +
-    '<div class="field"><label>Prévia do valor</label><div id="frete-previa-valor" style="padding:9px 10px;background:var(--paper-soft);border-radius:6px;font-weight:700;color:var(--wine);">—</div></div>' +
-    "</div></div>";
+  if(isMesAtual){
+    html += '<div class="card form-card"><h3>Novo lançamento — ' + escapeHtml(m.nome) + '</h3>' +
+      '<p class="cardsub">Preencha pedido, equipamento e KM. Base e valor são calculados automaticamente pela tabela de preço deste motorista.</p>' +
+      '<div class="form-row">' +
+      '<div class="field"><label>Data</label><input type="date" id="frete-novo-data" value="' + new Date().toISOString().slice(0,10) + '"></div>' +
+      '<div class="field"><label>Pedido</label><input id="frete-novo-pedido" placeholder="Ex: 260901/001"></div>' +
+      '<div class="field"><label>Equipamento</label><select id="frete-novo-equipamento" onchange="fretePreviaAtualizar()">' + FRETE_EQUIPAMENTOS.map(function(e){ return '<option value="' + e.id + '">' + e.label + "</option>"; }).join("") + '</select></div>' +
+      '<div class="field"><label>KM</label><input type="number" step="0.1" id="frete-novo-km" placeholder="0" oninput="fretePreviaAtualizar()"></div>' +
+      '<div class="field"><label>Extra (R$)</label><input type="number" step="0.01" id="frete-novo-extra" placeholder="0,00"></div>' +
+      '<button class="btn btn-primary" onclick="freteAdicionarLancamento()">+ Adicionar</button>' +
+      "</div>" +
+      '<div class="form-row" style="margin-top:10px;">' +
+      '<div class="field"><label>Tempo de espera (opcional)</label><select id="frete-novo-espera"><option value="">Nenhum</option><option value="30min">30 min — ' + freteFmt(tabela.espera_30min) + '</option><option value="1h">1 hora — ' + freteFmt(tabela.espera_1h) + '</option></select></div>' +
+      '<div class="field"><label>Prévia do valor</label><div id="frete-previa-valor" style="padding:9px 10px;background:var(--paper-soft);border-radius:6px;font-weight:700;color:var(--wine);">—</div></div>' +
+      "</div></div>";
+  } else {
+    html += '<div class="card form-card"><p class="cardsub" style="margin:0;font-style:italic;">Mês encerrado — os lançamentos abaixo ficam guardados para consulta, sem opção de adicionar ou editar.</p></div>';
+  }
 
   html += '<div class="card form-card">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;">' +
@@ -1280,6 +1316,9 @@ async function freteRenderConteudo(){
       const c = freteCalcular(l, tabela);
       const eq = FRETE_EQUIPAMENTOS.find(function(e){ return e.id === l.equipamento; });
       const ehCombo = eq.grupo === "combo";
+      const acaoHtml = isMesAtual
+        ? '<div style="display:flex;gap:6px;"><button class="icon-btn" title="Editar" onclick="freteAbrirEdicao(&quot;' + l.id + '&quot;)">⚙️</button><button class="icon-btn" title="Excluir" style="border-color:var(--alert);color:var(--alert);" onclick="freteRemoverLancamento(&quot;' + l.id + '&quot;)">✕</button></div>'
+        : '—';
       html += "<tr>" +
         "<td style=\"padding:9px 10px;border-bottom:1px solid var(--line);\">" + freteFmtData(l.data) + "</td>" +
         "<td style=\"padding:9px 10px;border-bottom:1px solid var(--line);\">" + escapeHtml(l.pedido) + "</td>" +
@@ -1291,7 +1330,7 @@ async function freteRenderConteudo(){
         "<td style=\"padding:9px 10px;border-bottom:1px solid var(--line);\">" + (c.esperaValor ? freteFmt(c.esperaValor) : "—") + "</td>" +
         "<td style=\"padding:9px 10px;border-bottom:1px solid var(--line);\">" + (c.extra ? freteFmt(c.extra) : "—") + "</td>" +
         '<td class="total-cell">' + freteFmt(c.total) + "</td>" +
-        '<td><div style="display:flex;gap:6px;"><button class="icon-btn" title="Editar" onclick="freteAbrirEdicao(&quot;' + l.id + '&quot;)">⚙️</button><button class="icon-btn" title="Excluir" style="border-color:var(--alert);color:var(--alert);" onclick="freteRemoverLancamento(&quot;' + l.id + '&quot;)">✕</button></div></td>' +
+        '<td>' + acaoHtml + '</td>' +
         "</tr>";
     });
     html += "</tbody></table>";
@@ -1301,6 +1340,7 @@ async function freteRenderConteudo(){
   content.innerHTML = html;
   fretePreviaAtualizar();
 }
+
 function fretePrecoToggle(){
   window.__fretePrecoAberto = !window.__fretePrecoAberto;
   freteRenderConteudo();
