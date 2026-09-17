@@ -1285,9 +1285,9 @@ function fretePrecoToggle(){
 async function freteAtualizarTabela(campo, valor){
   const m = (window.__freteMotoristas||[]).find(function(x){ return x.id === window.__freteMotoristaAtual; });
   if(!m) return;
-  const updates = {};
+  const updates = { motorista_id: m.id };
   updates[campo] = Number(valor) || 0;
-  await sb.from("comercial_frete_tabelas").update(updates).eq("motorista_id", m.id);
+  await sb.from("comercial_frete_tabelas").upsert(updates, { onConflict: "motorista_id" });
   window.__fretePrecoAberto = true;
   await carregarFreteComercial();
 }
