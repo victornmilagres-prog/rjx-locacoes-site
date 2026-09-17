@@ -1072,7 +1072,7 @@ function freteRenderFormTransportador(m, idx){
     '<p class="inline-note campo-pf-' + prefix + '" style="' + (vinculoTipo==='pf'?'':'display:none;') + '">Sem contrato fixo — recebe só pelo variável de cada corrida, calculado automaticamente pelo Controle de Frete.</p>' +
     '<div class="inline-actions">' +
       '<button type="button" class="link-btn" onclick="' + (isNovo ? 'freteToggleNovo()' : ('freteToggleEditar(' + idx + ')')) + '">cancelar</button>' +
-      '<button type="button" class="btn btn-primary btn-sm" onclick="' + (isNovo ? 'freteSalvarNovo()' : ('freteSalvarEdicao(' + idx + ')')) + '">Salvar</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" onclick="' + (isNovo ? 'freteSalvarNovo()' : ('freteTransportadorSalvarEdicao(' + idx + ')')) + '">Salvar</button>' +
     '</div>' +
   '</div>';
 }
@@ -1140,7 +1140,7 @@ async function freteSalvarNovo(){
   window.__freteNovoAberto = false;
   await carregarFreteComercial();
 }
-async function freteSalvarEdicao(idx){
+async function freteTransportadorSalvarEdicao(idx){
   const m = (window.__freteMotoristas || [])[idx];
   if(!m) return;
   const dados = freteColetarForm('edit' + idx);
