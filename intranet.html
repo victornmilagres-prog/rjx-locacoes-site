@@ -4801,7 +4801,7 @@ function selectFinanceiroSubtab(tab){
 
 /* ===== Módulo Cadastro de Cliente (protótipo) ===== */
 const CC_MODULE_HTML = `<div class="cc-mod">
-<p class="cc-disclaimer">A consulta do conselho profissional é feita manualmente no site oficial. O relatório de crédito e o alvará sanitário são lidos automaticamente pela IA a partir dos documentos anexados.</p>
+<p class="cc-disclaimer">A busca no site do conselho profissional é feita manualmente, mas a situação e as habilitações são lidas automaticamente pela IA a partir do print anexado — assim como o relatório de crédito e o alvará sanitário, lidos a partir dos documentos anexados.</p>
 <div class="steps">
     <button class="step-btn active" data-step="1" onclick="ccGoStep(1)"><span class="num">1</span>Dados</button>
     <button class="step-btn" data-step="2" onclick="ccGoStep(2)"><span class="num">2</span>Documentos</button>
@@ -4903,14 +4903,7 @@ const CC_MODULE_HTML = `<div class="cc-mod">
             <button type="button" class="btn-consultar" onclick="document.getElementById(&quot;conselho-print-input&quot;).click()">📎 Anexar print da tela</button>
             <div id="conselho-print-nome" class="hint"></div>
           </div>
-          <div>
-            <label>Situação encontrada</label>
-            <select id="conselho-situacao-manual" onchange="ccAtualizarSituacaoConselhoManual()">
-              <option value="">Selecione...</option>
-              <option value="ativo">Ativo</option>
-              <option value="inativo">Inativo / suspenso / outra</option>
-            </select>
-          </div>
+          <div class="hint" style="align-self:center;">A IA lê o print e identifica a situação e as habilitações automaticamente.</div>
         </div>
       </div>
       <div id="conselho-resultado" class="readonly-result pending">Ainda não consultado — obrigatório antes de avançar.</div>
@@ -5147,7 +5140,8 @@ let ccState = {
   serasaProcessado:false,
   docAtivo:true,
   socioAtivo:true,
-  alvaraProcessado:false, alvaraAtivo:true, alvaraMunicipio:'—', alvaraVencimento:'—',
+  alvaraProcessado:false, alvaraAtivo:true, alvaraMunicipio:'—', alvaraVencimento:'—', alvaraConcessao:'—', alvaraAtividades:[],
+  conselhoLido:false, conselhoHabilitacoes:[],
   score:350, recomendacaoNegativa:true, correspondenciaOk:true
 };
 
@@ -5217,7 +5211,7 @@ function ccAnexarCarteiraConselho(lado, file){
     ccState.conselhoCarteiraVersoFile = file;
     document.getElementById('conselho-carteira-verso-nome').textContent = '📄 ' + file.name + ' — anexado';
   }
-  ccAtualizarSituacaoConselhoManual();
+  ccAtualizarGateConselho();
 }
 
 function ccAbrirCarteiraFrenteReal(){
@@ -5232,33 +5226,74 @@ function ccAbrirCarteiraVersoReal(){
   }
 }
 
-function ccAnexarPrintConselho(file){
+async function ccAnexarPrintConselho(file){
   if(!file) return;
+  const nome = document.getElementById('conselho-nome').value.trim();
+  if(!nome){ ccMarkFieldError('conselho-nome'); alert('Preencha o nome completo do profissional antes de anexar o print.'); return; }
+  ccClearFieldError('conselho-nome');
+
   ccState.conselhoPrintNome = file.name;
   ccState.conselhoPrintFile = file;
-  document.getElementById('conselho-print-nome').textContent = '📄 ' + file.name + ' — anexado';
-  ccAtualizarSituacaoConselhoManual();
+  document.getElementById('conselho-print-nome').textContent = '📄 ' + file.name + ' — lendo com IA...';
+  const el = document.getElementById('conselho-resultado');
+  el.className = 'readonly-result pending';
+  el.textContent = 'Lendo o documento...';
+
+  try{
+    const base64 = await ccArquivoParaBase64(file);
+    const sessionResult = await sb.auth.getSession();
+    const token = sessionResult.data.session.access_token;
+    const resp = await fetch('/api/ler-conselho', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ pdfBase64: base64, mimeType: file.type || 'application/pdf' })
+    });
+    const data = await resp.json();
+    if(!resp.ok || !data.dados){
+      ccMostrarFalhaLeituraConselho(file.name);
+      return;
+    }
+    ccState.conselhoLido = true;
+    ccPreencherComDadosConselho(data.dados);
+    document.getElementById('conselho-print-nome').textContent = '📄 ' + file.name + ' — anexado e lido com IA ✓';
+  }catch(err){
+    ccMostrarFalhaLeituraConselho(file.name);
+  }
 }
 
-function ccAtualizarSituacaoConselhoManual(){
-  const situacao = document.getElementById('conselho-situacao-manual').value;
-  if(!ccState.conselhoPrintNome || !ccState.conselhoCarteiraFrenteNome || !ccState.conselhoCarteiraVersoNome || !situacao) return;
-  const nome = document.getElementById('conselho-nome').value.trim();
-  if(!nome){ ccMarkFieldError('conselho-nome'); alert('Preencha o nome completo do profissional antes de confirmar.'); return; }
-  ccClearFieldError('conselho-nome');
-  ccState.conselhoConsultado = true;
-  ccState.conselhoAtivo = situacao === 'ativo';
+function ccMostrarFalhaLeituraConselho(fileName){
+  ccState.conselhoLido = false;
+  const el = document.getElementById('conselho-resultado');
+  el.className = 'readonly-result bad';
+  el.textContent = 'Não foi possível ler automaticamente este print. Tente anexar novamente.';
+  document.getElementById('conselho-print-nome').textContent = '📄 ' + fileName + ' — anexado (falha na leitura automática)';
+  ccAtualizarGateConselho();
+}
+
+function ccPreencherComDadosConselho(d){
+  if(!d) return;
+  ccState.conselhoAtivo = !!d.situacaoAtiva;
+  ccState.conselhoHabilitacoes = Array.isArray(d.habilitacoes) ? d.habilitacoes.filter(Boolean) : [];
+
   const tipo = document.getElementById('conselho-tipo').value;
-  const dataConsulta = new Date().toLocaleDateString('pt-BR');
   const el = document.getElementById('conselho-resultado');
   el.className = 'readonly-result ' + (ccState.conselhoAtivo ? 'ok' : 'bad');
+  const habilitacoesHtml = ccState.conselhoHabilitacoes.length
+    ? `<div style="margin-top:6px;"><strong>Habilitações:</strong><ul style="margin:4px 0 0 18px;padding:0;">${ccState.conselhoHabilitacoes.map(h=>`<li>${h}</li>`).join('')}</ul></div>`
+    : '';
   el.innerHTML = (ccState.conselhoAtivo
-    ? `Inscrição ativa em ${tipo}.`
-    : `Inscrição não ativa em ${tipo} (inativa, suspensa ou outra situação).`)
-    + `<span class="src">Consulta feita no site oficial — ${dataConsulta}</span>`
-    + `<button type="button" class="doc-chip" onclick="ccAbrirCarteiraFrenteReal()">📎 ${ccState.conselhoCarteiraFrenteNome} — abrir anexo</button>`
-    + `<button type="button" class="doc-chip" onclick="ccAbrirCarteiraVersoReal()">📎 ${ccState.conselhoCarteiraVersoNome} — abrir anexo</button>`
+    ? `Inscrição ativa em ${tipo}${d.situacaoTexto ? ' — situação: ' + d.situacaoTexto : ''}.`
+    : `Inscrição não ativa em ${tipo}${d.situacaoTexto ? ' — situação: ' + d.situacaoTexto : ''} (inativa, suspensa ou outra situação).`)
+    + habilitacoesHtml
+    + `<span class="src">Lido por IA a partir do print da consulta</span>`
+    + (ccState.conselhoCarteiraFrenteNome ? `<button type="button" class="doc-chip" onclick="ccAbrirCarteiraFrenteReal()">📎 ${ccState.conselhoCarteiraFrenteNome} — abrir anexo</button>` : '')
+    + (ccState.conselhoCarteiraVersoNome ? `<button type="button" class="doc-chip" onclick="ccAbrirCarteiraVersoReal()">📎 ${ccState.conselhoCarteiraVersoNome} — abrir anexo</button>` : '')
     + `<button type="button" class="doc-chip" onclick="ccAbrirPrintConselhoReal()">📎 ${ccState.conselhoPrintNome} — abrir anexo</button>`;
+  ccAtualizarGateConselho();
+}
+
+function ccAtualizarGateConselho(){
+  ccState.conselhoConsultado = !!(ccState.conselhoLido && ccState.conselhoCarteiraFrenteNome && ccState.conselhoCarteiraVersoNome && ccState.conselhoPrintNome);
   ccCheckStep1Ready();
 }
 
@@ -5667,8 +5702,10 @@ function ccMostrarFalhaLeituraAlvara(fileName){
 function ccPreencherComDadosAlvara(d){
   if(!d) return;
   let ativo = !!d.situacaoAtiva;
-  let vencimentoTxt = d.vencimento || '—';
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(vencimentoTxt);
+  let vigenciaTxt = d.vigencia || d.vencimento || '—';
+  let concessaoTxt = d.concessao || d.dataEmissao || '—';
+  const atividades = Array.isArray(d.atividades) ? d.atividades.filter(Boolean) : [];
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(vigenciaTxt);
   if(m){
     const dataVenc = new Date(parseInt(m[3]), parseInt(m[2])-1, parseInt(m[1]));
     if(!isNaN(dataVenc.getTime())){
@@ -5678,13 +5715,20 @@ function ccPreencherComDadosAlvara(d){
   if(d.orgaoEmissor) ccState.alvaraMunicipio = d.orgaoEmissor;
   ccState.alvaraProcessado = true;
   ccState.alvaraAtivo = ativo;
-  ccState.alvaraVencimento = vencimentoTxt;
+  ccState.alvaraVencimento = vigenciaTxt;
+  ccState.alvaraConcessao = concessaoTxt;
+  ccState.alvaraAtividades = atividades;
 
   const el = document.getElementById('alvara-resultado');
   el.className = 'readonly-result ' + (ativo ? 'ok' : 'bad');
+  const atividadesHtml = atividades.length
+    ? `<div style="margin-top:6px;"><strong>Atividades:</strong><ul style="margin:4px 0 0 18px;padding:0;">${atividades.map(a=>`<li>${a}</li>`).join('')}</ul></div>`
+    : '';
   el.innerHTML = (ativo
-    ? `Alvará sanitário ativo — vencimento em ${vencimentoTxt}.`
-    : `Alvará sanitário vencido ou irregular${vencimentoTxt !== '—' ? ' — vencimento em ' + vencimentoTxt : ''}.`)
+    ? `Alvará sanitário ativo${d.situacaoTexto ? ' — situação: ' + d.situacaoTexto : ''}.`
+    : `Alvará sanitário vencido ou irregular${d.situacaoTexto ? ' — situação: ' + d.situacaoTexto : ''}.`)
+    + `<div style="margin-top:4px;">Concessão: ${concessaoTxt} &nbsp;·&nbsp; Vigência: ${vigenciaTxt}</div>`
+    + atividadesHtml
     + (d.orgaoEmissor ? `<span class="src">${d.orgaoEmissor} — lido por IA</span>` : '<span class="src">Lido por IA</span>')
     + `<button type="button" class="doc-chip" onclick="ccAbrirAlvaraReal()">📎 ${ccState.alvaraFile ? ccState.alvaraFile.name : 'alvará'} — abrir anexo</button>`;
 
