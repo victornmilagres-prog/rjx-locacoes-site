@@ -5858,7 +5858,7 @@ function ccMontarDocFinal(){
       </div>
 
       ${ccState.pj ? `<div class="doc-section"><h3>Alvará sanitário</h3>${alvaraHtml}
-      <div class="doc-attach-thumb"><span class="fname">📎 print_consulta_alvara.pdf</span> — comprovante da consulta pública anexado a este dossiê.</div></div>` : ''}
+      ${ccState.alvaraFile ? `<div class="doc-attach-thumb"><span class="fname">📎 ${ccState.alvaraFile.name}</span> — alvará sanitário enviado pela clínica, lido automaticamente por IA neste dossiê.</div>` : ''}</div>` : ''}
 
       <div class="doc-section">
         <h3>2. Pendências financeiras (relatório Serasa)</h3>
