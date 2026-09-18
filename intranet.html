@@ -447,6 +447,19 @@ textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--lin
   .cc-mod .doc-section h3{font-family:'Fraunces','Georgia',serif;font-size:16px;margin:0 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px;}
   .cc-mod .doc-attach-thumb{border:1px dashed var(--line);border-radius:8px;padding:14px;font-size:12px;color:var(--ink-soft);margin-top:8px;background:#FAF9F6;}
   .cc-mod .doc-attach-thumb .fname{font-weight:600;color:var(--ink);}
+  .cc-mod .conclusion{display:flex;gap:16px;align-items:flex-start;padding:22px 24px;}
+  .cc-mod .conclusion .icon{width:46px;height:46px;border-radius:50%;background:#fff;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+  .cc-mod .conclusion.ok .icon{color:var(--ok-ink);}
+  .cc-mod .conclusion.bad .icon{color:var(--bad-ink);}
+  .cc-mod .conclusion.warn .icon{color:var(--warn-ink);}
+  .cc-mod .conclusion .equip-line{display:inline-block;margin-top:10px;font-size:12.5px;font-weight:600;background:rgba(255,255,255,.55);border-radius:20px;padding:4px 12px;}
+  .cc-mod .anexos-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .cc-mod .anexo-final{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;}
+  .cc-mod .anexo-final .cap{padding:9px 14px;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:#F5F3EE;border-bottom:1px solid var(--line);}
+  .cc-mod .anexo-final .body{padding:12px;display:flex;align-items:center;justify-content:center;background:#FAF9F6;min-height:170px;}
+  .cc-mod .anexo-final .body img{max-width:100%;max-height:600px;border-radius:4px;display:block;}
+  .cc-mod .anexo-final .body iframe{width:100%;height:600px;border:1px solid var(--line);border-radius:4px;background:#fff;}
+  .cc-mod .anexo-final.wide{grid-column:1/-1;}
   .cc-mod .modal-overlay{position:fixed;inset:0;background:rgba(31,27,25,0.55);display:flex;align-items:center;justify-content:center;z-index:80;padding:20px;}
   .cc-mod .modal-box{background:#fff;border-radius:10px;max-width:520px;width:100%;max-height:85vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35);}
   .cc-mod .modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);font-weight:600;font-size:14.5px;}
@@ -5143,7 +5156,7 @@ const CC_MODULE_HTML = `<div class="cc-mod">
 let ccState = {
   pj:false,
   conselhoConsultado:false, conselhoAtivo:true,
-  serasaProcessado:false,
+  serasaProcessado:false, serasaFile:null,
   docAtivo:true,
   socioAtivo:true,
   alvaraProcessado:false, alvaraAtivo:true, alvaraMunicipio:'—', alvaraVencimento:'—', alvaraConcessao:'—', alvaraAtividades:[],
@@ -5407,6 +5420,7 @@ function ccAtualizarValidacaoCustom(){
 
 async function ccAnexarSerasa(file){
   if(!file) return;
+  ccState.serasaFile = file;
   document.getElementById('serasa-arquivo-nome').textContent = '📄 ' + file.name + ' — lendo com IA...';
   ccState.serasaProcessado = true;
   document.getElementById('serasa-pendente').style.display = 'none';
@@ -5855,9 +5869,11 @@ function ccAvaliar(){
   return {nome, documento, equipamentos, equipLabelStr, veredito, conclusaoClasse, conclusaoTitulo, conclusaoTexto, mostrarAprovacaoManual, eliminatorio, financeiroRuim};
 }
 
-function ccGerarParecer(){
-  const r = ccAvaliar();
-  const chip = (v)=> v==='ok' ? '<span class="verdict-chip ok">Aprovado</span>' : v==='bad' ? '<span class="verdict-chip bad">Reprovado</span>' : '<span class="verdict-chip warn">Atenção</span>';
+function ccChipVeredito(v){ return v==='ok' ? '<span class="verdict-chip ok">Aprovado</span>' : v==='bad' ? '<span class="verdict-chip bad">Reprovado</span>' : '<span class="verdict-chip warn">Atenção</span>'; }
+
+function ccGerarParecerHtml(r){
+  const chip = ccChipVeredito;
+  const iconeConclusao = r.conclusaoClasse === 'ok' ? '✓' : r.conclusaoClasse === 'bad' ? '✕' : '⚠';
 
   let cadastralItens = [`${ccState.pj?'CNPJ':'CPF'} ${r.documento}: ${ccState.docAtivo?'situação regular / ativa':'situação irregular — impeditivo'}`];
   if(ccState.pj) cadastralItens.push(`Alvará sanitário (${ccState.alvaraMunicipio}): ${ccState.alvaraAtivo? 'válido, vencimento em '+ccState.alvaraVencimento : 'vencido ou não localizado — impeditivo'}`);
@@ -5871,14 +5887,23 @@ function ccGerarParecer(){
   const nomeProfissional = document.getElementById('conselho-nome').value || '(nome não informado)';
   let profissionalItens = [`${tipoConselho} — inscrição ${numeroConselho}, responsável técnico ${nomeProfissional}: ${ccState.conselhoAtivo?'ativa':'inativa — impeditivo'}`];
 
-  let html = `
+  return `
     <div class="laudo-block"><div class="laudo-head"><span class="idx">1</span><span class="title">Análise cadastral</span>${chip(r.veredito.cadastral)}</div><div class="laudo-body"><ul>${cadastralItens.map(i=>`<li>${i}</li>`).join('')}</ul></div></div>
     <div class="laudo-block"><div class="laudo-head"><span class="idx">2</span><span class="title">Análise financeira</span>${chip(r.veredito.financeiro)}</div><div class="laudo-body"><ul>${financeiroItens.map(i=>`<li>${i}</li>`).join('')}</ul></div></div>
     <div class="laudo-block"><div class="laudo-head"><span class="idx">3</span><span class="title">Análise de perfil profissional</span>${chip(r.veredito.profissional)}</div><div class="laudo-body"><ul>${profissionalItens.map(i=>`<li>${i}</li>`).join('')}</ul></div></div>
     <div class="conclusion ${r.conclusaoClasse}">
-      <h3>${r.conclusaoTitulo}</h3><p style="margin:0;">${r.conclusaoTexto}</p>
-      ${r.mostrarAprovacaoManual ? `<div class="manual-approval"><div class="radio-group"><label><input type="radio" name="vitorLiberou"> Vitor liberou</label><label><input type="radio" name="vitorLiberou"> Vitor não liberou</label></div></div>` : ''}
+      <div class="icon">${iconeConclusao}</div>
+      <div>
+        <h3>${r.conclusaoTitulo}</h3><p>${r.conclusaoTexto}</p>
+        <span class="equip-line">Equipamento(s): ${r.equipLabelStr}</span>
+        ${r.mostrarAprovacaoManual ? `<div class="manual-approval"><div class="radio-group"><label><input type="radio" name="vitorLiberou"> Vitor liberou</label><label><input type="radio" name="vitorLiberou"> Vitor não liberou</label></div></div>` : ''}
+      </div>
     </div>`;
+}
+
+function ccGerarParecer(){
+  const r = ccAvaliar();
+  const html = ccGerarParecerHtml(r);
 
   document.getElementById('parecer-conteudo').innerHTML =
     `<h3 style="margin:0 0 4px;">${r.nome}</h3><p style="margin:0 0 18px;color:var(--ink-soft);font-size:13.5px;">${ccState.pj?'CNPJ':'CPF'} ${r.documento} · Equipamento(s): ${r.equipLabelStr}</p>` + html;
@@ -5887,7 +5912,6 @@ function ccGerarParecer(){
   document.getElementById('parecer-nav').style.display = 'flex';
   ccGoStep(3);
 }
-
 function ccSnapshotEditable(fieldsetId){
   const src = document.getElementById(fieldsetId);
   const clone = src.cloneNode(true);
@@ -5906,14 +5930,32 @@ function ccSnapshotEditable(fieldsetId){
   return clone.innerHTML;
 }
 
+function ccAnexoFinalBloco(file, titulo, opts){
+  if(!file) return '';
+  opts = opts || {};
+  const url = URL.createObjectURL(file);
+  const isImg = /^image\//.test(file.type) || /\.(png|jpe?g|gif|webp)$/i.test(file.name);
+  const corpo = isImg ? `<img src="${url}" alt="${titulo}">` : `<iframe src="${url}" title="${titulo}"></iframe>`;
+  const wide = opts.wide || !isImg;
+  return `<div class="anexo-final${wide ? ' wide' : ''}"><div class="cap">${opts.icone || '📎'} ${titulo}</div><div class="body">${corpo}</div></div>`;
+}
+
 function ccMontarDocFinal(){
   const r = ccAvaliar();
   const hoje = new Date().toLocaleDateString('pt-BR');
-  const chip = (v)=> v==='ok' ? '<span class="verdict-chip ok">Aprovado</span>' : v==='bad' ? '<span class="verdict-chip bad">Reprovado</span>' : '<span class="verdict-chip warn">Atenção</span>';
 
   const situacaoHtml = ccSnapshotEditable(ccState.pj ? 'fieldset-situacao-pj' : 'fieldset-situacao-pf');
   const pendenciasHtml = ccSnapshotEditable(ccState.pj ? 'fieldset-pendencias-pj' : 'fieldset-pendencias-pf');
   const alvaraHtml = ccState.pj ? ccSnapshotEditable('fieldset-alvara-doc') : '';
+  const parecerHtml = ccGerarParecerHtml(r);
+
+  const anexosHtml = [
+    ccState.pj ? ccAnexoFinalBloco(ccState.alvaraFile, 'Alvará sanitário', {icone:'📄'}) : '',
+    ccAnexoFinalBloco(ccState.serasaFile, 'Relatório Serasa', {icone:'📄'}),
+    ccAnexoFinalBloco(ccState.conselhoCarteiraFrenteFile, 'Carteira do conselho — frente', {icone:'🪪'}),
+    ccAnexoFinalBloco(ccState.conselhoCarteiraVersoFile, 'Carteira do conselho — verso', {icone:'🪪'}),
+    ccAnexoFinalBloco(ccState.conselhoPrintFile, 'Comprovante da consulta ao conselho', {icone:'🖥️'})
+  ].filter(Boolean).join('');
 
   document.getElementById('doc-final').innerHTML = `
     <button type="button" class="btn btn-ghost no-print-btn" style="margin-bottom:14px;" onclick="document.getElementById('doc-final').style.display='none';">✕ Fechar pré-visualização</button>
@@ -5926,33 +5968,30 @@ function ccMontarDocFinal(){
         ${situacaoHtml}
       </div>
 
-      ${ccState.pj ? `<div class="doc-section"><h3>Alvará sanitário</h3>${alvaraHtml}
-      ${ccState.alvaraFile ? `<div class="doc-attach-thumb"><span class="fname">📎 ${ccState.alvaraFile.name}</span> — alvará sanitário enviado pela clínica, lido automaticamente por IA neste dossiê.</div>` : ''}</div>` : ''}
+      ${ccState.pj ? `<div class="doc-section"><h3>Alvará sanitário</h3>${alvaraHtml}</div>` : ''}
 
       <div class="doc-section">
         <h3>2. Pendências financeiras (relatório Serasa)</h3>
         ${pendenciasHtml}
-        <div class="doc-attach-thumb"><span class="fname">📎 SERASA_RELATORIO.pdf</span> — relatório completo anexado a este dossiê.</div>
       </div>
 
       <div class="doc-section">
         <h3>3. Perfil profissional</h3>
         <p>${document.getElementById('conselho-tipo').value} — inscrição ${document.getElementById('conselho-numero').value || '(não informado)'}, responsável técnico ${document.getElementById('conselho-nome').value || '(não informado)'}: <strong>${ccState.conselhoAtivo?'ativa':'inativa'}</strong>.</p>
-        ${ccState.conselhoCarteiraFrenteNome ? `<div class="doc-attach-thumb"><span class="fname">📎 ${ccState.conselhoCarteiraFrenteNome}</span> — carteira do conselho (frente), anexada a este dossiê.</div>` : ''}
-        ${ccState.conselhoCarteiraVersoNome ? `<div class="doc-attach-thumb"><span class="fname">📎 ${ccState.conselhoCarteiraVersoNome}</span> — carteira do conselho (verso), anexada a este dossiê.</div>` : ''}
-        <div class="doc-attach-thumb"><span class="fname">📎 ${ccState.conselhoPrintNome || 'comprovante_consulta_conselho.pdf'}</span> — comprovante da consulta ao site oficial do conselho anexado a este dossiê.</div>
       </div>
 
       <div class="doc-section">
         <h3>4. Parecer final</h3>
-        <p>${chip(r.veredito.cadastral)} Cadastral &nbsp; ${chip(r.veredito.financeiro)} Financeiro &nbsp; ${chip(r.veredito.profissional)} Profissional</p>
-        <p><strong>${r.conclusaoTitulo}.</strong> ${r.conclusaoTexto}</p>
-        ${r.mostrarAprovacaoManual ? '<p><strong>Decisão do Victor:</strong> ____________________</p>' : ''}
+        ${parecerHtml}
       </div>
+
+      ${anexosHtml ? `<div class="doc-section">
+        <h3>5. Anexos</h3>
+        <div class="anexos-grid">${anexosHtml}</div>
+      </div>` : ''}
     </div>
   `;
 }
-
 function ccPrevisualizarDoc(){
   ccMontarDocFinal();
   const docFinal = document.getElementById('doc-final');
