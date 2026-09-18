@@ -386,10 +386,28 @@ textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--lin
   .cc-mod table.debts th{color:var(--ink-soft);font-weight:600;font-size:11.5px;}
   .cc-mod table.debts td.val{font-variant-numeric:tabular-nums;white-space:nowrap;}
   .cc-mod table.debts input[type=text]{padding:5px 7px;font-size:12.5px;}
-  .cc-mod .score-box{display:flex;align-items:center;gap:16px;margin:10px 0;}
+  .cc-mod .score-box{display:flex;align-items:flex-start;gap:18px;margin:10px 0 16px;flex-wrap:wrap;}
   .cc-mod .score-num{font-family:'Fraunces','Georgia',serif;font-size:34px;font-weight:600;}
   .cc-mod .score-num.low{color:var(--bad-ink);}
   .cc-mod .score-num.high{color:var(--ok-ink);}
+  .cc-mod .score-gauge-wrap{display:flex;flex-direction:column;align-items:center;min-width:150px;}
+  .cc-mod .score-gauge-wrap svg{display:block;}
+  .cc-mod .score-value{font-family:'Fraunces','Georgia',serif;font-size:28px;font-weight:600;margin-top:-44px;line-height:1;}
+  .cc-mod .score-value span{font-size:13px;font-weight:600;color:var(--ink-soft);}
+  .cc-mod .score-band{font-size:11px;font-weight:700;padding:3px 12px;border-radius:20px;margin-top:8px;}
+  .cc-mod .score-band.ok{background:var(--ok-bg);color:var(--ok-ink);}
+  .cc-mod .score-band.warn{background:var(--warn-bg);color:var(--warn-ink);}
+  .cc-mod .score-band.bad{background:var(--bad-bg);color:var(--bad-ink);}
+  .cc-mod .score-recomendacao-txt{font-size:12px;color:var(--ink-soft);margin-top:8px;text-align:center;max-width:165px;}
+  .cc-mod .stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;flex:1;min-width:220px;align-content:flex-start;}
+  .cc-mod .stat-card{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--paper-raised);}
+  .cc-mod .stat-card .k{font-size:11px;color:var(--ink-soft);font-weight:600;margin-bottom:3px;}
+  .cc-mod .stat-card .v{font-size:13.5px;font-weight:600;color:var(--ink);}
+  .cc-mod .stat-card.limite{grid-column:1/-1;background:var(--warn-bg);border-color:var(--warn-line);}
+  .cc-mod .stat-card.limite .k{color:var(--warn-ink);}
+  .cc-mod .stat-card.limite .v{font-family:'Fraunces','Georgia',serif;font-size:24px;color:var(--warn-ink);}
+  .cc-mod .pend-empty{font-size:12.5px;color:var(--ok-ink);background:var(--ok-bg);padding:8px 10px;border-radius:6px;display:inline-block;}
+  .cc-mod .pend-legend{display:flex;align-items:center;gap:6px;margin:14px 0 6px;font-weight:600;color:var(--ink);font-size:13px;}
   .cc-mod .nav-buttons{display:flex;justify-content:space-between;margin-top:8px;}
   .cc-mod .nav-buttons .right-group{display:flex;gap:10px;}
   .cc-mod .btn{padding:11px 20px;border-radius:7px;border:none;font-size:14.5px;cursor:pointer;font-family:inherit;font-weight:600;}
@@ -5029,13 +5047,7 @@ const CC_MODULE_HTML = `<div class="cc-mod">
       <fieldset id="fieldset-pendencias-pf">
         <legend>Pendências financeiras — CPF</legend>
         <div id="pend-pf-normal" class="normal-view">
-          <div class="score-box">
-            <div id="score-visual-pf" class="score-num">—</div>
-            <div>
-              <div id="score-texto-pf" style="font-size:14px;"></div>
-              <div id="score-recomendacao-pf" class="hint" style="margin-top:2px;"></div>
-            </div>
-          </div>
+          <div class="score-box" id="score-box-pf"></div>
           <div class="ccKv-grid" id="renda-ccKv-pf"></div>
         </div>
         <div id="pend-pf-custom" class="custom-view" style="display:none;">
@@ -5059,13 +5071,7 @@ const CC_MODULE_HTML = `<div class="cc-mod">
       <fieldset id="fieldset-pendencias-pj" style="display:none;">
         <legend>Pendências financeiras — empresa</legend>
         <div id="pend-pj-normal" class="normal-view">
-          <div class="score-box">
-            <div id="score-visual-pj" class="score-num">—</div>
-            <div>
-              <div id="score-texto-pj" style="font-size:14px;"></div>
-              <div id="score-recomendacao-pj" class="hint" style="margin-top:2px;"></div>
-            </div>
-          </div>
+          <div class="score-box" id="score-box-pj"></div>
           <div class="ccKv-grid" id="empresa-extra-ccKv"></div>
         </div>
         <div id="pend-pj-custom" class="custom-view" style="display:none;">
@@ -5085,7 +5091,7 @@ const CC_MODULE_HTML = `<div class="cc-mod">
         </table>
         <button type="button" id="btn-add-pj-empresa" class="btn-add-row" style="display:none;" onclick="ccAddRow('tabela-pj-empresa-body',4)">+ Adicionar pendência da empresa</button>
 
-        <div class="hint" style="margin:14px 0 6px;font-weight:600;color:var(--ink);">Pendências financeiras — sócio(a)</div>
+        <div class="pend-legend">Pendências financeiras — sócio(a)</div>
         <table class="debts"><thead><tr><th>Ocorrência</th><th>Titular</th><th>Data</th><th class="val">Valor</th><th></th></tr></thead>
           <tbody id="tabela-pj-socio-body"></tbody>
         </table>
@@ -5631,20 +5637,39 @@ function ccCarregarPersonalizado(){
 }
 
 function ccKv(obj){
-  return Object.entries(obj).map(([k,v])=>`<div class="k">${k}</div><div>${v}</div>`).join('');
+  return Object.entries(obj).map(([k,v])=>{
+    const isLimite = /limite/i.test(k);
+    return `<div class="stat-card${isLimite ? ' limite' : ''}"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+  }).join('');
+}
+function ccBandaScore(score){
+  if(score >= 650) return {cls:'ok', label:'Risco baixo'};
+  if(score >= 400) return {cls:'warn', label:'Risco médio'};
+  return {cls:'bad', label:'Risco alto'};
 }
 function ccSetScore(prefix, score, negativa){
-  const s = document.getElementById('score-visual-'+prefix);
-  s.textContent = score;
-  s.className = 'score-num ' + (score < 500 ? 'low' : 'high');
-  document.getElementById('score-texto-'+prefix).textContent = `Serasa Score: ${score}/1000`;
-  document.getElementById('score-recomendacao-'+prefix).textContent = negativa
-    ? 'Recomendação Serasa: negativa — indicativo de cautela.'
-    : 'Recomendação Serasa: positiva — sem restrição relevante.';
+  const banda = ccBandaScore(score);
+  const raio = 70, circun = Math.PI * raio;
+  const offset = circun * (1 - Math.min(Math.max(score,0),1000)/1000);
+  const corVar = banda.cls === 'ok' ? 'var(--ok-line)' : (banda.cls === 'warn' ? 'var(--warn-line)' : 'var(--bad-line)');
+  const box = document.getElementById('score-box-'+prefix);
+  box.innerHTML = `
+    <div class="score-gauge-wrap">
+      <svg width="160" height="100" viewBox="0 0 160 100">
+        <path d="M 10 90 A 70 70 0 0 1 150 90" fill="none" stroke="var(--line)" stroke-width="12" stroke-linecap="round"/>
+        <path d="M 10 90 A 70 70 0 0 1 150 90" fill="none" stroke="${corVar}" stroke-width="12" stroke-linecap="round"
+              stroke-dasharray="${circun.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"/>
+      </svg>
+      <div class="score-value">${score}<span>/1000</span></div>
+      <div class="score-band ${banda.cls}">${banda.label}</div>
+    </div>
+    <div class="score-recomendacao-txt">${negativa
+      ? 'Recomendação Serasa: negativa — indicativo de cautela.'
+      : 'Recomendação Serasa: positiva — sem restrição relevante.'}</div>`;
 }
 function ccRenderTable(id, lista){
   const body = document.getElementById(id);
-  if(lista.length===0){ body.innerHTML = '<tr><td colspan="5" style="color:var(--ink-soft);">Não constam pendências no relatório.</td></tr>'; return; }
+  if(lista.length===0){ body.innerHTML = '<tr><td colspan="5"><span class="pend-empty">✓ Não constam pendências no relatório</span></td></tr>'; return; }
   body.innerHTML = lista.map(p=>`<tr><td>${p.tipo}</td><td>${p.origem}</td><td>${p.data}</td><td class="val">${p.valor}</td><td></td></tr>`).join('');
 }
 function ccRenderCustomTable(tbodyId, ncols){
