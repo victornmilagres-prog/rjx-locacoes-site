@@ -1,6 +1,6 @@
 // api/ler-alvara.js
 // Le um alvara sanitario (PDF ou imagem anexado no Cadastro de Cliente) e extrai
-// situacao e vencimento via IA (Claude, com leitura de documento/visao).
+// situacao, vigencia e atividades via IA (Claude, com leitura de documento/visao).
 // Requer a env var ANTHROPIC_API_KEY na Vercel (a mesma ja usada em /api/ler-serasa.js).
 
 module.exports = async (req, res) => {
@@ -54,20 +54,19 @@ module.exports = async (req, res) => {
       : { type: 'document', source: { type: 'base64', media_type: mimeType, data: pdfBase64 } };
 
     const instrucoes =
-      'Voce recebeu um alvara sanitario (documento oficial de vigilancia sanitaria municipal ou estadual) ' +
-      'de uma clinica de estetica. Leia o documento inteiro e identifique claramente a data de vencimento/ ' +
-      'validade impressa nele.\n\n' +
+      'Voce recebeu um alvara sanitario / licenciamento sanitario (documento oficial de vigilancia sanitaria ' +
+      'municipal, estadual ou de outro orgao competente) de uma clinica de estetica. Leia o documento inteiro, ' +
+      'incluindo a lista completa de atividades autorizadas e as datas de concessao e vigencia/validade.\n\n' +
       'Responda SOMENTE com um objeto JSON valido, sem nenhum texto antes ou depois, sem bloco de markdown, ' +
-      'exatamente no formato abaixo (use null ou "" quando a informacao nao existir; nao invente valores):\n\n' +
+      'exatamente no formato abaixo (use null, "" ou [] quando a informacao nao existir; nao invente valores):\n\n' +
       '{\n' +
       '  "nomeEstabelecimento": "razao social ou nome fantasia do estabelecimento, como aparece no documento",\n' +
-      '  "numeroAlvara": "numero/codigo do alvara, como aparece no documento",\n' +
-      '  "orgaoEmissor": "nome do orgao emissor, com o municipio/estado, ex: Vigilancia Sanitaria de Niteroi/RJ",\n' +
-      '  "dataEmissao": "data de emissao, formato dd/mm/aaaa, ou null se nao encontrar",\n' +
-      '  "vencimento": "data de vencimento/validade, formato dd/mm/aaaa, ou null se o documento nao tiver ' +
-      'vencimento explicito",\n' +
-      '  "situacaoTexto": "texto literal da situacao impressa no documento, se houver (ex: VALIDO, ATIVO), ' +
-      'ou vazio se nao houver texto de situacao explicito",\n' +
+      '  "numeroAlvara": "numero/codigo/protocolo do alvara ou licenciamento, como aparece no documento",\n' +
+      '  "orgaoEmissor": "nome do orgao emissor, com o municipio/estado, ex: IVISA-Rio - Vigilancia Sanitaria do Rio de Janeiro/RJ",\n' +
+      '  "atividades": ["lista com cada atividade autorizada exatamente como aparece no documento, uma string por atividade; array vazio se nao houver lista de atividades"],\n' +
+      '  "concessao": "data de concessao/emissao, formato dd/mm/aaaa, ou null se nao encontrar",\n' +
+      '  "vigencia": "data de vigencia/validade/vencimento, formato dd/mm/aaaa, ou null se o documento nao tiver data de vigencia explicita",\n' +
+      '  "situacaoTexto": "texto literal da situacao impressa no documento, se houver (ex: Ativa, VALIDO), ou vazio se nao houver texto de situacao explicito",\n' +
       '  "situacaoAtiva": true ou false - seu melhor julgamento sobre se o alvara esta valido considerando ' +
       'apenas o que esta escrito no documento (ignore a data de hoje, isso e recalculado depois)\n' +
       '}';
@@ -81,7 +80,7 @@ module.exports = async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 1200,
+        max_tokens: 1500,
         messages: [
           {
             role: 'user',
