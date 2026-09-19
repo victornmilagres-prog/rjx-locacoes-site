@@ -4838,7 +4838,6 @@ async function renderFinanceiro(container){
     '<div class="pagehead"><div class="crumb">Intranet / <b>Financeiro</b></div><h1>Financeiro</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Financeiro</div></div>' +
     '<div class="subnav">' +
     '<button class="subtab active" id="fin-tab-cadastro" onclick="selectFinanceiroSubtab(&quot;cadastro&quot;)">Cadastro de Cliente</button>' +
-    '<button class="subtab" id="fin-tab-status" onclick="selectFinanceiroSubtab(&quot;status&quot;)">Análise de clientes ativos</button>' +
     '</div>' +
     '<div class="content" id="financeiro-content"></div>';
   selectFinanceiroSubtab('cadastro');
@@ -4846,14 +4845,10 @@ async function renderFinanceiro(container){
 
 function selectFinanceiroSubtab(tab){
   document.getElementById('fin-tab-cadastro').classList.toggle('active', tab === 'cadastro');
-  document.getElementById('fin-tab-status').classList.toggle('active', tab === 'status');
   const content = document.getElementById('financeiro-content');
   if(tab === 'cadastro'){
     content.innerHTML = CC_MODULE_HTML;
     ccOnTipoChange();
-  } else if(tab === 'status'){
-    content.innerHTML = '<div class="cc-mod" id="fcs-mod" style="padding:20px 22px;"></div>';
-    fcsRenderPainel();
   }
 }
 
@@ -4864,6 +4859,7 @@ const CC_MODULE_HTML = `<div class="cc-mod">
     <button class="step-btn active" data-step="1" onclick="ccGoStep(1)"><span class="num">1</span>Dados</button>
     <button class="step-btn" data-step="2" onclick="ccGoStep(2)"><span class="num">2</span>Documentos</button>
     <button class="step-btn" data-step="3" onclick="ccGoStep(3)"><span class="num">3</span>Parecer</button>
+    <button class="step-btn" data-step="4" onclick="ccGoStep(4); fcsRenderPainel();">Análise de clientes ativos</button>
   </div>
 
   <!-- STEP 1 -->
@@ -5174,6 +5170,10 @@ const CC_MODULE_HTML = `<div class="cc-mod">
         <button class="btn btn-ghost btn-sm" onclick="ccToggleFinalize()">Cancelar</button>
       </div>
     </div>
+  </section>
+
+  <section class="panel" id="panel-4">
+    <div id="fcs-mod"></div>
   </section>
 
   <div id="doc-final"></div>
