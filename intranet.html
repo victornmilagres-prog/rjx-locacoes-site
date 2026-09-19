@@ -461,6 +461,27 @@ textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--lin
   .cc-mod .anexo-final .body img{max-width:100%;max-height:900px;border-radius:4px;display:block;}
   .cc-mod .anexo-final .body iframe{width:100%;height:600px;border:1px solid var(--line);border-radius:4px;background:#fff;}
   .cc-mod .anexo-final.wide{grid-column:1/-1;}
+  .cc-mod .fcs-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;}
+  .cc-mod .fcs-head h3{margin:0;font-size:16px;}
+  .cc-mod .fcs-head p{margin:2px 0 0;font-size:12.5px;color:var(--gray);}
+  .cc-mod .fcs-search{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;margin-bottom:14px;background:#fff;}
+  .cc-mod .fcs-card{background:#fff;border:1px solid var(--line);border-left:4px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;}
+  .cc-mod .fcs-card.origem-manual{border-left-color:var(--gray-soft);}
+  .cc-mod .fcs-card.origem-analise{border-left-color:var(--wine);}
+  .cc-mod .fcs-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;}
+  .cc-mod .fcs-nome{font-size:14.5px;font-weight:700;}
+  .cc-mod .fcs-doc{font-size:12px;color:var(--gray);margin-top:1px;}
+  .cc-mod .fcs-socio{font-size:11.5px;color:var(--gray-soft);margin-top:1px;}
+  .cc-mod .fcs-origem{font-size:10.5px;color:var(--gray-soft);white-space:nowrap;}
+  .cc-mod .fcs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .cc-mod .fcs-item{background:var(--paper-soft);border-radius:6px;padding:8px 10px;}
+  .cc-mod .fcs-item .lbl{font-size:10.5px;color:var(--gray-soft);text-transform:uppercase;letter-spacing:.02em;margin-bottom:4px;}
+  .cc-mod .fcs-item .venc{font-size:11.5px;color:var(--ink-soft);margin-top:4px;}
+  .cc-mod .fcs-item .venc b{color:var(--ink);}
+  .cc-mod .finalize-box{background:var(--ok-bg);border:1px solid var(--ok-line);border-radius:8px;padding:14px 16px;margin-top:14px;}
+  .cc-mod .finalize-box p{margin:0 0 10px;font-size:13px;color:var(--ink-soft);}
+  .cc-mod .modal-foot{display:flex;justify-content:flex-end;gap:10px;padding:14px 18px;border-top:1px solid var(--line);}
+  @media(max-width:640px){.cc-mod .fcs-grid{grid-template-columns:1fr;}}
   .cc-mod .modal-overlay{position:fixed;inset:0;background:rgba(31,27,25,0.55);display:flex;align-items:center;justify-content:center;z-index:80;padding:20px;}
   .cc-mod .modal-box{background:#fff;border-radius:10px;max-width:520px;width:100%;max-height:85vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35);}
   .cc-mod .modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);font-weight:600;font-size:14.5px;}
@@ -4817,6 +4838,7 @@ async function renderFinanceiro(container){
     '<div class="pagehead"><div class="crumb">Intranet / <b>Financeiro</b></div><h1>Financeiro</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Financeiro</div></div>' +
     '<div class="subnav">' +
     '<button class="subtab active" id="fin-tab-cadastro" onclick="selectFinanceiroSubtab(&quot;cadastro&quot;)">Cadastro de Cliente</button>' +
+    '<button class="subtab" id="fin-tab-status" onclick="selectFinanceiroSubtab(&quot;status&quot;)">Análise de clientes ativos</button>' +
     '</div>' +
     '<div class="content" id="financeiro-content"></div>';
   selectFinanceiroSubtab('cadastro');
@@ -4824,10 +4846,14 @@ async function renderFinanceiro(container){
 
 function selectFinanceiroSubtab(tab){
   document.getElementById('fin-tab-cadastro').classList.toggle('active', tab === 'cadastro');
+  document.getElementById('fin-tab-status').classList.toggle('active', tab === 'status');
   const content = document.getElementById('financeiro-content');
   if(tab === 'cadastro'){
     content.innerHTML = CC_MODULE_HTML;
     ccOnTipoChange();
+  } else if(tab === 'status'){
+    content.innerHTML = '<div class="cc-mod" id="fcs-mod" style="padding:20px 22px;"></div>';
+    fcsRenderPainel();
   }
 }
 
@@ -5133,6 +5159,19 @@ const CC_MODULE_HTML = `<div class="cc-mod">
       <div class="right-group">
         <button class="btn btn-ghost" onclick="ccPrevisualizarDoc()">👁 Pré-visualizar dossiê</button>
         <button class="btn btn-print" onclick="ccImprimirDossie();">🖨 Imprimir / Salvar dossiê completo</button>
+        <button class="btn btn-primary" onclick="ccToggleFinalize()">✔ Finalizar cadastro</button>
+      </div>
+    </div>
+
+    <div class="finalize-box" id="finalize-box" style="display:none;">
+      <p><b>Só falta um dado</b> pra levar esse cliente pra "Análise de clientes ativos": a carteirinha do conselho foi lida pela IA (situação), mas ainda não extraímos dela uma data de vencimento. Informe abaixo:</p>
+      <div class="field" style="max-width:220px;">
+        <label>Vencimento da carteira do conselho</label>
+        <input type="date" id="fz-venc-conselho">
+      </div>
+      <div class="modal-foot" style="padding:0;border:none;justify-content:flex-start;margin-top:12px;">
+        <button class="btn btn-primary btn-sm" onclick="ccConfirmarFinalizar()">Confirmar e limpar tela para o próximo cliente</button>
+        <button class="btn btn-ghost btn-sm" onclick="ccToggleFinalize()">Cancelar</button>
       </div>
     </div>
   </section>
@@ -5913,6 +5952,201 @@ function ccGerarParecer(){
   document.getElementById('parecer-nav').style.display = 'flex';
   ccGoStep(3);
 }
+
+/* ===== Finalizar cadastro → Análise de clientes ativos ===== */
+const CC_STATE_INICIAL = {
+  pj:false,
+  conselhoConsultado:false, conselhoAtivo:true,
+  serasaProcessado:false, serasaFile:null,
+  docAtivo:true,
+  socioAtivo:true,
+  alvaraProcessado:false, alvaraAtivo:true, alvaraMunicipio:'—', alvaraVencimento:'—', alvaraConcessao:'—', alvaraAtividades:[],
+  conselhoLido:false, conselhoHabilitacoes:[],
+  score:350, recomendacaoNegativa:true, correspondenciaOk:true
+};
+
+function ccDataBRParaISO(str){
+  if(!str || str === '—') return null;
+  const p = str.split('/');
+  if(p.length !== 3) return null;
+  return p[2] + '-' + p[1] + '-' + p[0];
+}
+
+function ccToggleFinalize(){
+  const box = document.getElementById('finalize-box');
+  if(!box) return;
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+async function ccConfirmarFinalizar(){
+  const vencConselhoIso = document.getElementById('fz-venc-conselho').value;
+  if(!vencConselhoIso){
+    alert('Informe o vencimento da carteira do conselho antes de finalizar.');
+    return;
+  }
+  const r = ccAvaliar();
+  const socioNomeEl = document.getElementById('socio-nome');
+  const creditoStatus = r.conclusaoClasse === 'ok' ? 'aprovado' : (r.conclusaoClasse === 'bad' ? 'reprovado' : 'restricao');
+
+  const row = {
+    origem: 'analise',
+    tipo: ccState.pj ? 'PJ' : 'PF',
+    nome: r.nome,
+    documento: r.documento,
+    socio_nome: ccState.pj && socioNomeEl ? socioNomeEl.textContent : null,
+    alvara_ativo: ccState.pj ? ccState.alvaraAtivo : null,
+    alvara_vencimento: ccState.pj ? ccDataBRParaISO(ccState.alvaraVencimento) : null,
+    conselho_ativo: ccState.conselhoAtivo,
+    conselho_vencimento: vencConselhoIso,
+    credito_status: creditoStatus,
+    criado_por: currentUsuario.id
+  };
+
+  const btn = document.querySelector('#finalize-box button.btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Salvando...'; }
+
+  const ins = await sb.from('financeiro_clientes_status').insert(row);
+  if(ins.error){
+    alert('Não foi possível salvar em Análise de clientes ativos: ' + ins.error.message);
+    if(btn){ btn.disabled = false; btn.textContent = 'Confirmar e limpar tela para o próximo cliente'; }
+    return;
+  }
+
+  ccState = JSON.parse(JSON.stringify(CC_STATE_INICIAL));
+  const content = document.getElementById('financeiro-content');
+  content.innerHTML = CC_MODULE_HTML;
+  ccOnTipoChange();
+}
+
+function fcsVencimentoInfo(iso){
+  if(!iso) return { cls:'status-wait', label:'Não informado', venc:'' };
+  const hoje = premiacaoIsoHoje(0);
+  const meses = opMesesEntre(hoje, iso);
+  const vencTxt = 'Vence <b>' + opDataBR(iso) + '</b>';
+  if(meses < 0) return { cls:'status-alert', label:'Vencido', venc:'Venceu em <b>' + opDataBR(iso) + '</b>' };
+  if(meses === 0) return { cls:'status-alert', label:'Vence este mês', venc:vencTxt + ' · vence este mês' };
+  if(meses <= 1) return { cls:'status-wait', label:'Vence em breve', venc:vencTxt + ' · falta ' + meses + ' mês' };
+  return { cls:'status-ok', label:'Válido', venc:vencTxt + ' · faltam ' + meses + ' meses' };
+}
+
+const FCS_CREDITO_LABEL = { aprovado:['status-ok','Aprovado'], restricao:['status-wait','Aprovação com restrição'], reprovado:['status-alert','Reprovado'] };
+
+let __fcsLista = [];
+async function fcsRenderPainel(){
+  const mod = document.getElementById('fcs-mod');
+  mod.innerHTML = '<p class="empty-hint">Carregando...</p>';
+  const result = await sb.from('financeiro_clientes_status').select('*').order('criado_em', { ascending:false });
+  __fcsLista = result.data || [];
+  fcsMontarHtml();
+}
+
+function fcsMontarHtml(filtro){
+  const mod = document.getElementById('fcs-mod');
+  const termo = (filtro||'').trim().toLowerCase();
+  const lista = !termo ? __fcsLista : __fcsLista.filter(c =>
+    (c.nome||'').toLowerCase().includes(termo) || (c.documento||'').toLowerCase().includes(termo));
+
+  let cardsHtml;
+  if(!lista.length){
+    cardsHtml = '<div class="empty-state"><div class="icon">📋</div>' + (termo ? 'Nenhum cliente encontrado com esse termo.' : 'Nenhum cliente cadastrado ainda. Finalize uma análise ou cadastre manualmente.') + '</div>';
+  } else {
+    cardsHtml = lista.map(function(c){
+      const alvaraInfo = c.tipo === 'PJ' ? (c.alvara_ativo === false ? { cls:'status-alert', label:'Irregular', venc: c.alvara_vencimento ? 'Venceu/irregular em <b>' + opDataBR(c.alvara_vencimento) + '</b>' : '' } : fcsVencimentoInfo(c.alvara_vencimento)) : null;
+      const conselhoInfo = fcsVencimentoInfo(c.conselho_vencimento);
+      const creditoInfo = FCS_CREDITO_LABEL[c.credito_status] || ['status-wait','—'];
+      const origemLabel = c.origem === 'manual' ? 'Cadastro manual' : 'Veio da análise';
+      const dataLabel = c.criado_em ? new Date(c.criado_em).toLocaleDateString('pt-BR') : '';
+
+      return '<div class="fcs-card origem-' + (c.origem==='manual'?'manual':'analise') + '">' +
+        '<div class="fcs-top"><div>' +
+        '<div class="fcs-nome">' + escapeHtml(c.nome) + '</div>' +
+        '<div class="fcs-doc">' + (c.tipo==='PJ'?'CNPJ ':'CPF ') + escapeHtml(c.documento) + '</div>' +
+        (c.socio_nome ? '<div class="fcs-socio">Sócio(a): ' + escapeHtml(c.socio_nome) + '</div>' : '') +
+        '</div><div class="fcs-origem">' + origemLabel + (dataLabel ? ' · ' + dataLabel : '') + '</div></div>' +
+        '<div class="fcs-grid">' +
+        (alvaraInfo ? '<div class="fcs-item"><div class="lbl">Alvará sanitário</div><span class="status-pill ' + alvaraInfo.cls + '"><span class="dot"></span>' + alvaraInfo.label + '</span><div class="venc">' + alvaraInfo.venc + '</div></div>' : '<div class="fcs-item"><div class="lbl">Alvará sanitário</div><span class="status-pill status-info"><span class="dot"></span>N/A (pessoa física)</span></div>') +
+        '<div class="fcs-item"><div class="lbl">Carteira do conselho</div><span class="status-pill ' + conselhoInfo.cls + '"><span class="dot"></span>' + conselhoInfo.label + '</span><div class="venc">' + conselhoInfo.venc + '</div></div>' +
+        '<div class="fcs-item"><div class="lbl">Análise de crédito</div><span class="status-pill ' + creditoInfo[0] + '"><span class="dot"></span>' + creditoInfo[1] + '</span></div>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  mod.innerHTML =
+    '<div class="fcs-head"><div><h3>Análise de clientes ativos</h3><p>Alimentada automaticamente ao finalizar uma análise, ou cadastrada manualmente aqui.</p></div>' +
+    '<button class="btn btn-primary btn-sm" onclick="fcsAbrirManual()">+ Cadastrar manualmente</button></div>' +
+    '<input class="fcs-search" placeholder="Buscar por nome, razão social, CPF ou CNPJ..." oninput="fcsMontarHtml(this.value)" value="' + escapeHtml(filtro||'') + '">' +
+    '<div id="fcs-cards">' + cardsHtml + '</div>' +
+    '<div id="fcs-modal-holder"></div>';
+
+  const searchEl = mod.querySelector('.fcs-search');
+  if(searchEl && filtro !== undefined){
+    searchEl.focus();
+    searchEl.setSelectionRange(searchEl.value.length, searchEl.value.length);
+  }
+}
+
+function fcsAbrirManual(){
+  const holder = document.getElementById('fcs-modal-holder');
+  holder.innerHTML =
+    '<div class="modal-overlay" id="fcs-modal-manual" onclick="if(event.target===this) fcsFecharManual()">' +
+    '<div class="modal-box"><div class="modal-head"><span>Cadastrar cliente manualmente</span><button type="button" onclick="fcsFecharManual()">✕</button></div>' +
+    '<div class="modal-body">' +
+    '<div class="hint" style="margin-bottom:14px;">Use isso pra clientes que já operam com a gente mas nunca passaram pela análise por aqui. Só os campos abaixo — o dossiê completo continua vivendo no cadastro do cliente no estoque.</div>' +
+    '<div class="radio-group"><label><input type="radio" name="fz-tipo" value="PF" checked onchange="fcsOnTipoManual()"> Pessoa física (CPF)</label><label><input type="radio" name="fz-tipo" value="PJ" onchange="fcsOnTipoManual()"> Pessoa jurídica (CNPJ)</label></div>' +
+    '<div class="field"><label id="fz-label-nome">Nome completo</label><input type="text" id="fz-nome" placeholder="Ex: Julia Marques Collucci"></div>' +
+    '<div class="field"><label id="fz-label-doc">CPF</label><input type="text" id="fz-doc" placeholder="000.000.000-00"></div>' +
+    '<div class="field" id="fz-campo-socio" style="display:none;"><label>Sócio(a)</label><input type="text" id="fz-socio" placeholder="Nome completo"></div>' +
+    '<div class="field-row"><div class="field"><label>Alvará sanitário</label><select id="fz-alvara-status"><option value="true">Válido</option><option value="false">Irregular/vencido</option></select></div>' +
+    '<div class="field"><label>Vencimento do alvará</label><input type="date" id="fz-alvara-venc"></div></div>' +
+    '<div class="field-row"><div class="field"><label>Carteira do conselho</label><select id="fz-conselho-status"><option value="true">Ativa</option><option value="false">Inativa</option></select></div>' +
+    '<div class="field"><label>Vencimento da carteira</label><input type="date" id="fz-conselho-venc"></div></div>' +
+    '<div class="field"><label>Análise de crédito</label><select id="fz-credito"><option value="aprovado">Aprovado</option><option value="restricao">Aprovação com restrição</option><option value="reprovado">Reprovado</option></select></div>' +
+    '</div><div class="modal-foot"><button class="btn btn-ghost" onclick="fcsFecharManual()">Cancelar</button><button class="btn btn-primary" onclick="fcsSalvarManual()">Salvar cliente</button></div></div></div>';
+  fcsOnTipoManual();
+}
+
+function fcsOnTipoManual(){
+  const pj = document.querySelector('input[name=fz-tipo]:checked').value === 'PJ';
+  document.getElementById('fz-label-nome').textContent = pj ? 'Razão social' : 'Nome completo';
+  document.getElementById('fz-label-doc').textContent = pj ? 'CNPJ' : 'CPF';
+  document.getElementById('fz-campo-socio').style.display = pj ? 'block' : 'none';
+}
+
+function fcsFecharManual(){
+  const holder = document.getElementById('fcs-modal-holder');
+  if(holder) holder.innerHTML = '';
+}
+
+async function fcsSalvarManual(){
+  const pj = document.querySelector('input[name=fz-tipo]:checked').value === 'PJ';
+  const nome = document.getElementById('fz-nome').value.trim();
+  const doc = document.getElementById('fz-doc').value.trim();
+  if(!nome || !doc){
+    alert('Preencha nome e ' + (pj?'CNPJ':'CPF') + '.');
+    return;
+  }
+  const row = {
+    origem: 'manual',
+    tipo: pj ? 'PJ' : 'PF',
+    nome: nome,
+    documento: doc,
+    socio_nome: pj ? (document.getElementById('fz-socio').value.trim() || null) : null,
+    alvara_ativo: pj ? (document.getElementById('fz-alvara-status').value === 'true') : null,
+    alvara_vencimento: pj ? (document.getElementById('fz-alvara-venc').value || null) : null,
+    conselho_ativo: document.getElementById('fz-conselho-status').value === 'true',
+    conselho_vencimento: document.getElementById('fz-conselho-venc').value || null,
+    credito_status: document.getElementById('fz-credito').value,
+    criado_por: currentUsuario.id
+  };
+  const ins = await sb.from('financeiro_clientes_status').insert(row);
+  if(ins.error){
+    alert('Não foi possível salvar: ' + ins.error.message);
+    return;
+  }
+  fcsFecharManual();
+  fcsRenderPainel();
+}
+
 function ccSnapshotEditable(fieldsetId){
   const src = document.getElementById(fieldsetId);
   const clone = src.cloneNode(true);
