@@ -5131,7 +5131,7 @@ const CC_MODULE_HTML = `<div class="cc-mod">
       <button class="btn btn-ghost" onclick="ccGoStep(2)">← Voltar</button>
       <div class="right-group">
         <button class="btn btn-ghost" onclick="ccPrevisualizarDoc()">👁 Pré-visualizar dossiê</button>
-        <button class="btn btn-print" onclick="ccMontarDocFinal(); window.print();">🖨 Imprimir / Salvar dossiê completo</button>
+        <button class="btn btn-print" onclick="ccImprimirDossie();">🖨 Imprimir / Salvar dossiê completo</button>
       </div>
     </div>
   </section>
@@ -5992,6 +5992,23 @@ function ccMontarDocFinal(){
     </div>
   `;
 }
+function ccAguardarAnexosCarregados(container){
+  const medias = Array.from(container.querySelectorAll('.anexo-final img, .anexo-final iframe'));
+  if(!medias.length) return Promise.resolve();
+  return Promise.all(medias.map(el => new Promise(resolve => {
+    if(el.tagName === 'IMG' && el.complete){ resolve(); return; }
+    el.addEventListener('load', resolve, {once:true});
+    el.addEventListener('error', resolve, {once:true});
+    setTimeout(resolve, 4000);
+  })));
+}
+
+async function ccImprimirDossie(){
+  ccMontarDocFinal();
+  await ccAguardarAnexosCarregados(document.getElementById('doc-final'));
+  window.print();
+}
+
 function ccPrevisualizarDoc(){
   ccMontarDocFinal();
   const docFinal = document.getElementById('doc-final');
