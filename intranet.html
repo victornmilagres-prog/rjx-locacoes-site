@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 :root{
   --paper:#faf7f2; --paper-soft:#f1ebe1; --line:#e4dccd;
@@ -456,8 +457,8 @@ textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--lin
   .cc-mod .anexos-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   .cc-mod .anexo-final{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;}
   .cc-mod .anexo-final .cap{padding:9px 14px;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:#F5F3EE;border-bottom:1px solid var(--line);}
-  .cc-mod .anexo-final .body{padding:12px;display:flex;align-items:center;justify-content:center;background:#FAF9F6;min-height:170px;}
-  .cc-mod .anexo-final .body img{max-width:100%;max-height:600px;border-radius:4px;display:block;}
+  .cc-mod .anexo-final .body{padding:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#FAF9F6;min-height:170px;}
+  .cc-mod .anexo-final .body img{max-width:100%;max-height:900px;border-radius:4px;display:block;}
   .cc-mod .anexo-final .body iframe{width:100%;height:600px;border:1px solid var(--line);border-radius:4px;background:#fff;}
   .cc-mod .anexo-final.wide{grid-column:1/-1;}
   .cc-mod .modal-overlay{position:fixed;inset:0;background:rgba(31,27,25,0.55);display:flex;align-items:center;justify-content:center;z-index:80;padding:20px;}
@@ -5930,17 +5931,53 @@ function ccSnapshotEditable(fieldsetId){
   return clone.innerHTML;
 }
 
-function ccAnexoFinalBloco(file, titulo, opts){
+let __pdfWorkerReady = null;
+function ccInicializarPdfJs(){
+  if(__pdfWorkerReady) return __pdfWorkerReady;
+  __pdfWorkerReady = fetch('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js')
+    .then(r => r.text())
+    .then(code => {
+      const blobUrl = URL.createObjectURL(new Blob([code], {type:'application/javascript'}));
+      pdfjsLib.GlobalWorkerOptions.workerSrc = blobUrl;
+    });
+  return __pdfWorkerReady;
+}
+
+async function ccRenderPdfComoImagens(file){
+  await ccInicializarPdfJs();
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+  let html = '';
+  for(let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({scale: 1.6});
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width; canvas.height = viewport.height;
+    await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
+    html += `<img src="${canvas.toDataURL('image/jpeg', 0.85)}" alt="página ${i}">`;
+  }
+  return html;
+}
+
+async function ccAnexoFinalBloco(file, titulo, opts){
   if(!file) return '';
   opts = opts || {};
-  const url = URL.createObjectURL(file);
   const isImg = /^image\//.test(file.type) || /\.(png|jpe?g|gif|webp)$/i.test(file.name);
-  const corpo = isImg ? `<img src="${url}" alt="${titulo}">` : `<iframe src="${url}" title="${titulo}"></iframe>`;
+  let corpo;
+  if(isImg){
+    corpo = `<img src="${URL.createObjectURL(file)}" alt="${titulo}">`;
+  } else {
+    try{
+      corpo = await ccRenderPdfComoImagens(file);
+    }catch(e){
+      corpo = `<iframe src="${URL.createObjectURL(file)}" title="${titulo}"></iframe>`;
+    }
+  }
   const wide = opts.wide || !isImg;
   return `<div class="anexo-final${wide ? ' wide' : ''}"><div class="cap">${opts.icone || '📎'} ${titulo}</div><div class="body">${corpo}</div></div>`;
 }
 
-function ccMontarDocFinal(){
+async function ccMontarDocFinal(){
   const r = ccAvaliar();
   const hoje = new Date().toLocaleDateString('pt-BR');
 
@@ -5949,13 +5986,14 @@ function ccMontarDocFinal(){
   const alvaraHtml = ccState.pj ? ccSnapshotEditable('fieldset-alvara-doc') : '';
   const parecerHtml = ccGerarParecerHtml(r);
 
-  const anexosHtml = [
-    ccState.pj ? ccAnexoFinalBloco(ccState.alvaraFile, 'Alvará sanitário', {icone:'📄'}) : '',
+  const anexosArr = await Promise.all([
+    ccState.pj ? ccAnexoFinalBloco(ccState.alvaraFile, 'Alvará sanitário', {icone:'📄'}) : Promise.resolve(''),
     ccAnexoFinalBloco(ccState.serasaFile, 'Relatório Serasa', {icone:'📄'}),
     ccAnexoFinalBloco(ccState.conselhoCarteiraFrenteFile, 'Carteira do conselho — frente', {icone:'🪪'}),
     ccAnexoFinalBloco(ccState.conselhoCarteiraVersoFile, 'Carteira do conselho — verso', {icone:'🪪'}),
     ccAnexoFinalBloco(ccState.conselhoPrintFile, 'Comprovante da consulta ao conselho', {icone:'🖥️'})
-  ].filter(Boolean).join('');
+  ]);
+  const anexosHtml = anexosArr.filter(Boolean).join('');
 
   document.getElementById('doc-final').innerHTML = `
     <button type="button" class="btn btn-ghost no-print-btn" style="margin-bottom:14px;" onclick="document.getElementById('doc-final').style.display='none';">✕ Fechar pré-visualização</button>
@@ -5992,6 +6030,7 @@ function ccMontarDocFinal(){
     </div>
   `;
 }
+
 function ccAguardarAnexosCarregados(container){
   const medias = Array.from(container.querySelectorAll('.anexo-final img, .anexo-final iframe'));
   if(!medias.length) return Promise.resolve();
@@ -6004,13 +6043,13 @@ function ccAguardarAnexosCarregados(container){
 }
 
 async function ccImprimirDossie(){
-  ccMontarDocFinal();
+  await ccMontarDocFinal();
   await ccAguardarAnexosCarregados(document.getElementById('doc-final'));
   window.print();
 }
 
-function ccPrevisualizarDoc(){
-  ccMontarDocFinal();
+async function ccPrevisualizarDoc(){
+  await ccMontarDocFinal();
   const docFinal = document.getElementById('doc-final');
   docFinal.style.display = 'block';
   docFinal.scrollIntoView({behavior:'smooth', block:'start'});
