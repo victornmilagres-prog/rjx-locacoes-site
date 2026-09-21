@@ -461,6 +461,7 @@ textarea.field-textarea{width:100%; padding:9px 10px; border:1px solid var(--lin
   .cc-mod .anexo-final .body img{max-width:100%;max-height:900px;border-radius:4px;display:block;}
   .cc-mod .anexo-final .body iframe{width:100%;height:600px;border:1px solid var(--line);border-radius:4px;background:#fff;}
   .cc-mod .anexo-final.wide{grid-column:1/-1;}
+  .cc-mod .cc-subrow{display:flex;gap:10px;margin-bottom:22px;flex-wrap:wrap;}
   .cc-mod .fcs-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;}
   .cc-mod .fcs-head h3{margin:0;font-size:16px;}
   .cc-mod .fcs-head p{margin:2px 0 0;font-size:12.5px;color:var(--gray);}
@@ -4855,11 +4856,15 @@ function selectFinanceiroSubtab(tab){
 /* ===== Módulo Cadastro de Cliente (protótipo) ===== */
 const CC_MODULE_HTML = `<div class="cc-mod">
 <p class="cc-disclaimer">A busca no site do conselho profissional é feita manualmente, mas a situação e as habilitações são lidas automaticamente pela IA a partir do print anexado — assim como o relatório de crédito e o alvará sanitário, lidos a partir dos documentos anexados.</p>
+<div class="cc-subrow">
+  <button class="subtab active" id="cc-tab-cadastro" onclick="ccSelectTab('cadastro')">Cadastro do cliente</button>
+  <button class="subtab" id="cc-tab-status" onclick="ccSelectTab('status')">Análise de clientes ativos</button>
+</div>
+<div id="cc-wizard-wrap">
 <div class="steps">
     <button class="step-btn active" data-step="1" onclick="ccGoStep(1)"><span class="num">1</span>Dados</button>
     <button class="step-btn" data-step="2" onclick="ccGoStep(2)"><span class="num">2</span>Documentos</button>
     <button class="step-btn" data-step="3" onclick="ccGoStep(3)"><span class="num">3</span>Parecer</button>
-    <button class="step-btn" data-step="4" onclick="ccGoStep(4); fcsRenderPainel();">Análise de clientes ativos</button>
   </div>
 
   <!-- STEP 1 -->
@@ -5172,6 +5177,8 @@ const CC_MODULE_HTML = `<div class="cc-mod">
     </div>
   </section>
 
+  </div>
+
   <section class="panel" id="panel-4">
     <div id="fcs-mod"></div>
   </section>
@@ -5206,8 +5213,16 @@ let ccState = {
 
 function ccGoStep(n){
   document.querySelectorAll('.step-btn').forEach(b=>b.classList.toggle('active', b.dataset.step==n));
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('#cc-wizard-wrap .panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+n).classList.add('active');
+}
+
+function ccSelectTab(tab){
+  document.getElementById('cc-tab-cadastro').classList.toggle('active', tab === 'cadastro');
+  document.getElementById('cc-tab-status').classList.toggle('active', tab === 'status');
+  document.getElementById('cc-wizard-wrap').style.display = tab === 'cadastro' ? 'block' : 'none';
+  document.getElementById('panel-4').classList.toggle('active', tab === 'status');
+  if(tab === 'status') fcsRenderPainel();
 }
 
 function ccOnTipoChange(){
