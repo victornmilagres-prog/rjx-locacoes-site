@@ -2912,6 +2912,7 @@ async function selectOperacionalSubtab(tab){
 let equipEquipamentos = [];
 let equipAbaAtual = null;
 let equipCartFiltro = 'todos';
+let equipCartBusca = '';
 let equipMainTab = 'equipamentos';
 let equipAcessoriosPorEquip = {};
 let equipManutPrevPorNome = {};
@@ -3327,7 +3328,12 @@ async function equipNovoConfirmar(){
 
 async function equipRenderCartuchosHtml(){
   const r = await sb.from('cartuchos').select('*').order('created_at', { ascending:false });
-  const todos = r.data || [];
+  window.__equipCartuchosTodos = r.data || [];
+  return equipCartuchosMontarHtml();
+}
+
+function equipCartuchosMontarHtml(){
+  const todos = window.__equipCartuchosTodos || [];
   const ativos = todos.filter(function(c){ return !c.descartado; });
   let filtrados;
   if(equipCartFiltro === 'descartados') filtrados = todos.filter(function(c){ return c.descartado; });
@@ -3337,12 +3343,25 @@ async function equipRenderCartuchosHtml(){
   else if(equipCartFiltro === 'estoque') filtrados = ativos.filter(function(c){ return c.vinculo === 'none'; });
   else filtrados = ativos;
 
+  filtrados = filtrados.slice().sort(function(a,b){
+    return (a.tipo||'').localeCompare((b.tipo||''), 'pt-BR', { numeric:true, sensitivity:'base' });
+  });
+
+  const termoBusca = (equipCartBusca||'').trim();
+  if(termoBusca){
+    const norm = function(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); };
+    const alvo = norm(termoBusca);
+    filtrados = filtrados.filter(function(c){
+      return norm(c.tipo).indexOf(alvo) !== -1 || norm(c.numero_serie).indexOf(alvo) !== -1;
+    });
+  }
+
   function filtroBtn(id, label, discard){
     return '<button class="subtab ' + (equipCartFiltro===id?'active':'') + (discard?' subtab-discard':'') + '" onclick="equipCartMudarFiltro(&quot;' + id + '&quot;)">' + label + '</button>';
   }
 
   let cardsHtml = filtrados.map(function(c){ return equipCartuchoCardHtml(c); }).join('');
-  if(!filtrados.length) cardsHtml = '<p class="cardsub">Nenhum cartucho nessa categoria.</p>';
+  if(!filtrados.length) cardsHtml = '<p class="cardsub">Nenhum cartucho ' + (termoBusca?'encontrado para essa busca.':'nessa categoria.') + '</p>';
 
   return '' +
   '<div class="cart-filterbar">' +
@@ -3354,9 +3373,38 @@ async function equipRenderCartuchosHtml(){
     filtroBtn('descartados','Descartados', true) +
   '</div>' +
   '<div class="card">' +
-    '<div class="section-head"><h3>Cartuchos Ultraformer</h3><button class="btn btn-primary btn-sm" onclick="equipCartuchoAbrirModal(null)">+ Adicionar cartucho</button></div>' +
+    '<div class="section-head"><h3>Cartuchos Ultraformer</h3><div style="display:flex;gap:8px;"><button class="btn btn-ghost btn-sm" id="cart-sync-btn" onclick="equipAtualizarDisparosEstoqueNow()">🔄 Atualizar disparos</button><button class="btn btn-primary btn-sm" onclick="equipCartuchoAbrirModal(null)">+ Adicionar cartucho</button></div></div>' +
+    '<input class="cart-busca" id="cart-busca-input" placeholder="Buscar cartucho por nome ou nº de série..." value="' + escapeHtml(equipCartBusca||'') + '" oninput="equipCartMudarBusca(this.value)" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;margin-bottom:14px;">' +
     '<div class="cart-grid">' + cardsHtml + '</div>' +
   '</div>';
+}
+
+
+function equipCartMudarBusca(v){
+  equipCartBusca = v;
+  const el = document.getElementById('equip-conteudo');
+  if(!el) return;
+  el.innerHTML = equipCartuchosMontarHtml();
+  const input = document.getElementById('cart-busca-input');
+  if(input){ input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+}
+
+async function equipAtualizarDisparosEstoqueNow(){
+  const btn = document.getElementById('cart-sync-btn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Atualizando...'; }
+  try{
+    const { data: sessionData } = await sb.auth.getSession();
+    const token = sessionData && sessionData.session ? sessionData.session.access_token : '';
+    const resp = await fetch('/api/sync-disparos-estoquenow', { method:'POST', headers:{ 'Authorization': 'Bearer ' + token } });
+    const data = await resp.json();
+    if(!resp.ok){ toast('Erro: ' + (data.error||'não foi possível atualizar.')); return; }
+    toast(data.atualizados + ' cartucho(s) atualizado(s) a partir do Estoque Now.');
+    await equipRenderConteudo();
+  }catch(e){
+    toast('Erro ao atualizar: ' + e.message);
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = '🔄 Atualizar disparos'; }
+  }
 }
 
 
@@ -3378,6 +3426,7 @@ function equipCartuchoCardHtml(c){
         '<div class="serie">' + escapeHtml(c.tipo || c.numero_serie || 'Cartucho') + '</div>' +
         '<div class="disparos">Nº série: ' + escapeHtml(c.numero_serie || '—') + '</div>' +
         '<div class="disparos">' + (c.disparos_total||0) + ' disparos comprados</div>' +
+        (c.codigo_estoquenow ? '<div class="disparos">Cód. Estoque Now: ' + escapeHtml(c.codigo_estoquenow) + (c.disparos_atualizado_em ? ' · sinc. ' + new Date(c.disparos_atualizado_em).toLocaleDateString('pt-BR') : '') + '</div>' : '') +
       '</div>' +
     '</div>' +
     '<div class="linkrow">' +
@@ -3413,7 +3462,7 @@ async function equipCartuchoSetVinculo(id, vinculo){
 }
 
 async function equipCartuchoAbrirModal(id){
-  let item = { numero_serie:'', numero_nf:'', anexo_nf_url:'', anexo_contrato_url:'', foto_url:'', disparos_total:400, tipo:'' };
+  let item = { numero_serie:'', numero_nf:'', anexo_nf_url:'', anexo_contrato_url:'', foto_url:'', disparos_total:400, tipo:'', codigo_estoquenow:'', disparos_atualizado_em:null };
   if(id){
     const r = await sb.from('cartuchos').select('*').eq('id', id).maybeSingle();
     if(r.data) item = r.data;
@@ -3422,6 +3471,7 @@ async function equipCartuchoAbrirModal(id){
   window.__cartFotoUrl = item.foto_url || '';
   window.__cartNfUrl = item.anexo_nf_url || '';
   window.__cartContratoUrl = item.anexo_contrato_url || '';
+  const syncHint = item.disparos_atualizado_em ? ('Última sincronização: ' + new Date(item.disparos_atualizado_em).toLocaleString('pt-BR')) : 'Ainda não sincronizado';
   let overlay = document.getElementById('op-modal-overlay');
   if(overlay) overlay.remove();
   overlay = document.createElement('div');
@@ -3435,6 +3485,7 @@ async function equipCartuchoAbrirModal(id){
         '<div class="field"><label>Disparos comprados</label><input type="number" id="cart-total" value="' + (item.disparos_total||0) + '"></div>' +
         '<div class="field"><label>Número de série</label><input id="cart-serie" value="' + escapeHtml(item.numero_serie||'') + '"></div>' +
       '</div>' +
+      '<div class="field" style="margin-bottom:12px;"><label>Código no Estoque Now</label><input id="cart-estoquenow" value="' + escapeHtml(item.codigo_estoquenow||'') + '" placeholder="Ex: 000026"><div style="font-size:11px;color:var(--gray-soft);margin-top:4px;">' + syncHint + '</div></div>' +
       '<div class="field" style="margin-bottom:12px;"><label>Número da nota fiscal</label><input id="cart-nf" value="' + escapeHtml(item.numero_nf||'') + '"></div>' +
       '<div class="field" style="margin-bottom:12px;">' +
         '<label>Foto</label>' +
@@ -3498,9 +3549,11 @@ async function equipCartuchoSalvar(){
   const total = parseInt(document.getElementById('cart-total').value) || 0;
   const serie = document.getElementById('cart-serie').value.trim();
   const nf = document.getElementById('cart-nf').value.trim();
+  const codigoEstoqueNow = document.getElementById('cart-estoquenow').value.trim();
   if(!serie){ toast('Digite o número de série.'); return; }
   const payload = {
     tipo: tipo || null, numero_serie: serie, disparos_total: total, disparos_restantes: total,
+    codigo_estoquenow: codigoEstoqueNow || null,
     numero_nf: nf || null, foto_url: window.__cartFotoUrl || null,
     anexo_nf_url: window.__cartNfUrl || null, anexo_contrato_url: window.__cartContratoUrl || null
   };
