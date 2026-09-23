@@ -49,6 +49,16 @@ html,body{margin:0;background:#dedcc8;font-family:'Source Sans 3',-apple-system,
 .btn-sm{padding:8px 14px;font-size:12.5px;}
 .btn-ghost{background:transparent;border-color:var(--line);color:var(--gray);}
 .btn-ghost:disabled{opacity:.35;cursor:default;}
+/* ===== Modal padrão único — substitui as variações antigas por módulo ===== */
+.rjx-modal-overlay{position:fixed;inset:0;background:rgba(23,19,15,.5);display:flex;align-items:center;justify-content:center;z-index:300;padding:20px;overflow-y:auto;}
+.rjx-modal{background:var(--paper);border-radius:10px;max-width:460px;width:100%;margin:auto;box-shadow:0 24px 60px rgba(23,19,15,.35);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;}
+.rjx-modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line);background:#fff;flex-shrink:0;}
+.rjx-modal-head h3{font-family:'Fraunces',Georgia,serif;font-size:17px;font-weight:600;margin:0;color:var(--ink);}
+.rjx-modal-close{border:none;background:transparent;font-size:18px;line-height:1;color:var(--gray-soft);cursor:pointer;padding:4px 6px;border-radius:4px;}
+.rjx-modal-close:hover{background:var(--paper-soft);color:var(--ink);}
+.rjx-modal-body{padding:20px 22px;overflow-y:auto;}
+.rjx-modal-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 22px;border-top:1px solid var(--line);background:#fff;flex-shrink:0;}
+.rjx-modal-foot .right-group{display:flex;gap:10px;flex-wrap:wrap;}
 .login-error{background:var(--alert-bg);color:var(--alert);border-radius:var(--radius);padding:9px 12px;font-size:13px;margin-bottom:14px;}
 .login-success{background:var(--ok-bg);color:var(--ok);border-radius:var(--radius);padding:9px 12px;font-size:13px;margin-bottom:14px;}
 
@@ -3085,10 +3095,11 @@ async function equipAbrirModalEditar(id){
   if(overlay) overlay.remove();
   overlay = document.createElement('div');
   overlay.id = 'op-modal-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;overflow-y:auto;padding:20px 0;';
+  overlay.className = 'rjx-modal-overlay';
   overlay.innerHTML = '' +
-    '<div class="card form-card" style="max-width:460px;width:92%;margin:0;">' +
-      '<h3>Editar equipamento</h3>' +
+    '<div class="rjx-modal">' +
+      '<div class="rjx-modal-head"><h3>Editar equipamento</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div>' +
+      '<div class="rjx-modal-body">' +
       '<div style="display:flex;gap:16px;margin:14px 0;align-items:flex-start;">' +
         '<input type="file" accept="image/*" id="equip-modal-foto-input" style="display:none" onchange="equipModalUploadFoto(this.files[0])">' +
         '<div class="foto-box ' + (eq.foto_url?'':'vazio') + '" id="equip-modal-foto-box" style="width:72px;height:72px;" onclick="document.getElementById(&quot;equip-modal-foto-input&quot;).click()">' +
@@ -3110,10 +3121,11 @@ async function equipAbrirModalEditar(id){
         equipModalAnexoField('manual', 'Manual do equipamento', eq.anexo_manual_url) +
         equipModalAnexoField('contrato', 'Contrato de compra e venda', eq.anexo_contrato_url) +
       '</div>' +
-      '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
+      '</div>' +
+      '<div class="rjx-modal-foot"><div></div><div class="right-group">' +
         '<button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button>' +
         '<button class="btn btn-primary" onclick="equipModalSalvar()">Salvar</button>' +
-      '</div>' +
+      '</div></div>' +
     '</div>';
   document.body.appendChild(overlay);
 }
@@ -3186,11 +3198,12 @@ async function equipAcessorioAbrirModal(equipamentoId, id){
   if(overlay) overlay.remove();
   overlay = document.createElement('div');
   overlay.id = 'op-modal-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;overflow-y:auto;padding:20px 0;';
+  overlay.className = 'rjx-modal-overlay';
   const rotulo = eq.slug === 'crio' ? 'manopla' : 'acessório';
   overlay.innerHTML = '' +
-    '<div class="card form-card" style="max-width:420px;width:92%;margin:0;">' +
-      '<h3>' + (id?'Editar':'Adicionar') + ' ' + rotulo + '</h3>' +
+    '<div class="rjx-modal">' +
+      '<div class="rjx-modal-head"><h3>' + (id?'Editar':'Adicionar') + ' ' + rotulo + '</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div>' +
+      '<div class="rjx-modal-body">' +
       '<div class="field" style="margin:12px 0;"><label>Nome</label><input id="eqac-nome" value="' + escapeHtml(item.nome) + '" placeholder="Ex: Manopla 1, Tela"></div>' +
       '<div class="field" style="margin-bottom:12px;"><label>Número de série</label><input id="eqac-serie" value="' + escapeHtml(item.numero_serie||'') + '"></div>' +
       '<div class="field" style="margin-bottom:12px;"><label>Número da nota fiscal</label><input id="eqac-nf" value="' + escapeHtml(item.numero_nf||'') + '"></div>' +
@@ -3210,10 +3223,11 @@ async function equipAcessorioAbrirModal(equipamentoId, id){
           '<span style="text-decoration:underline;">' + (item.anexo_nf_url?'Trocar':'Anexar') + '</span>' +
         '</div>' +
       '</div>' +
-      '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
+      '</div>' +
+      '<div class="rjx-modal-foot"><div></div><div class="right-group">' +
         '<button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button>' +
         '<button class="btn btn-primary" onclick="equipAcessorioSalvar()">Salvar</button>' +
-      '</div>' +
+      '</div></div>' +
     '</div>';
   document.body.appendChild(overlay);
 }
@@ -3280,20 +3294,22 @@ function equipAbrirModalNovo(){
   if(overlay) overlay.remove();
   overlay = document.createElement('div');
   overlay.id = 'op-modal-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;overflow-y:auto;padding:20px 0;';
+  overlay.className = 'rjx-modal-overlay';
   overlay.innerHTML = '' +
-    '<div class="card form-card" style="max-width:400px;width:92%;margin:0;">' +
-      '<h3>Adicionar equipamento</h3>' +
+    '<div class="rjx-modal">' +
+      '<div class="rjx-modal-head"><h3>Adicionar equipamento</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div>' +
+      '<div class="rjx-modal-body">' +
       '<div class="field" style="margin:14px 0;"><label>Nome do equipamento</label><input id="equip-novo-nome" placeholder="Ex: Enduse Plus"></div>' +
       '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">Esse equipamento tem acessórios? (manoplas, tela, etc.)</div>' +
       '<div style="display:flex;gap:8px;margin-bottom:16px;">' +
         '<div class="btn btn-ghost" id="equip-novo-sim" style="flex:1;text-align:center;cursor:pointer;" onclick="equipNovoSelecionar(true)">Sim</div>' +
         '<div class="btn btn-ghost" id="equip-novo-nao" style="flex:1;text-align:center;cursor:pointer;" onclick="equipNovoSelecionar(false)">Não</div>' +
       '</div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+      '</div>' +
+      '<div class="rjx-modal-foot"><div></div><div class="right-group">' +
         '<button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button>' +
         '<button class="btn btn-primary" onclick="equipNovoConfirmar()">Adicionar</button>' +
-      '</div>' +
+      '</div></div>' +
     '</div>';
   document.body.appendChild(overlay);
 }
@@ -3476,10 +3492,11 @@ async function equipCartuchoAbrirModal(id){
   if(overlay) overlay.remove();
   overlay = document.createElement('div');
   overlay.id = 'op-modal-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;overflow-y:auto;padding:20px 0;';
+  overlay.className = 'rjx-modal-overlay';
   overlay.innerHTML = '' +
-    '<div class="card form-card" style="max-width:420px;width:92%;margin:0;">' +
-      '<h3>' + (id?'Editar':'Adicionar') + ' cartucho</h3>' +
+    '<div class="rjx-modal">' +
+      '<div class="rjx-modal-head"><h3>' + (id?'Editar':'Adicionar') + ' cartucho</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div>' +
+      '<div class="rjx-modal-body">' +
       '<div class="field" style="margin:12px 0;"><label>Tipo do cartucho</label><input id="cart-tipo" value="' + escapeHtml(item.tipo||'') + '" placeholder="Ex: Booster 3.0mm"></div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">' +
         '<div class="field"><label>Disparos comprados</label><input type="number" id="cart-total" value="' + (item.disparos_total||0) + '"></div>' +
@@ -3511,9 +3528,10 @@ async function equipCartuchoAbrirModal(id){
           '<span style="text-decoration:underline;">' + (item.anexo_contrato_url?'Trocar':'Anexar') + '</span>' +
         '</div>' +
       '</div>' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+      '</div>' +
+      '<div class="rjx-modal-foot">' +
         '<div>' + (id ? ('<button class="btn btn-ghost" onclick="equipCartuchoRemover(&quot;' + id + '&quot;)">Excluir</button>') : '') + '</div>' +
-        '<div style="display:flex;gap:8px;">' +
+        '<div class="right-group">' +
           '<button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button>' +
           '<button class="btn btn-primary" onclick="equipCartuchoSalvar()">Salvar</button>' +
         '</div>' +
@@ -3872,12 +3890,12 @@ function opManutAbrirModalEditar(id){
   overlay.id = "op-modal-overlay";
   overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
   overlay.innerHTML =
-    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;"><h3>Editar equipamento</h3>' +
+    '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Editar equipamento</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body">' +
     '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><input id="om-e-nome" value="' + escapeHtml(eq.nome) + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Nº de série</label><input id="om-e-serie" value="' + escapeHtml(eq.serie||"") + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Última manutenção</label><input type="date" id="om-e-data" value="' + eq.ultima_manutencao + '"></div>' +
     '<div class="field" style="margin-bottom:14px;"><label>Renovação (próxima)</label><input type="date" id="om-e-renovacao" value="' + eq.renovacao + '"></div>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" onclick="opManutSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div>';
+    '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" onclick="opManutSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div></div>';
   document.body.appendChild(overlay);
 }
 async function opManutSalvarEdicao(id){
@@ -3924,7 +3942,7 @@ function opManutHistAbrirModalEditar(id){
   overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
   const anexosAtuais = [h.laudo_path?'<a href="'+h.laudo_path+'" target="_blank" style="color:var(--wine);">Laudo atual</a>':"", h.nfe_path?'<a href="'+h.nfe_path+'" target="_blank" style="color:var(--wine);">NFe atual</a>':""].filter(Boolean).join(" &nbsp; ");
   overlay.innerHTML =
-    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;max-height:85vh;overflow-y:auto;"><h3>Editar manutenção</h3>' +
+    '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Editar manutenção</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body">' +
     '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><input id="omh-e-nome" value="' + escapeHtml(h.nome) + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Data</label><input type="date" id="omh-e-data" value="' + h.data + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Valor (R$)</label><input id="omh-e-valor" value="' + escapeHtml(h.valor||"") + '"></div>' +
@@ -3933,7 +3951,7 @@ function opManutHistAbrirModalEditar(id){
     (anexosAtuais ? '<p class="cardsub" style="margin-bottom:6px;">Anexos atuais: ' + anexosAtuais + "</p>" : "") +
     '<div class="field" style="margin-bottom:6px;"><label>Substituir Laudo (opcional)</label><input type="file" id="omh-e-laudo"></div>' +
     '<div class="field" style="margin-bottom:14px;"><label>Substituir NFe (opcional)</label><input type="file" id="omh-e-nfe"></div>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" id="omh-e-salvar-btn" onclick="opManutHistSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div>';
+    '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" id="omh-e-salvar-btn" onclick="opManutHistSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div></div>';
   document.body.appendChild(overlay);
 }
 async function opManutHistSalvarEdicao(id){
@@ -3967,7 +3985,7 @@ function opManutCorrHistAbrirModalEditar(id){
   overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
   const anexosAtuais = [h.laudo_path?'<a href="'+h.laudo_path+'" target="_blank" style="color:var(--wine);">Laudo atual</a>':"", h.nfe_path?'<a href="'+h.nfe_path+'" target="_blank" style="color:var(--wine);">NFe atual</a>':""].filter(Boolean).join(" &nbsp; ");
   overlay.innerHTML =
-    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;max-height:85vh;overflow-y:auto;"><h3>Editar manutenção corretiva</h3>' +
+    '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Editar manutenção corretiva</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body">' +
     '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><input id="omc-e-nome" value="' + escapeHtml(h.nome) + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Nº de série</label><input id="omc-e-serie" value="' + escapeHtml(h.serie||"") + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Data</label><input type="date" id="omc-e-data" value="' + h.data + '"></div>' +
@@ -3977,7 +3995,7 @@ function opManutCorrHistAbrirModalEditar(id){
     (anexosAtuais ? '<p class="cardsub" style="margin-bottom:6px;">Anexos atuais: ' + anexosAtuais + "</p>" : "") +
     '<div class="field" style="margin-bottom:6px;"><label>Substituir Laudo (opcional)</label><input type="file" id="omc-e-laudo"></div>' +
     '<div class="field" style="margin-bottom:14px;"><label>Substituir NFe (opcional)</label><input type="file" id="omc-e-nfe"></div>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" id="omc-e-salvar-btn" onclick="opManutCorrHistSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div>';
+    '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" id="omc-e-salvar-btn" onclick="opManutCorrHistSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div></div>';
   document.body.appendChild(overlay);
 }
 async function opManutCorrHistSalvarEdicao(id){
@@ -4008,7 +4026,7 @@ function opManutAvulsaAbrirModal(){
   overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
   const opcoesEquip = (window.__opManutEquip||[]).map(function(eq){ return '<option value="' + eq.id + '">' + escapeHtml(eq.nome) + "</option>"; }).join("");
   overlay.innerHTML =
-    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;max-height:85vh;overflow-y:auto;"><h3>Manutenção preventiva avulsa</h3>' +
+    '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Manutenção preventiva avulsa</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body">' +
     '<p class="cardsub">Pra lançar manutenções antigas direto no histórico, sem mexer no status atual do equipamento.</p>' +
     '<div class="field" style="margin-bottom:10px;margin-top:10px;"><label>Equipamento</label><select id="oma-nome-select" onchange="opManutAvulsaSelecionaEquip(this.value)" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;"><option value="">Selecione...</option>' + opcoesEquip + '<option value="__outro__">Outro (não está na lista)</option></select><input type="hidden" id="oma-nome"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Nº de série</label><input id="oma-serie" placeholder="Ex: PNA23A7598" readonly style="background:var(--paper-soft);"></div>' +
@@ -4018,7 +4036,7 @@ function opManutAvulsaAbrirModal(){
     '<div class="field" style="margin-bottom:10px;"><label>Data da próxima manutenção</label><input type="date" id="oma-proxima"></div>' +
     '<div class="field" style="margin-bottom:6px;"><label>Laudo técnico</label><input type="file" id="oma-laudo"></div>' +
     '<div class="field" style="margin-bottom:14px;"><label>NFe</label><input type="file" id="oma-nfe"></div>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" id="oma-salvar-btn" onclick="opManutAvulsaSalvar()">Salvar manutenção</button></div></div>';
+    '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" id="oma-salvar-btn" onclick="opManutAvulsaSalvar()">Salvar manutenção</button></div></div></div>';
   document.body.appendChild(overlay);
 }
 function opManutAvulsaSelecionaEquip(id){
@@ -4078,7 +4096,7 @@ function opManutAbrirModal(id){
   overlay.id = "op-modal-overlay";
   overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
   overlay.innerHTML =
-    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;"><h3>Finalizar manutenção — ' + escapeHtml(eq.nome) + '</h3>' +
+    '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Finalizar manutenção — ' + escapeHtml(eq.nome) + '</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body">' +
     '<p class="cardsub">Isso atualiza a próxima renovação e entra no histórico.</p>' +
     '<div class="field" style="margin-bottom:10px;"><label>Valor da manutenção (R$)</label><input id="om-m-valor" placeholder="Ex: 850,00"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Quem realizou</label><input id="om-m-quem" placeholder="Ex: TechCal Manutenções"></div>' +
@@ -4086,7 +4104,7 @@ function opManutAbrirModal(id){
     '<div class="field" style="margin-bottom:10px;"><label>Data da próxima manutenção</label><input type="date" id="om-m-proxima" value="' + opSomaMeses(premiacaoIsoHoje(0), 12) + '"></div>' +
     '<div class="field" style="margin-bottom:6px;"><label>Laudo técnico</label><input type="file" id="om-m-laudo"></div>' +
     '<div class="field" style="margin-bottom:14px;"><label>NFe</label><input type="file" id="om-m-nfe"></div>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" id="om-m-salvar" onclick="opManutConfirmar(&quot;' + id + '&quot;)">Salvar manutenção</button></div></div>';
+    '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" id="om-m-salvar" onclick="opManutConfirmar(&quot;' + id + '&quot;)">Salvar manutenção</button></div></div></div>';
   document.body.appendChild(overlay);
 }
 function opFecharModal(){ const o = document.getElementById("op-modal-overlay"); if(o) o.remove(); }
@@ -4246,7 +4264,7 @@ function opSegAbrirModalFinalizar(id){
   overlay.id = "op-modal-overlay";
   overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
   overlay.innerHTML =
-    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;"><h3>Finalizar renovação — ' + escapeHtml(s.nome) + '</h3>' +
+    '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Finalizar renovação — ' + escapeHtml(s.nome) + '</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body">' +
     '<p class="cardsub">Dados da nova apólice contratada.</p>' +
     '<div class="field" style="margin-bottom:10px;"><label>Nome do equipamento</label><input id="sg-f-nome" value="' + escapeHtml(s.nome) + '" readonly style="background:var(--paper-soft);"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Nº de série</label><input id="sg-f-serie" value="' + escapeHtml(s.serie||"") + '" readonly style="background:var(--paper-soft);"></div>' +
@@ -4256,7 +4274,7 @@ function opSegAbrirModalFinalizar(id){
     '<div class="field" style="margin-bottom:10px;"><label>Renovação (próxima)</label><input type="date" id="sg-f-renovacao" value="' + opSomaMeses(premiacaoIsoHoje(0), 12) + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Valor</label><input id="sg-f-valor" placeholder="Ex: 1.703,16"></div>' +
     '<div class="field" style="margin-bottom:14px;"><label>Parcela</label><input id="sg-f-parcela" placeholder="Ex: 243,31"></div>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" onclick="opSegConfirmarFinalizar(&quot;' + id + '&quot;)">Salvar renovação</button></div></div>';
+    '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" onclick="opSegConfirmarFinalizar(&quot;' + id + '&quot;)">Salvar renovação</button></div></div></div>';
   document.body.appendChild(overlay);
 }
 async function opSegConfirmarFinalizar(id){
@@ -4285,7 +4303,7 @@ function opSegAbrirModalEditar(id){
   overlay.id = "op-modal-overlay";
   overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
   overlay.innerHTML =
-    '<div class="card form-card" style="max-width:440px;width:92%;margin:0;max-height:85vh;overflow-y:auto;"><h3>Editar seguro</h3>' +
+    '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Editar seguro</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body">' +
     '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><input id="sg-e-nome" value="' + escapeHtml(seg.nome) + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Nº de série</label><input id="sg-e-serie" value="' + escapeHtml(seg.serie||"") + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Nº da apólice</label><input id="sg-e-apolice" value="' + escapeHtml(seg.apolice||"") + '"></div>' +
@@ -4296,7 +4314,7 @@ function opSegAbrirModalEditar(id){
     '<div class="field" style="margin-bottom:10px;"><label>Renovação (próxima)</label><input type="date" id="sg-e-renovacao" value="' + seg.renovacao + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Valor</label><input id="sg-e-valor" value="' + escapeHtml(seg.valor||"") + '"></div>' +
     '<div class="field" style="margin-bottom:14px;"><label>Parcela</label><input id="sg-e-parcela" value="' + escapeHtml(seg.parcela||"") + '"></div>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" onclick="opSegSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div>';
+    '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button><button class="btn btn-primary" onclick="opSegSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button></div></div></div>';
   document.body.appendChild(overlay);
 }
 async function opSegUploadApolice(file){
@@ -4839,7 +4857,7 @@ function opAbrirDetalhesLocFechada(id){
   const etapasHtml = etapas.map(function(e){
     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px;"><input type="checkbox" ' + (e.concluida?"checked":"") + ' disabled style="width:18px;height:18px;accent-color:var(--wine);flex-shrink:0;"><span style="flex:1;' + (e.concluida?"":"color:var(--gray-soft);") + '">' + escapeHtml(e.ordem + ". " + e.nome) + '</span></div>';
   }).join("");
-  overlay.innerHTML = '<div class="card form-card" style="max-width:460px;width:92%;margin:0;max-height:85vh;overflow-y:auto;"><h3>Locação #' + (loc.numero||"") + '</h3><p class="cardsub">' + escapeHtml(eq.label||"") + ' · ' + nomeMotor + '</p>' + etapasHtml + '<div style="display:flex;justify-content:flex-end;margin-top:16px;"><button class="btn btn-ghost" onclick="opFecharModal()">Fechar</button></div></div>';
+  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Locação #' + (loc.numero||"") + '</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body"><p class="cardsub">' + escapeHtml(eq.label||"") + ' · ' + nomeMotor + '</p>' + etapasHtml + '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="opFecharModal()">Fechar</button></div></div></div>';
   document.body.appendChild(overlay);
 }
 async function togglePremiacaoEtapa(etapaId, locId, checked){
