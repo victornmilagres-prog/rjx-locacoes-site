@@ -4093,7 +4093,11 @@ function opFecharModal(){ const o = document.getElementById("op-modal-overlay");
 
 async function opUploadArquivo(file){
   if(!file) return null;
-  const path = Date.now() + "_" + Math.random().toString(36).slice(2) + "_" + file.name;
+  const nomeSeguro = file.name
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .replace(/_+/g, "_");
+  const path = Date.now() + "_" + Math.random().toString(36).slice(2) + "_" + nomeSeguro;
   const up = await sb.storage.from("manutencoes").upload(path, file);
   if(up.error){ toast("Erro ao enviar arquivo: " + up.error.message); return null; }
   const pub = sb.storage.from("manutencoes").getPublicUrl(path);
