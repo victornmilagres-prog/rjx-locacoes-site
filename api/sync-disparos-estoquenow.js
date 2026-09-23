@@ -105,7 +105,10 @@ module.exports = async (req, res) => {
       SUPABASE_URL + '/rest/v1/cartuchos?codigo_estoquenow=not.is.null&descartado=eq.false&select=id,codigo_estoquenow',
       { headers: { Authorization: 'Bearer ' + SERVICE_KEY, apikey: SERVICE_KEY } }
     );
-    if (!listResp.ok) throw new Error('Falha ao ler cartuchos no Supabase');
+    if (!listResp.ok) {
+      const bodyText = await listResp.text();
+      throw new Error('Falha ao ler cartuchos no Supabase (status ' + listResp.status + '): ' + bodyText.slice(0, 300));
+    }
     const cartuchos = await listResp.json();
 
     if (!cartuchos.length) {
