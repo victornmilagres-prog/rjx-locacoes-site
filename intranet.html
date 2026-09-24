@@ -4693,11 +4693,12 @@ function tsAbrirContestacao(locId){
   if(overlay) overlay.remove();
   overlay = document.createElement("div");
   overlay.id = "ts-contest-overlay";
-  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
-  overlay.innerHTML = '<div class="card form-card" style="max-width:440px;width:92%;margin:0;"><h3>Contestar locação</h3>' +
+  overlay.className = "rjx-modal-overlay";
+  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Contestar locação</h3><button class="rjx-modal-close" onclick="tsFecharContestacao()">✕</button></div><div class="rjx-modal-body">' +
     '<p class="cardsub">Explique o que você acha que foi marcado errado. O Operacional vai receber um alerta.</p>' +
     '<textarea id="ts-contest-texto" rows="4" style="width:100%;margin-top:10px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;" placeholder="Ex: Não atrasei, o EstoqueNOW caiu no meio da entrega..."></textarea>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;"><button class="btn btn-ghost" onclick="tsFecharContestacao()">Cancelar</button><button class="btn btn-primary" onclick="tsEnviarContestacao(&quot;' + locId + '&quot;)">Enviar contestação</button></div></div>';
+    "</div>" +
+    '<div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="tsFecharContestacao()">Cancelar</button><button class="btn btn-primary" onclick="tsEnviarContestacao(&quot;' + locId + '&quot;)">Enviar contestação</button></div></div></div>';
   document.body.appendChild(overlay);
 }
 function tsFecharContestacao(){ const o = document.getElementById("ts-contest-overlay"); if(o) o.remove(); }
@@ -4787,19 +4788,20 @@ async function abrirModalContestacao(contestId){
   if(overlay) overlay.remove();
   overlay = document.createElement("div");
   overlay.id = "op-contest-modal";
-  overlay.className = "modal-overlay";
+  overlay.className = "rjx-modal-overlay";
   let etapasHtml = etapas.map(function(e){
     return '<div class="etapa-row" style="padding:6px 0;"><input type="checkbox" class="etapa-check" id="cxop-' + e.id + '" ' + (e.concluida?"checked":"") + '><span class="etapa-label" style="font-size:13px;">' + e.ordem + ". " + escapeHtml(e.nome) + "</span></div>";
   }).join("");
-  overlay.innerHTML = '<div class="card form-card modal-box"><h3>Contestação — #' + (loc.numero||"") + " " + escapeHtml(loc.equipamento||"") + '</h3>' +
+  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Contestação — #' + (loc.numero||"") + " " + escapeHtml(loc.equipamento||"") + '</h3><button class="rjx-modal-close" onclick="document.getElementById(&quot;op-contest-modal&quot;).remove()">✕</button></div><div class="rjx-modal-body">' +
     '<p class="cardsub">' + escapeHtml(c.texto) + '</p>' +
     '<div style="display:flex;align-items:center;gap:10px;margin:14px 0 10px;"><input type="checkbox" id="cxop-atraso" ' + (loc.atraso?"checked":"") + '><label for="cxop-atraso" style="font-weight:600;color:var(--alert);">Teve atraso em alguma etapa</label></div>' +
     etapasHtml +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;">' +
+    "</div>" +
+    '<div class="rjx-modal-foot"><div></div><div class="right-group" style="flex-wrap:wrap;">' +
     '<button class="btn btn-ghost btn-sm" onclick="rejeitarContestacaoOp(&quot;' + c.id + '&quot;)">Rejeitar contestação</button>' +
     '<button class="btn btn-ghost btn-sm" onclick="reabrirLocacaoOp(&quot;' + c.id + '&quot;,&quot;' + c.locacao_id + '&quot;)">Reabrir locação</button>' +
     '<button class="btn btn-primary btn-sm" onclick="salvarAjusteContestacaoOp(&quot;' + c.id + '&quot;,&quot;' + c.locacao_id + '&quot;)">Salvar ajustes</button>' +
-    "</div></div>";
+    "</div></div></div>";
   document.body.appendChild(overlay);
 }
 function fecharModalContestacao(){ const o = document.getElementById("op-contest-modal"); if(o) o.remove(); }
@@ -5265,13 +5267,13 @@ const CC_MODULE_HTML = `<div class="cc-mod">
   
 
 <!-- MODAL DE ANEXO -->
-<div id="anexo-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this) ccFecharAnexo()">
-  <div class="modal-box">
-    <div class="modal-head">
-      <span id="anexo-modal-title">Anexo</span>
-      <button type="button" onclick="ccFecharAnexo()">✕</button>
+<div id="anexo-modal" class="rjx-modal-overlay" style="display:none;" onclick="if(event.target===this) ccFecharAnexo()">
+  <div class="rjx-modal">
+    <div class="rjx-modal-head">
+      <h3 id="anexo-modal-title">Anexo</h3>
+      <button type="button" class="rjx-modal-close" onclick="ccFecharAnexo()">✕</button>
     </div>
-    <div id="anexo-modal-body" class="modal-body"></div>
+    <div id="anexo-modal-body" class="rjx-modal-body"></div>
   </div>
 </div>
 </div>`;
@@ -6180,9 +6182,9 @@ function fcsMontarHtml(filtro){
 function fcsAbrirManual(){
   const holder = document.getElementById('fcs-modal-holder');
   holder.innerHTML =
-    '<div class="modal-overlay" id="fcs-modal-manual" onclick="if(event.target===this) fcsFecharManual()">' +
-    '<div class="modal-box"><div class="modal-head"><span>Cadastrar cliente manualmente</span><button type="button" onclick="fcsFecharManual()">✕</button></div>' +
-    '<div class="modal-body">' +
+    '<div class="rjx-modal-overlay" id="fcs-modal-manual" onclick="if(event.target===this) fcsFecharManual()">' +
+    '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Cadastrar cliente manualmente</h3><button type="button" class="rjx-modal-close" onclick="fcsFecharManual()">✕</button></div>' +
+    '<div class="rjx-modal-body">' +
     '<div class="hint" style="margin-bottom:14px;">Use isso pra clientes que já operam com a gente mas nunca passaram pela análise por aqui. Só os campos abaixo — o dossiê completo continua vivendo no cadastro do cliente no estoque.</div>' +
     '<div class="radio-group"><label><input type="radio" name="fz-tipo" value="PF" checked onchange="fcsOnTipoManual()"> Pessoa física (CPF)</label><label><input type="radio" name="fz-tipo" value="PJ" onchange="fcsOnTipoManual()"> Pessoa jurídica (CNPJ)</label></div>' +
     '<div class="field"><label id="fz-label-nome">Nome completo</label><input type="text" id="fz-nome" placeholder="Ex: Julia Marques Collucci"></div>' +
@@ -6193,7 +6195,7 @@ function fcsAbrirManual(){
     '<div class="field-row"><div class="field"><label>Carteira do conselho</label><select id="fz-conselho-status"><option value="true">Ativa</option><option value="false">Inativa</option></select></div>' +
     '<div class="field"><label>Vencimento da carteira</label><input type="date" id="fz-conselho-venc"></div></div>' +
     '<div class="field"><label>Análise de crédito</label><select id="fz-credito"><option value="aprovado">Aprovado</option><option value="restricao">Aprovação com restrição</option><option value="reprovado">Reprovado</option></select></div>' +
-    '</div><div class="modal-foot"><button class="btn btn-ghost" onclick="fcsFecharManual()">Cancelar</button><button class="btn btn-primary" onclick="fcsSalvarManual()">Salvar cliente</button></div></div></div>';
+    '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="fcsFecharManual()">Cancelar</button><button class="btn btn-primary" onclick="fcsSalvarManual()">Salvar cliente</button></div></div></div></div>';
   fcsOnTipoManual();
 }
 
