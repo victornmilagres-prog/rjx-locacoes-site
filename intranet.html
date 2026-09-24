@@ -891,12 +891,12 @@ tabela.querySelectorAll(".act-edit").forEach(function(a){
     if(overlay) overlay.remove();
     overlay = document.createElement("div");
     overlay.id = "ger-modal-overlay";
-    overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+    overlay.className = "rjx-modal-overlay";
     overlay.innerHTML =
-      '<div class="card form-card" style="max-width:400px;width:92%;margin:0;"><h3>Editar usuário</h3>' +
+      '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Editar usuário</h3><button class="rjx-modal-close" onclick="document.getElementById(&quot;ger-modal-overlay&quot;).remove()">✕</button></div><div class="rjx-modal-body">' +
       '<div class="field" style="margin-bottom:10px;margin-top:10px;"><label>Nome completo</label><input id="ger-e-nome" value="' + nomeAtual + '"></div>' +
       '<div class="field" style="margin-bottom:14px;"><label>Papel</label><select id="ger-e-papel"><option value="comercial"' + (papelAtual==="comercial"?" selected":"") + '>Comercial</option><option value="transportes"' + (papelAtual==="transportes"?" selected":"") + '>Transportes</option><option value="operacional"' + (papelAtual==="operacional"?" selected":"") + '>Operacional</option><option value="financeiro"' + (papelAtual==="financeiro"?" selected":"") + '>Financeiro</option><option value="gerencial"' + (papelAtual==="gerencial"?" selected":"") + '>Gerencial</option></select></div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="document.getElementById(&quot;ger-modal-overlay&quot;).remove()">Cancelar</button><button class="btn btn-primary" id="ger-e-salvar">Salvar</button></div></div>';
+      '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="document.getElementById(&quot;ger-modal-overlay&quot;).remove()">Cancelar</button><button class="btn btn-primary" id="ger-e-salvar">Salvar</button></div></div></div>';
     document.body.appendChild(overlay);
     document.getElementById("ger-e-salvar").addEventListener("click", async function(){
       const nome = document.getElementById("ger-e-nome").value.trim();
@@ -1459,10 +1459,9 @@ function freteAbrirEdicao(id){
   if(overlay) overlay.remove();
   overlay = document.createElement("div");
   overlay.id = "op-modal-overlay";
-  overlay.className = "modal-overlay";
-  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  overlay.className = "rjx-modal-overlay";
   overlay.innerHTML =
-    '<div class="card form-card modal-box"><h3>Editar lançamento</h3>' +
+    '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Editar lançamento</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body">' +
     '<p class="cardsub">Pedido ' + escapeHtml(l.pedido) + ' — use aqui pra incluir o extra ou o tempo de espera quando souber, no dia seguinte.</p>' +
     '<div class="field" style="margin-bottom:10px;"><label>Pedido</label><input id="frete-edit-pedido" value="' + escapeHtml(l.pedido) + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><select id="frete-edit-equipamento">' +
@@ -1475,10 +1474,11 @@ function freteAbrirEdicao(id){
       '<option value="1h"' + (l.espera === "1h" ? " selected" : "") + '>1 hora</option>' +
     '</select></div>' +
     '<div class="field" style="margin-bottom:16px;"><label>Extra (R$)</label><input type="number" step="0.01" id="frete-edit-extra" value="' + l.extra + '"></div>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+    "</div>" +
+    '<div class="rjx-modal-foot"><div></div><div class="right-group">' +
       '<button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button>' +
       '<button class="btn btn-primary" onclick="freteSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button>' +
-    "</div></div>";
+    "</div></div></div>";
   document.body.appendChild(overlay);
 }
 async function freteSalvarEdicao(id){
@@ -1713,10 +1713,10 @@ function leadsAbrirEdicao(id){
   if(overlay) overlay.remove();
   overlay = document.createElement("div");
   overlay.id = "op-modal-overlay";
-  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;overflow-y:auto;padding:20px 0;";
+  overlay.className = "rjx-modal-overlay";
   overlay.innerHTML =
-    '<div class="card form-card" style="max-width:420px;width:92%;margin:0;">' +
-    "<h3>Editar lead</h3>" +
+    '<div class="rjx-modal">' +
+    '<div class="rjx-modal-head"><h3>Editar lead</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body">' +
     '<div class="field" style="margin-bottom:10px;margin-top:10px;"><label>Nome</label><input id="ld-e-nome" value="' + escapeHtml(l.nome||"") + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Telefone</label><input id="ld-e-telefone" value="' + escapeHtml(l.telefone||"") + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Data</label><input type="date" id="ld-e-data" value="' + (l.data||"") + '"></div>' +
@@ -1730,10 +1730,11 @@ function leadsAbrirEdicao(id){
       '<option value="sim"' + (l.alugou === true ? " selected" : "") + '>Sim</option>' +
       '<option value="nao"' + (l.alugou === false ? " selected" : "") + '>Não</option>' +
     "</select></div>" +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+    "</div>" +
+    '<div class="rjx-modal-foot"><div></div><div class="right-group">' +
     '<button class="btn btn-ghost" onclick="opFecharModal()">Cancelar</button>' +
     '<button class="btn btn-primary" onclick="leadsSalvarEdicao(&quot;' + id + '&quot;)">Salvar</button>' +
-    "</div></div>";
+    "</div></div></div>";
   document.body.appendChild(overlay);
 }
 async function leadsSalvarEdicao(id){
@@ -1979,16 +1980,17 @@ function abrirModalPremioLead(lead){
   if(overlay) overlay.remove();
   overlay = document.createElement("div");
   overlay.id = "premio-modal-overlay";
-  overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,0.45);display:flex;align-items:center;justify-content:center;z-index:200;";
+  overlay.className = "rjx-modal-overlay";
   overlay.innerHTML =
-    '<div class="card form-card" style="max-width:420px;width:92%;margin:0;"><h3>Lançar prêmio — Premiação Comercial</h3>' +
+    '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Lançar prêmio — Premiação Comercial</h3><button class="rjx-modal-close" onclick="fecharModalPremioLead()">✕</button></div><div class="rjx-modal-body">' +
     '<p class="cardsub">Já veio preenchido com os dados do lead. Falta só a data da locação.</p>' +
     '<div class="field" style="margin-bottom:10px;"><label>Nome da cliente</label><input id="pm-nome" value="' + escapeHtml(lead.nome) + '" readonly style="background:var(--paper-soft);"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Equipamento</label><input id="pm-equipamento" value="' + escapeHtml(eqSugerido || lead.equipamento || "") + '"></div>' +
     '<div class="field" style="margin-bottom:10px;"><label>Data de cadastro</label><input type="date" id="pm-cadastro" value="' + lead.data + '"></div>' +
     '<div class="field" style="margin-bottom:14px;"><label>Data da locação</label><input type="date" id="pm-locacao"></div>' +
     '<div id="pm-preview" class="cardsub" style="margin-bottom:10px;"></div>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="fecharModalPremioLead()">Agora não</button><button class="btn btn-primary" onclick="confirmarPremioLead()">Lançar prêmio</button></div></div>';
+    "</div>" +
+    '<div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="fecharModalPremioLead()">Agora não</button><button class="btn btn-primary" onclick="confirmarPremioLead()">Lançar prêmio</button></div></div></div>';
   document.body.appendChild(overlay);
   const atualizarPreview = function(){
     const eqVal = document.getElementById("pm-equipamento").value;
