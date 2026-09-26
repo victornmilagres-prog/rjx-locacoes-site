@@ -1294,6 +1294,19 @@ async function freteRenderConteudo(){
   const todosLancamentos = rLanc.data || [];
   window.__freteLancamentos = todosLancamentos;
 
+  const saldoPorMotorista = await freteCarregarVales();
+  const rVales = await sb.from("comercial_frete_vales").select("*").eq("motorista_id", m.id).order("data", { ascending:false });
+  const valesMotorista = rVales.data || [];
+  const pendentesContest = await freteCarregarContestacoesPendentes();
+  const nomesPorMotorista = {};
+  motoristas.forEach(function(mm){ nomesPorMotorista[mm.id] = mm.nome; });
+  let lancamentosPorId = {};
+  if(pendentesContest.length){
+    const idsContest = pendentesContest.map(function(c){ return c.lancamento_id; });
+    const rLancContest = await sb.from("comercial_frete_lancamentos").select("id,pedido,data").in("id", idsContest);
+    (rLancContest.data||[]).forEach(function(l){ lancamentosPorId[l.id] = l; });
+  }
+
   const mesAtualReal = new Date().toISOString().slice(0,7);
   const mesesSet = {};
   todosLancamentos.forEach(function(l){ mesesSet[l.data.slice(0,7)] = true; });
@@ -1306,8 +1319,12 @@ async function freteRenderConteudo(){
   const isMesAtual = mesSelecionado === mesAtualReal;
   const lancamentos = todosLancamentos.filter(function(l){ return l.data.slice(0,7) === mesSelecionado; });
 
-  let html = gestaoHtml;
-  html += '<div class="subnav">' + motoristas.map(function(mm){ return '<button class="subtab' + (mm.id===m.id?" active":"") + '" onclick="freteSelecionarMotorista(&quot;' + mm.id + '&quot;)">' + escapeHtml(mm.nome) + '</button>'; }).join("") + "</div>";
+  let html = gestaoHtml + freteRenderBannerContestacoes(pendentesContest, lancamentosPorId, nomesPorMotorista);
+  html += '<div class="subnav">' + motoristas.map(function(mm){
+    const saldoMM = saldoPorMotorista[mm.id] || 0;
+    const badge = saldoMM > 0 ? (' <span style="display:inline-block;margin-left:6px;background:var(--alert);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:100px;">' + freteFmt(saldoMM) + '</span>') : '';
+    return '<button class="subtab' + (mm.id===m.id?" active":"") + '" onclick="freteSelecionarMotorista(&quot;' + mm.id + '&quot;)">' + escapeHtml(mm.nome) + badge + '</button>';
+  }).join("") + "</div>";
 
   if(meses.length > 1){
     html += '<div class="month-tabs" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">' + meses.map(function(mes){
@@ -1345,6 +1362,8 @@ async function freteRenderConteudo(){
   } else {
     html += '<div class="card form-card"><p class="cardsub" style="margin:0;font-style:italic;">Mês encerrado — os lançamentos abaixo ficam guardados para consulta, sem opção de adicionar ou editar.</p></div>';
   }
+
+  html += freteRenderCardVales(m, valesMotorista, (saldoPorMotorista[m.id]||0));
 
   html += '<div class="card form-card">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;">' +
@@ -2370,7 +2389,7 @@ async function selectTransportesSubtab(tab){
   document.getElementById('ts-tab-insumos').classList.toggle('active', tab==='insumos');
   document.getElementById('ts-tab-premiacao').classList.toggle('active', tab==='premiacao');
   document.getElementById('ts-tab-manual').classList.toggle('active', tab==='manual');
-  if(tab === 'insumos'){ await carregarControlesTransportes(); }
+  if(tab === 'insumos'){ await tsCarregarMeusControles(); }
   else if(tab === 'premiacao'){ await carregarPremiacaoTransportes(); }
   else { carregarManualTransportes(); }
 }
@@ -2441,6 +2460,7 @@ async function tsCarregarLocacoesInner(){
     possiveis += PONTOS_UNIFORME_PREMIACAO;
     if(s && s.validada === true){ pontos += PONTOS_UNIFORME_PREMIACAO; selfiesValidasCount++; }
     else if(s && s.validada === false && s.motivo === 'expirada') pontos -= PONTOS_UNIFORME_PREMIACAO;
+    else if(s && s.validada === false && s.motivo === 'reprovada' && (!s.retry_ate || new Date(s.retry_ate) <= new Date())) pontos -= PONTOS_UNIFORME_PREMIACAO;
     else if((!s || !s.enviada) && dia !== hoje) pontos -= PONTOS_UNIFORME_PREMIACAO;
   });
   const pct = possiveis > 0 ? Math.round((pontos/possiveis)*100) : 0;
@@ -2458,11 +2478,13 @@ async function tsCarregarLocacoesInner(){
       if(s.validada === true){ statusLabel = 'Validada (+' + PONTOS_UNIFORME_PREMIACAO + ')'; statusCls = 'status-ok'; }
       else if(s.validada === false && s.motivo === 'expirada'){ statusLabel = 'Prazo expirado (-' + PONTOS_UNIFORME_PREMIACAO + ')'; statusCls = 'status-wait'; }
       else if(s.validada === false && s.motivo === 'reprovada'){
-        if(dia === hoje){
-          statusLabel = 'IA reprovou'; statusCls = 'status-wait';
+        const dentroPrazoRetry = s.retry_ate && new Date(s.retry_ate) > new Date();
+        if(dia === hoje && dentroPrazoRetry){
+          const minsRestantes = Math.max(1, Math.ceil((new Date(s.retry_ate) - new Date())/60000));
+          statusLabel = 'IA reprovou — tente de novo em até ' + minsRestantes + ' min'; statusCls = 'status-wait';
           acaoHtml = '<button class="btn btn-primary" style="margin-top:8px;" onclick="iniciarSelfiePremiacao(&quot;' + dia + '&quot;)">Tentar de novo</button>';
         } else {
-          statusLabel = 'Prazo expirado (-' + PONTOS_UNIFORME_PREMIACAO + ')'; statusCls = 'status-wait';
+          statusLabel = 'IA reprovou (-' + PONTOS_UNIFORME_PREMIACAO + ')'; statusCls = 'status-wait';
         }
       } else if(s.enviada){ statusLabel = 'Aguardando validação'; statusCls = 'status-info'; }
       else if(dia !== hoje){
@@ -2538,6 +2560,15 @@ function premiacaoFileToDataURL(file){
     reader.readAsDataURL(file);
   });
 }
+const PRAZO_RETRY_SELFIE_MIN = 5;
+async function premiacaoUploadSelfiePendente(file, motoristaId, dataRef){
+  if(!file) return null;
+  const path = dataRef + '_' + motoristaId + '_' + Date.now() + '.jpg';
+  const up = await sb.storage.from('selfies-pendentes').upload(path, file, { upsert: true });
+  if(up.error) return null;
+  const pub = sb.storage.from('selfies-pendentes').getPublicUrl(path);
+  return pub.data.publicUrl;
+}
 async function onPremiacaoSelfieFile(e){
   const file = e.target.files && e.target.files[0];
   e.target.value = '';
@@ -2555,27 +2586,37 @@ async function onPremiacaoSelfieFile(e){
   };
   const dataUrl = await premiacaoFileToDataURL(file);
   const geo = await getGeo();
+  const rAnterior = await sb.from('premiacao_selfies_dia').select('motivo,retry_ate').eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef).maybeSingle();
+  const eraRetryPendente = !!(rAnterior.data && rAnterior.data.motivo === 'reprovada' && rAnterior.data.retry_ate);
   await sb.from('premiacao_selfies_dia').upsert({
     motorista_id: currentUsuario.id, data_ref: dataRef,
-    enviada: true, validada: null, motivo: null,
+    enviada: true, validada: null, motivo: null, retry_ate: null, foto_url: null,
     geo_lat: geo ? geo.lat : null, geo_lng: geo ? geo.lng : null,
     enviada_em: new Date().toISOString()
   }, { onConflict: 'motorista_id,data_ref' });
   await tsCarregarLocacoesInner();
+  let iaRespondeu = false, aprovado = null;
   try {
     const resp = await fetch('/api/validar-selfie', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image: dataUrl })
     });
     const json = await resp.json();
-    if(json && typeof json.aprovado === 'boolean'){
-      if(json.aprovado){
-        await sb.from('premiacao_selfies_dia').update({ validada: true, motivo: null, validada_em: new Date().toISOString() }).eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef);
-      } else {
-        await sb.from('premiacao_selfies_dia').update({ validada: false, motivo: 'reprovada', validada_em: new Date().toISOString() }).eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef);
-      }
-    }
+    if(json && typeof json.aprovado === 'boolean'){ iaRespondeu = true; aprovado = json.aprovado; }
   } catch(err){}
+  if(iaRespondeu && aprovado === true){
+    await sb.from('premiacao_selfies_dia').update({ validada: true, motivo: null, retry_ate: null, foto_url: null, validada_em: new Date().toISOString() }).eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef);
+  } else if(iaRespondeu && aprovado === false){
+    if(eraRetryPendente){
+      await sb.from('premiacao_selfies_dia').update({ validada: false, motivo: 'reprovada', retry_ate: null, foto_url: null, validada_em: new Date().toISOString() }).eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef);
+    } else {
+      const prazo = new Date(Date.now() + PRAZO_RETRY_SELFIE_MIN*60000).toISOString();
+      await sb.from('premiacao_selfies_dia').update({ validada: false, motivo: 'reprovada', retry_ate: prazo, foto_url: null }).eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef);
+    }
+  } else {
+    const fotoUrl = await premiacaoUploadSelfiePendente(file, currentUsuario.id, dataRef);
+    await sb.from('premiacao_selfies_dia').update({ validada: null, motivo: null, retry_ate: null, foto_url: fotoUrl }).eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef);
+  }
   await tsCarregarLocacoesInner();
 }
 
@@ -4369,7 +4410,7 @@ async function opRenderValidacaoSelfies(content, htmlAteAqui){
     html += '<p class="empty-hint">Nenhuma selfie registrada ainda.</p>';
   } else {
     html += '<div class="card" style="padding:4px 0;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">' +
-      '<thead><tr><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Data</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Motorista</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Status</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Pontos</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Ação</th></tr></thead><tbody>';
+      '<thead><tr><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Data</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Motorista</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Foto</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Status</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Pontos</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Ação</th></tr></thead><tbody>';
     selfies.forEach(function(s){
       const nome = escapeHtml(nomeMotor[s.motorista_id] || "(motorista removido)");
       const dataFmt = s.data_ref.split("-").reverse().join("/");
@@ -4380,9 +4421,11 @@ async function opRenderValidacaoSelfies(content, htmlAteAqui){
       else { statusTxt = "Aguardando validação"; statusCls = "background:var(--wait-bg,#f7ecd9);color:var(--wait,#8a5a12);"; pontosTxt = "0"; }
       const podeAgir = !(s.validada === true);
       const acao = podeAgir ? ('<button class="icon-btn" title="Validar (+' + PONTOS_UNIFORME_PREMIACAO + ')" style="border-color:var(--ok,#3f6b52);color:var(--ok,#3f6b52);width:auto;padding:0 8px;" onclick="opValidarSelfieManual(&quot;' + s.motorista_id + '&quot;,&quot;' + s.data_ref + '&quot;,true)">Validar</button> <button class="icon-btn" title="Reprovar" style="border-color:var(--alert,#8a2e1f);color:var(--alert,#8a2e1f);width:auto;padding:0 8px;" onclick="opValidarSelfieManual(&quot;' + s.motorista_id + '&quot;,&quot;' + s.data_ref + '&quot;,false)">Reprovar</button>') : "—";
+      const fotoCel = s.foto_url ? ('<a href="' + s.foto_url + '" target="_blank" rel="noopener"><img src="' + s.foto_url + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line);"></a>') : '—';
       html += '<tr style="border-top:1px solid var(--line);">' +
         '<td style="padding:9px 10px;">' + dataFmt + '</td>' +
         '<td style="padding:9px 10px;font-weight:600;">' + nome + '</td>' +
+        '<td style="padding:9px 10px;">' + fotoCel + '</td>' +
         '<td style="padding:9px 10px;"><span style="font-size:12px;padding:2px 10px;border-radius:12px;font-weight:600;' + statusCls + '">' + statusTxt + '</span></td>' +
         '<td style="padding:9px 10px;">' + pontosTxt + '</td>' +
         '<td style="padding:9px 10px;">' + acao + '</td>' +
@@ -4393,7 +4436,15 @@ async function opRenderValidacaoSelfies(content, htmlAteAqui){
   content.innerHTML = html;
 }
 async function opValidarSelfieManual(motoristaId, dataRef, validada){
-  await sb.from("premiacao_selfies_dia").update({ validada: validada, motivo: validada ? null : "reprovada", validada_em: new Date().toISOString() }).eq("motorista_id", motoristaId).eq("data_ref", dataRef);
+  const rAtual = await sb.from("premiacao_selfies_dia").select("foto_url").eq("motorista_id", motoristaId).eq("data_ref", dataRef).maybeSingle();
+  const fotoUrl = rAtual.data ? rAtual.data.foto_url : null;
+  await sb.from("premiacao_selfies_dia").update({ validada: validada, motivo: validada ? null : "reprovada", foto_url: null, validada_em: new Date().toISOString() }).eq("motorista_id", motoristaId).eq("data_ref", dataRef);
+  if(fotoUrl){
+    try {
+      const path = fotoUrl.split("/selfies-pendentes/")[1];
+      if(path) await sb.storage.from("selfies-pendentes").remove([path]);
+    } catch(err){}
+  }
   toast(validada ? "Selfie validada." : "Selfie reprovada.");
   await carregarPremiacaoOperacional(true);
 }
