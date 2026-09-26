@@ -6434,6 +6434,324 @@ async function ccPrevisualizarDoc(){
   docFinal.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
+/* ===== Meus Controles (Transportes) ===== */
+async function tsCarregarMeusControles(){
+  const content = document.getElementById('transportes-content');
+  content.innerHTML = '<p class="empty-hint">Carregando...</p>';
+  const rMot = await sb.from('comercial_frete_motoristas').select('*').eq('usuario_id', currentUsuario.id).maybeSingle();
+  if(!rMot.data){
+    content.innerHTML = '<p class="empty-hint">Você ainda não está vinculado a um cadastro de transportador no Comercial. Fale com a Yasmin ou o Victor.</p>';
+    return;
+  }
+  window.__mcMotorista = rMot.data;
+  const rTab = await sb.from('comercial_frete_tabelas').select('*').eq('motorista_id', rMot.data.id).maybeSingle();
+  window.__mcTabela = rTab.data || {};
+  window.__mcTab = window.__mcTab || 'resumo';
+  mcRenderShell();
+}
+function mcRenderShell(){
+  const content = document.getElementById('transportes-content');
+  content.innerHTML = '<div class="subnav" style="margin-bottom:16px;">' +
+    '<button class="subtab' + (window.__mcTab==='resumo'?' active':'') + '" onclick="mcSelectTab(&quot;resumo&quot;)">Meus Resumos</button>' +
+    '<button class="subtab' + (window.__mcTab==='frete'?' active':'') + '" onclick="mcSelectTab(&quot;frete&quot;)">Controle de Frete</button>' +
+    '<button class="subtab' + (window.__mcTab==='vales'?' active':'') + '" onclick="mcSelectTab(&quot;vales&quot;)">Vales</button>' +
+    '</div><div id="mc-content"><p class="empty-hint">Carregando...</p></div>';
+  if(window.__mcTab === 'frete') mcRenderFrete();
+  else if(window.__mcTab === 'vales') mcRenderVales();
+  else mcRenderResumo();
+}
+function mcSelectTab(tab){ window.__mcTab = tab; mcRenderShell(); }
+
+async function mcCalcularPremiacaoPct(){
+  const result = await sb.from('premiacao_locacoes').select('id,data_locacao').eq('motorista_id', currentUsuario.id);
+  const locs = result.data || [];
+  const idsLocs = locs.map(function(l){ return l.id; });
+  let etapasPorLoc = {};
+  if(idsLocs.length){
+    const rEtapas = await sb.from('premiacao_etapas').select('id,locacao_id,concluida,motorista_id').in('locacao_id', idsLocs);
+    (rEtapas.data||[]).forEach(function(e){
+      if(!etapasPorLoc[e.locacao_id]) etapasPorLoc[e.locacao_id] = [];
+      etapasPorLoc[e.locacao_id].push(e);
+    });
+  }
+  const diasSet = {};
+  locs.forEach(function(loc){ diasSet[loc.data_locacao] = true; });
+  const dias = Object.keys(diasSet);
+  const hoje = new Date().toISOString().slice(0,10);
+  let selfiesPorDia = {};
+  if(dias.length){
+    const rSelfies = await sb.from('premiacao_selfies_dia').select('*').eq('motorista_id', currentUsuario.id).in('data_ref', dias);
+    (rSelfies.data||[]).forEach(function(s){ selfiesPorDia[s.data_ref] = s; });
+  }
+  let pontos = 0, possiveis = 0;
+  locs.forEach(function(loc){
+    const etapas = etapasPorLoc[loc.id] || [];
+    etapas.forEach(function(e){
+      possiveis += 1;
+      if(e.concluida && e.motorista_id === currentUsuario.id) pontos += 1;
+    });
+  });
+  dias.forEach(function(dia){
+    const s = selfiesPorDia[dia];
+    possiveis += PONTOS_UNIFORME_PREMIACAO;
+    if(s && s.validada === true){ pontos += PONTOS_UNIFORME_PREMIACAO; }
+    else if(s && s.validada === false && s.motivo === 'expirada') pontos -= PONTOS_UNIFORME_PREMIACAO;
+    else if(s && s.validada === false && s.motivo === 'reprovada' && (!s.retry_ate || new Date(s.retry_ate) <= new Date())) pontos -= PONTOS_UNIFORME_PREMIACAO;
+    else if((!s || !s.enviada) && dia !== hoje) pontos -= PONTOS_UNIFORME_PREMIACAO;
+  });
+  const pct = possiveis > 0 ? Math.round((pontos/possiveis)*100) : 0;
+  return { pct: Math.max(0,pct), ganhando: pct >= 80 };
+}
+
+async function mcRenderResumo(){
+  const m = window.__mcMotorista, tabela = window.__mcTabela || {};
+  const wrap = document.getElementById('mc-content');
+  const mesAtual = new Date().toISOString().slice(0,7);
+  const rLanc = await sb.from('comercial_frete_lancamentos').select('*').eq('motorista_id', m.id);
+  const lancamentosMes = (rLanc.data||[]).filter(function(l){ return l.data.slice(0,7) === mesAtual; });
+  const totalVariavel = lancamentosMes.reduce(function(a,l){ return a + freteCalcular(l, tabela).total; }, 0);
+  const rVales = await sb.from('comercial_frete_vales').select('*').eq('motorista_id', m.id);
+  const vales = rVales.data || [];
+  const saldoVale = vales.reduce(function(a,v){ return a + (Number(v.valor) - Number(v.descontado_valor||0)); }, 0);
+  const descontoMes = vales.reduce(function(a,v){ return a + ((v.descontado_em && v.descontado_em.slice(0,7)===mesAtual) ? Number(v.descontado_valor||0) : 0); }, 0);
+  const temFixo = m.valor_fixo != null && m.valor_fixo !== '' && Number(m.valor_fixo) > 0;
+  const valorFixo = temFixo ? Number(m.valor_fixo) : 0;
+  const premio = await mcCalcularPremiacaoPct();
+  const valorPremio = premio.ganhando ? 500 : 0;
+  const total = valorFixo + totalVariavel + valorPremio - descontoMes;
+  const hoje = new Date();
+  const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).getDate();
+  const diasRestantes = ultimoDiaMes - hoje.getDate();
+
+  let html = '<div class="summary-row">' +
+    '<div class="summary-box"><div class="num">' + freteFmt(valorFixo) + '</div><div class="lbl">' + (m.vinculo_tipo==='clt'?'Salário fixo':'Valor fixo') + ' (mês)</div></div>' +
+    '<div class="summary-box"><div class="num">' + freteFmt(totalVariavel) + '</div><div class="lbl">Variável (' + lancamentosMes.length + ' corridas)</div></div>' +
+    '<div class="summary-box"><div class="num">' + (premio.ganhando ? freteFmt(500) : '—') + '</div><div class="lbl">Premiação (' + premio.pct + '%)</div></div>' +
+    '<div class="summary-box"><div class="num" style="color:var(--alert);">' + (descontoMes>0 ? '– ' + freteFmt(descontoMes) : '—') + '</div><div class="lbl">Desconto de vale (mês)</div></div>' +
+    '</div>';
+
+  const lbRow = 'display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px;';
+  html += '<div class="card form-card"><h3>Total até hoje — ' + freteMesLabel(mesAtual) + '</h3>' +
+    '<p class="cardsub">Atualizado em tempo real conforme a Yasmin lança as corridas. ' + (diasRestantes>0 ? ('Faltam ' + diasRestantes + ' dia(s) pra fechar o mês.') : 'Último dia do mês.') + '</p>' +
+    '<div style="' + lbRow + '"><span>' + (m.vinculo_tipo==='clt'?'Salário fixo':'Valor fixo') + '</span><span style="font-weight:700;color:var(--ok);">+ ' + freteFmt(valorFixo) + '</span></div>' +
+    '<div style="' + lbRow + '"><span>Ganho variável (' + lancamentosMes.length + ' corridas)</span><span style="font-weight:700;color:var(--ok);">+ ' + freteFmt(totalVariavel) + '</span></div>' +
+    '<div style="' + lbRow + '"><span>Premiação Logística</span><span style="font-weight:700;color:var(--ok);">+ ' + freteFmt(valorPremio) + '</span></div>' +
+    '<div style="' + lbRow + '"><span>Desconto de vale (mês)</span><span style="font-weight:700;color:var(--alert);">– ' + freteFmt(descontoMes) + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;border-top:1.5px solid var(--ink);margin-top:4px;padding-top:12px;"><span style="font-weight:700;">Total do mês</span><span style="font-weight:700;color:var(--ok);font-size:17px;">' + freteFmt(total) + '</span></div>' +
+    '</div>';
+
+  html += '<div class="card form-card"><h3>🏆 Premiação Logística</h3>' +
+    '<div class="premio-barra"><div class="premio-fill ' + (premio.ganhando?'':'abaixo') + '" style="width:' + Math.min(premio.pct,100) + '%;"></div><div class="premio-meta-marca" style="left:80%;"></div></div>' +
+    '<p class="cardsub" style="margin-bottom:0;">' + premio.pct + '% da meta' + (premio.ganhando ? ' — parabéns, você já bateu os 80% e ganhou R$ 500,00!' : (' — faltam ' + (80-premio.pct) + ' pontos percentuais pra bater os 80% e ganhar R$ 500,00.')) + '</p>' +
+    '</div>';
+
+  if(saldoVale > 0){
+    html += '<div class="card form-card" style="background:var(--paper-soft);"><p class="cardsub" style="margin:0;">Você tem <b>' + freteFmt(saldoVale) + '</b> de vale em aberto. Veja os detalhes na aba <b>Vales</b>.</p></div>';
+  }
+
+  wrap.innerHTML = html;
+}
+
+async function mcRenderFrete(){
+  const m = window.__mcMotorista;
+  const wrap = document.getElementById('mc-content');
+  const rLanc = await sb.from('comercial_frete_lancamentos').select('*').eq('motorista_id', m.id).order('data', { ascending: false });
+  const lancamentos = rLanc.data || [];
+  const rContest = await sb.from('comercial_frete_contestacoes').select('lancamento_id').eq('motorista_id', m.id);
+  const jaContestados = {};
+  (rContest.data||[]).forEach(function(c){ jaContestados[c.lancamento_id] = true; });
+  let html = '<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--gray);background:#fff;border:1px solid var(--line);border-radius:100px;padding:5px 12px;margin-bottom:14px;">🔒 Somente consulta — quem lança é a Yasmin</span>';
+  if(!lancamentos.length){
+    html += '<p class="empty-hint">Nenhum lançamento ainda este período.</p>';
+  } else {
+    html += '<div class="card form-card" style="padding:4px 0;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<thead><tr><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Data</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Pedido</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Equipamento</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">KM</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Extra</th><th style="text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Valor</th><th></th></tr></thead><tbody>';
+    lancamentos.forEach(function(l){
+      const tabela = window.__mcTabela || {};
+      const valor = freteCalcular(l, tabela).total;
+      const eqLabel = (FRETE_EQUIPAMENTOS.find(function(e){ return e.id === l.equipamento; })||{}).label || l.equipamento;
+      const contestado = !!jaContestados[l.id];
+      const sino = contestado
+        ? '<button title="Já contestado" style="background:none;border:none;cursor:default;font-size:16px;opacity:.4;" disabled>🔔</button>'
+        : '<button title="Contestar este lançamento" onclick="mcAbrirContestacao(&quot;' + l.id + '&quot;)" style="background:none;border:none;cursor:pointer;font-size:16px;">🔔</button>';
+      html += '<tr><td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + l.data.split('-').reverse().join('/') + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + escapeHtml(l.pedido||'') + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + escapeHtml(eqLabel) + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + Number(l.km||0).toFixed(1).replace('.',',') + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:1px solid var(--line);">' + freteFmt(l.extra||0) + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:1px solid var(--line);font-weight:700;">' + freteFmt(valor) + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:1px solid var(--line);text-align:right;">' + sino + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    html += '<p style="font-size:12px;color:var(--gray);">Clique no sino pra contestar um lançamento que você acha que a Yasmin registrou errado. Ela recebe um alerta com sua mensagem e pode corrigir.</p>';
+  }
+  wrap.innerHTML = html;
+}
+
+function mcAbrirContestacao(lancId){
+  let overlay = document.getElementById('mc-contest-overlay');
+  if(overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'mc-contest-overlay';
+  overlay.className = 'rjx-modal-overlay';
+  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Contestar lançamento</h3><button class="rjx-modal-close" onclick="mcFecharContestacao()">✕</button></div><div class="rjx-modal-body">' +
+    '<p class="cardsub">Explique o que você acha que foi lançado errado. A Yasmin vai receber um alerta com essa mensagem.</p>' +
+    '<textarea id="mc-contest-texto" rows="4" style="width:100%;margin-top:10px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;font-family:inherit;" placeholder="Ex: O KM está errado, foram 22km e não 12km..."></textarea>' +
+    '</div><div class="rjx-modal-foot"><div></div><div class="right-group">' +
+    '<button class="btn btn-ghost" onclick="mcFecharContestacao()">Cancelar</button>' +
+    '<button class="btn btn-primary" onclick="mcEnviarContestacao(&quot;' + lancId + '&quot;)">Enviar contestação</button>' +
+    '</div></div></div>';
+  document.body.appendChild(overlay);
+}
+function mcFecharContestacao(){ const o = document.getElementById('mc-contest-overlay'); if(o) o.remove(); }
+async function mcEnviarContestacao(lancId){
+  const texto = document.getElementById('mc-contest-texto').value.trim();
+  if(!texto){ toast('Escreva o que você acha que está errado.'); return; }
+  const r = await sb.from('comercial_frete_contestacoes').insert({ lancamento_id: lancId, motorista_id: window.__mcMotorista.id, texto: texto });
+  if(r.error){ toast('Erro: ' + r.error.message); return; }
+  mcFecharContestacao();
+  toast('Contestação enviada à Yasmin.');
+  await mcRenderFrete();
+}
+
+async function mcRenderVales(){
+  const m = window.__mcMotorista;
+  const wrap = document.getElementById('mc-content');
+  const rVales = await sb.from('comercial_frete_vales').select('*').eq('motorista_id', m.id).order('data', { ascending: false });
+  const vales = rVales.data || [];
+  let html = '<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--gray);background:#fff;border:1px solid var(--line);border-radius:100px;padding:5px 12px;margin-bottom:14px;">🔒 Somente consulta — vales são lançados pela Yasmin, no Controle de Frete</span>';
+  if(!vales.length){
+    html += '<p class="empty-hint">Nenhum vale registrado.</p>';
+    wrap.innerHTML = html;
+    return;
+  }
+  const saldoVale = vales.reduce(function(a,v){ return a + (Number(v.valor) - Number(v.descontado_valor||0)); }, 0);
+  html += '<div style="background:var(--ink);color:#fff;border-radius:8px;padding:14px 18px;margin-bottom:16px;">' +
+    '<div style="font-family:\'Fraunces\',Georgia,serif;font-size:20px;">' + freteFmt(saldoVale) + '</div>' +
+    '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.8;">Saldo em aberto</div></div>';
+  html += '<div class="card form-card">';
+  vales.forEach(function(v, i){
+    const saldo = Number(v.valor) - Number(v.descontado_valor||0);
+    const statusHtml = Number(v.descontado_valor||0) > 0
+      ? ('<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--ok-bg);color:var(--ok);">' + freteFmt(v.descontado_valor) + ' descontados' + (v.descontado_em ? (' em ' + freteMesLabel(v.descontado_em.slice(0,7))) : '') + '</span>')
+      : '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--alert-bg);color:var(--alert);">Nada descontado ainda</span>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;' + (i<vales.length-1?'border-bottom:1px solid var(--line);':'') + '">' +
+      '<div><div style="font-family:\'Fraunces\',Georgia,serif;font-size:15px;font-weight:600;">' + freteFmt(v.valor) + '</div><div style="font-size:12px;color:var(--gray);margin-top:2px;">' + v.data.split('-').reverse().join('/') + (v.motivo ? (' · ' + escapeHtml(v.motivo)) : '') + '</div></div>' +
+      statusHtml +
+      '</div>';
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+/* ===== Vales por transportador (Comercial) ===== */
+async function freteCarregarVales(){
+  const rTodosVales = await sb.from("comercial_frete_vales").select("motorista_id,valor,descontado_valor");
+  const saldoPorMotorista = {};
+  (rTodosVales.data||[]).forEach(function(v){
+    const saldo = Number(v.valor) - Number(v.descontado_valor||0);
+    saldoPorMotorista[v.motorista_id] = (saldoPorMotorista[v.motorista_id]||0) + saldo;
+  });
+  return saldoPorMotorista;
+}
+function freteRenderCardVales(m, vales, saldoMotorista){
+  let html = '<div class="card form-card">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+    '<div><h3 style="margin-bottom:2px;">Vales — ' + escapeHtml(m.nome) + '</h3><p class="cardsub" style="margin:0;">Registro simples. O desconto pode ser aplicado agora ou deixado pra um fechamento futuro.</p></div>' +
+    '<div style="text-align:right;"><div style="font-family:\'Fraunces\',Georgia,serif;font-size:19px;font-weight:600;color:' + (saldoMotorista>0?'var(--alert)':'var(--gray)') + ';">' + freteFmt(saldoMotorista) + '</div><div style="font-size:10.5px;color:var(--gray);text-transform:uppercase;">saldo em aberto</div></div>' +
+    '</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1.4fr auto;gap:10px;align-items:end;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--line);">' +
+    '<div><label style="font-size:12px;font-weight:700;display:block;margin-bottom:5px;">Valor (R$)</label><input id="vale-novo-valor" type="number" step="0.01" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;" placeholder="0,00"></div>' +
+    '<div><label style="font-size:12px;font-weight:700;display:block;margin-bottom:5px;">Data</label><input id="vale-novo-data" type="date" value="' + new Date().toISOString().slice(0,10) + '" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;"></div>' +
+    '<div><label style="font-size:12px;font-weight:700;display:block;margin-bottom:5px;">Motivo</label><input id="vale-novo-motivo" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;" placeholder="Ex: adiantamento pessoal"></div>' +
+    '<button class="btn btn-primary" onclick="freteLancarVale(&quot;' + m.id + '&quot;)">+ Lançar vale</button>' +
+    '</div>';
+  if(!vales.length){
+    html += '<p class="empty-hint" style="margin:0;">Nenhum vale lançado ainda.</p>';
+  } else {
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<thead><tr><th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Data</th><th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Valor</th><th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Motivo</th><th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Desconto</th><th></th></tr></thead><tbody>';
+    vales.forEach(function(v){
+      const saldo = Number(v.valor) - Number(v.descontado_valor||0);
+      const descontoTxt = Number(v.descontado_valor||0) > 0
+        ? ('<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--ok-bg);color:var(--ok);">' + freteFmt(v.descontado_valor) + ' descontados' + (v.descontado_em ? (' em ' + freteMesLabel(v.descontado_em.slice(0,7))) : '') + '</span>')
+        : '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--alert-bg);color:var(--alert);">Nada descontado ainda</span>';
+      const acao = saldo > 0.004
+        ? ('<button class="btn btn-primary" style="padding:6px 12px;font-size:12px;" onclick="freteAbrirDescontoVale(&quot;' + v.id + '&quot;)">Descontar agora</button> <button style="background:transparent;border:1px solid var(--line);color:var(--gray);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;" onclick="toast(&quot;Tudo bem, esse vale continua em aberto.&quot;)">Deixar pra depois</button>')
+        : '<span style="font-size:12px;color:var(--gray);">Quitado</span>';
+      html += '<tr><td style="padding:8px 6px;border-bottom:1px solid var(--line);">' + v.data.split('-').reverse().join('/') + '</td>' +
+        '<td style="padding:8px 6px;border-bottom:1px solid var(--line);font-weight:700;">' + freteFmt(v.valor) + '</td>' +
+        '<td style="padding:8px 6px;border-bottom:1px solid var(--line);">' + escapeHtml(v.motivo||'') + '</td>' +
+        '<td style="padding:8px 6px;border-bottom:1px solid var(--line);">' + descontoTxt + '</td>' +
+        '<td style="padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap;">' + acao + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+  return html;
+}
+async function freteLancarVale(motoristaId){
+  const valor = document.getElementById('vale-novo-valor').value;
+  const data = document.getElementById('vale-novo-data').value;
+  const motivo = document.getElementById('vale-novo-motivo').value.trim();
+  if(!valor || Number(valor) <= 0 || !data){ toast('Preencha o valor e a data do vale.'); return; }
+  const r = await sb.from('comercial_frete_vales').insert({ motorista_id: motoristaId, valor: valor, data: data, motivo: motivo || null });
+  if(r.error){ toast('Erro: ' + r.error.message); return; }
+  toast('Vale lançado.');
+  await freteRenderConteudo();
+}
+function freteAbrirDescontoVale(valeId){
+  let overlay = document.getElementById('vale-desconto-overlay');
+  if(overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'vale-desconto-overlay';
+  overlay.className = 'rjx-modal-overlay';
+  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Descontar vale</h3><button class="rjx-modal-close" onclick="freteFecharDescontoVale()">✕</button></div><div class="rjx-modal-body">' +
+    '<div class="field" style="margin-bottom:10px;"><label>Valor a descontar (R$)</label><input type="number" step="0.01" id="vd-valor" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;"></div>' +
+    '<div class="field"><label>Data do desconto</label><input type="date" id="vd-data" value="' + new Date().toISOString().slice(0,10) + '" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;"></div>' +
+    '</div><div class="rjx-modal-foot"><div></div><div class="right-group">' +
+    '<button class="btn btn-ghost" onclick="freteFecharDescontoVale()">Cancelar</button>' +
+    '<button class="btn btn-primary" onclick="freteConfirmarDesconto(&quot;' + valeId + '&quot;)">Confirmar desconto</button>' +
+    '</div></div></div>';
+  document.body.appendChild(overlay);
+}
+function freteFecharDescontoVale(){ const o = document.getElementById('vale-desconto-overlay'); if(o) o.remove(); }
+async function freteConfirmarDesconto(valeId){
+  const valorNovo = Number(document.getElementById('vd-valor').value || 0);
+  const data = document.getElementById('vd-data').value;
+  if(!valorNovo || valorNovo <= 0 || !data){ toast('Preencha o valor e a data.'); return; }
+  const rAtual = await sb.from('comercial_frete_vales').select('valor,descontado_valor').eq('id', valeId).maybeSingle();
+  if(!rAtual.data){ toast('Vale não encontrado.'); return; }
+  const novoDescontado = Number(rAtual.data.descontado_valor||0) + valorNovo;
+  await sb.from('comercial_frete_vales').update({ descontado_valor: novoDescontado, descontado_em: data }).eq('id', valeId);
+  freteFecharDescontoVale();
+  toast('Desconto registrado.');
+  await freteRenderConteudo();
+}
+
+/* ===== Contestacoes de frete (Comercial) ===== */
+async function freteCarregarContestacoesPendentes(){
+  const r = await sb.from('comercial_frete_contestacoes').select('*').eq('status','pendente').order('criado_em', { ascending:false });
+  return r.data || [];
+}
+function freteRenderBannerContestacoes(pendentes, lancamentosPorId, nomesPorMotorista){
+  if(!pendentes.length) return '';
+  let html = '<div class="card contest-alert"><h3>🔔 ' + pendentes.length + ' contestação(ões) de frete pendente(s)</h3>';
+  pendentes.forEach(function(c){
+    const lanc = lancamentosPorId[c.lancamento_id] || {};
+    const nome = nomesPorMotorista[c.motorista_id] || '(motorista)';
+    html += '<div class="contest-row"><div><b>' + escapeHtml(nome) + '</b> — Pedido ' + escapeHtml(lanc.pedido||'') + ' (' + (lanc.data ? lanc.data.split('-').reverse().join('/') : '') + ')<br><span style="font-size:12.5px;color:var(--gray);">' + escapeHtml(c.texto) + '</span></div><button class="btn btn-primary btn-sm" onclick="freteResolverContestacao(&quot;' + c.id + '&quot;)">Marcar como resolvida</button></div>';
+  });
+  html += '</div>';
+  return html;
+}
+async function freteResolverContestacao(id){
+  await sb.from('comercial_frete_contestacoes').update({ status: 'resolvida' }).eq('id', id);
+  toast('Contestação marcada como resolvida.');
+  await freteRenderConteudo();
+}
+
+
 </script>
 </body>
 </html>
