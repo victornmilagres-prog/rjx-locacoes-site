@@ -1297,6 +1297,7 @@ async function freteRenderConteudo(){
   const saldoPorMotorista = await freteCarregarVales();
   const rVales = await sb.from("comercial_frete_vales").select("*").eq("motorista_id", m.id).order("data", { ascending:false });
   const valesMotorista = rVales.data || [];
+  const parcelasPorValeMotorista = await freteCarregarParcelasPorVale(valesMotorista.map(function(v){ return v.id; }));
   const pendentesContest = await freteCarregarContestacoesPendentes();
   const nomesPorMotorista = {};
   motoristas.forEach(function(mm){ nomesPorMotorista[mm.id] = mm.nome; });
@@ -1363,7 +1364,7 @@ async function freteRenderConteudo(){
     html += '<div class="card form-card"><p class="cardsub" style="margin:0;font-style:italic;">Mês encerrado — os lançamentos abaixo ficam guardados para consulta, sem opção de adicionar ou editar.</p></div>';
   }
 
-  html += freteRenderCardVales(m, valesMotorista, (saldoPorMotorista[m.id]||0));
+  html += freteRenderCardVales(m, valesMotorista, parcelasPorValeMotorista, (saldoPorMotorista[m.id]||0));
 
   html += '<div class="card form-card">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;">' +
@@ -6512,8 +6513,15 @@ async function mcRenderResumo(){
   const totalVariavel = lancamentosMes.reduce(function(a,l){ return a + freteCalcular(l, tabela).total; }, 0);
   const rVales = await sb.from('comercial_frete_vales').select('*').eq('motorista_id', m.id);
   const vales = rVales.data || [];
-  const saldoVale = vales.reduce(function(a,v){ return a + (Number(v.valor) - Number(v.descontado_valor||0)); }, 0);
-  const descontoMes = vales.reduce(function(a,v){ return a + ((v.descontado_em && v.descontado_em.slice(0,7)===mesAtual) ? Number(v.descontado_valor||0) : 0); }, 0);
+  const parcelasPorVale = await freteCarregarParcelasPorVale(vales.map(function(v){ return v.id; }));
+  const saldoVale = vales.reduce(function(a,v){
+    const pago = (parcelasPorVale[v.id]||[]).reduce(function(s,p){ return s + (p.paga?Number(p.valor):0); }, 0);
+    return a + (Number(v.valor) - pago);
+  }, 0);
+  const descontoMes = vales.reduce(function(a,v){
+    const pagoMes = (parcelasPorVale[v.id]||[]).reduce(function(s,p){ return s + ((p.paga && p.pago_em && p.pago_em.slice(0,7)===mesAtual) ? Number(p.valor) : 0); }, 0);
+    return a + pagoMes;
+  }, 0);
   const temFixo = m.valor_fixo != null && m.valor_fixo !== '' && Number(m.valor_fixo) > 0;
   const valorFixo = temFixo ? Number(m.valor_fixo) : 0;
   const premio = await mcCalcularPremiacaoPct();
@@ -6625,20 +6633,40 @@ async function mcRenderVales(){
     wrap.innerHTML = html;
     return;
   }
-  const saldoVale = vales.reduce(function(a,v){ return a + (Number(v.valor) - Number(v.descontado_valor||0)); }, 0);
+  const parcelasPorVale = await freteCarregarParcelasPorVale(vales.map(function(v){ return v.id; }));
+  const saldoVale = vales.reduce(function(a,v){
+    const pago = (parcelasPorVale[v.id]||[]).reduce(function(s,p){ return s + (p.paga?Number(p.valor):0); }, 0);
+    return a + (Number(v.valor) - pago);
+  }, 0);
   html += '<div style="background:var(--ink);color:#fff;border-radius:8px;padding:14px 18px;margin-bottom:16px;">' +
     '<div style="font-family:\'Fraunces\',Georgia,serif;font-size:20px;">' + freteFmt(saldoVale) + '</div>' +
     '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.8;">Saldo em aberto</div></div>';
   html += '<div class="card form-card">';
   vales.forEach(function(v, i){
-    const saldo = Number(v.valor) - Number(v.descontado_valor||0);
-    const statusHtml = Number(v.descontado_valor||0) > 0
-      ? ('<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--ok-bg);color:var(--ok);">' + freteFmt(v.descontado_valor) + ' descontados' + (v.descontado_em ? (' em ' + freteMesLabel(v.descontado_em.slice(0,7))) : '') + '</span>')
-      : '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--alert-bg);color:var(--alert);">Nada descontado ainda</span>';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;' + (i<vales.length-1?'border-bottom:1px solid var(--line);':'') + '">' +
-      '<div><div style="font-family:\'Fraunces\',Georgia,serif;font-size:15px;font-weight:600;">' + freteFmt(v.valor) + '</div><div style="font-size:12px;color:var(--gray);margin-top:2px;">' + v.data.split('-').reverse().join('/') + (v.motivo ? (' · ' + escapeHtml(v.motivo)) : '') + '</div></div>' +
-      statusHtml +
-      '</div>';
+    const parcelas = parcelasPorVale[v.id] || [];
+    const pago = parcelas.reduce(function(a,p){ return a + (p.paga?Number(p.valor):0); }, 0);
+    const saldo = Number(v.valor) - pago;
+    html += '<div style="padding:12px 0;' + (i<vales.length-1?'border-bottom:1px solid var(--line);':'') + '">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
+      '<div><div style="font-family:\'Fraunces\',Georgia,serif;font-size:15px;font-weight:600;">' + freteFmt(v.valor) + '</div><div style="font-size:12px;color:var(--gray);margin-top:2px;">' + v.data.split('-').reverse().join('/') + (v.motivo ? (' · ' + escapeHtml(v.motivo)) : '') + '</div></div>';
+    if(!parcelas.length){
+      html += '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--alert-bg);color:var(--alert);">Nada parcelado ainda</span>';
+    } else {
+      html += '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:'+(saldo>0.004?'var(--alert-bg)':'var(--ok-bg)')+';color:'+(saldo>0.004?'var(--alert)':'var(--ok)')+';">' + (saldo>0.004 ? (freteFmt(saldo)+' restantes') : 'Quitado') + '</span>';
+    }
+    html += '</div>';
+    if(parcelas.length){
+      html += '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">';
+      parcelas.forEach(function(p){
+        const statusHtml = p.paga
+          ? ('<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--ok-bg);color:var(--ok);">Paga em ' + (p.pago_em ? p.pago_em.split('-').reverse().join('/') : '') + '</span>')
+          : '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--alert-bg);color:var(--alert);">Em aberto</span>';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--paper-soft);border-radius:6px;font-size:12.5px;">' +
+          '<span>Parcela ' + p.numero + '/' + parcelas.length + ' — ' + freteFmt(p.valor) + '</span>' + statusHtml + '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
   });
   html += '</div>';
   wrap.innerHTML = html;
@@ -6646,18 +6674,37 @@ async function mcRenderVales(){
 
 /* ===== Vales por transportador (Comercial) ===== */
 async function freteCarregarVales(){
-  const rTodosVales = await sb.from("comercial_frete_vales").select("motorista_id,valor,descontado_valor");
+  const rTodosVales = await sb.from("comercial_frete_vales").select("id,motorista_id,valor");
+  const vales = rTodosVales.data || [];
+  const idsVales = vales.map(function(v){ return v.id; });
+  let pagoPorVale = {};
+  if(idsVales.length){
+    const rParcelas = await sb.from("comercial_frete_vale_parcelas").select("vale_id,valor,paga").in("vale_id", idsVales);
+    (rParcelas.data||[]).forEach(function(p){
+      if(p.paga) pagoPorVale[p.vale_id] = (pagoPorVale[p.vale_id]||0) + Number(p.valor);
+    });
+  }
   const saldoPorMotorista = {};
-  (rTodosVales.data||[]).forEach(function(v){
-    const saldo = Number(v.valor) - Number(v.descontado_valor||0);
+  vales.forEach(function(v){
+    const saldo = Number(v.valor) - (pagoPorVale[v.id]||0);
     saldoPorMotorista[v.motorista_id] = (saldoPorMotorista[v.motorista_id]||0) + saldo;
   });
   return saldoPorMotorista;
 }
-function freteRenderCardVales(m, vales, saldoMotorista){
+async function freteCarregarParcelasPorVale(idsVales){
+  let parcelasPorVale = {};
+  if(!idsVales || !idsVales.length) return parcelasPorVale;
+  const r = await sb.from("comercial_frete_vale_parcelas").select("*").in("vale_id", idsVales).order("numero", { ascending: true });
+  (r.data||[]).forEach(function(p){
+    if(!parcelasPorVale[p.vale_id]) parcelasPorVale[p.vale_id] = [];
+    parcelasPorVale[p.vale_id].push(p);
+  });
+  return parcelasPorVale;
+}
+function freteRenderCardVales(m, vales, parcelasPorVale, saldoMotorista){
   let html = '<div class="card form-card">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
-    '<div><h3 style="margin-bottom:2px;">Vales — ' + escapeHtml(m.nome) + '</h3><p class="cardsub" style="margin:0;">Registro simples. O desconto pode ser aplicado agora ou deixado pra um fechamento futuro.</p></div>' +
+    '<div><h3 style="margin-bottom:2px;">Vales — ' + escapeHtml(m.nome) + '</h3><p class="cardsub" style="margin:0;">Registro simples. O desconto pode ser parcelado, e cada parcela dá baixa separadamente.</p></div>' +
     '<div style="text-align:right;"><div style="font-family:\'Fraunces\',Georgia,serif;font-size:19px;font-weight:600;color:' + (saldoMotorista>0?'var(--alert)':'var(--gray)') + ';">' + freteFmt(saldoMotorista) + '</div><div style="font-size:10.5px;color:var(--gray);text-transform:uppercase;">saldo em aberto</div></div>' +
     '</div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr 1.4fr auto;gap:10px;align-items:end;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--line);">' +
@@ -6669,23 +6716,36 @@ function freteRenderCardVales(m, vales, saldoMotorista){
   if(!vales.length){
     html += '<p class="empty-hint" style="margin:0;">Nenhum vale lançado ainda.</p>';
   } else {
-    html += '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
-      '<thead><tr><th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Data</th><th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Valor</th><th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Motivo</th><th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--gray);">Desconto</th><th></th></tr></thead><tbody>';
-    vales.forEach(function(v){
-      const saldo = Number(v.valor) - Number(v.descontado_valor||0);
-      const descontoTxt = Number(v.descontado_valor||0) > 0
-        ? ('<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--ok-bg);color:var(--ok);">' + freteFmt(v.descontado_valor) + ' descontados' + (v.descontado_em ? (' em ' + freteMesLabel(v.descontado_em.slice(0,7))) : '') + '</span>')
-        : '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--alert-bg);color:var(--alert);">Nada descontado ainda</span>';
-      const acao = saldo > 0.004
-        ? ('<button class="btn btn-primary" style="padding:6px 12px;font-size:12px;" onclick="freteAbrirDescontoVale(&quot;' + v.id + '&quot;)">Descontar agora</button> <button style="background:transparent;border:1px solid var(--line);color:var(--gray);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;" onclick="toast(&quot;Tudo bem, esse vale continua em aberto.&quot;)">Deixar pra depois</button>')
-        : '<span style="font-size:12px;color:var(--gray);">Quitado</span>';
-      html += '<tr><td style="padding:8px 6px;border-bottom:1px solid var(--line);">' + v.data.split('-').reverse().join('/') + '</td>' +
-        '<td style="padding:8px 6px;border-bottom:1px solid var(--line);font-weight:700;">' + freteFmt(v.valor) + '</td>' +
-        '<td style="padding:8px 6px;border-bottom:1px solid var(--line);">' + escapeHtml(v.motivo||'') + '</td>' +
-        '<td style="padding:8px 6px;border-bottom:1px solid var(--line);">' + descontoTxt + '</td>' +
-        '<td style="padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap;">' + acao + '</td></tr>';
+    vales.forEach(function(v, vi){
+      const parcelas = parcelasPorVale[v.id] || [];
+      const pago = parcelas.reduce(function(a,p){ return a + (p.paga ? Number(p.valor) : 0); }, 0);
+      const saldo = Number(v.valor) - pago;
+      html += '<div style="padding:12px 0;' + (vi<vales.length-1?'border-bottom:1px solid var(--line);':'') + '">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
+        '<div><span style="font-weight:700;">' + freteFmt(v.valor) + '</span> <span style="font-size:12px;color:var(--gray);">' + v.data.split('-').reverse().join('/') + (v.motivo?(' · '+escapeHtml(v.motivo)):'') + '</span></div>';
+      if(!parcelas.length){
+        if(saldo > 0.004){
+          html += '<div style="display:flex;gap:6px;"><button class="btn btn-primary" style="padding:6px 12px;font-size:12px;" onclick="freteAbrirParcelarVale(&quot;'+v.id+'&quot;,'+v.valor+')">Parcelar</button> <button style="background:transparent;border:1px solid var(--line);color:var(--gray);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;" onclick="toast(&quot;Tudo bem, esse vale continua em aberto.&quot;)">Deixar pra depois</button></div>';
+        } else {
+          html += '<span style="font-size:12px;color:var(--gray);">Quitado</span>';
+        }
+      } else {
+        html += '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:'+(saldo>0.004?'var(--alert-bg)':'var(--ok-bg)')+';color:'+(saldo>0.004?'var(--alert)':'var(--ok)')+';">' + (saldo>0.004 ? (freteFmt(saldo)+' restantes') : 'Quitado') + '</span>';
+      }
+      html += '</div>';
+      if(parcelas.length){
+        html += '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">';
+        parcelas.forEach(function(p){
+          const statusHtml = p.paga
+            ? ('<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--ok-bg);color:var(--ok);">Paga em ' + (p.pago_em ? p.pago_em.split('-').reverse().join('/') : '') + '</span><button style="background:transparent;border:none;color:var(--alert);font-size:11px;cursor:pointer;text-decoration:underline;" onclick="freteExcluirBaixaParcela(&quot;'+p.id+'&quot;)">Excluir baixa</button></div>')
+            : '<button class="btn btn-primary" style="padding:5px 12px;font-size:11.5px;" onclick="freteDarBaixaParcela(&quot;'+p.id+'&quot;)">Dar baixa</button>';
+          html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--paper-soft);border-radius:6px;font-size:12.5px;">' +
+            '<span>Parcela ' + p.numero + '/' + parcelas.length + ' — ' + freteFmt(p.valor) + '</span>' + statusHtml + '</div>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
     });
-    html += '</tbody></table>';
   }
   html += '</div>';
   return html;
@@ -6700,34 +6760,58 @@ async function freteLancarVale(motoristaId){
   toast('Vale lançado.');
   await freteRenderConteudo();
 }
-function freteAbrirDescontoVale(valeId){
-  let overlay = document.getElementById('vale-desconto-overlay');
+function freteAbrirParcelarVale(valeId, valorTotal){
+  let overlay = document.getElementById('parcelar-vale-overlay');
   if(overlay) overlay.remove();
   overlay = document.createElement('div');
-  overlay.id = 'vale-desconto-overlay';
+  overlay.id = 'parcelar-vale-overlay';
   overlay.className = 'rjx-modal-overlay';
-  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Descontar vale</h3><button class="rjx-modal-close" onclick="freteFecharDescontoVale()">✕</button></div><div class="rjx-modal-body">' +
-    '<div class="field" style="margin-bottom:10px;"><label>Valor a descontar (R$)</label><input type="number" step="0.01" id="vd-valor" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;"></div>' +
-    '<div class="field"><label>Data do desconto</label><input type="date" id="vd-data" value="' + new Date().toISOString().slice(0,10) + '" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;"></div>' +
+  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Parcelar vale — ' + freteFmt(valorTotal) + '</h3><button class="rjx-modal-close" onclick="freteFecharParcelarVale()">✕</button></div><div class="rjx-modal-body">' +
+    '<div class="field" style="margin-bottom:12px;"><label>Em quantas parcelas?</label><div style="display:flex;gap:8px;"><input type="number" min="1" id="pv-num-parcelas" value="1" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;"><button class="btn btn-ghost" onclick="freteGerarParcelas(' + valorTotal + ')">Dividir</button></div><p class="cardsub" style="margin:6px 0 0;">Divide igual automaticamente — dá pra ajustar o valor de cada parcela depois.</p></div>' +
+    '<div id="pv-parcelas-lista"></div>' +
     '</div><div class="rjx-modal-foot"><div></div><div class="right-group">' +
-    '<button class="btn btn-ghost" onclick="freteFecharDescontoVale()">Cancelar</button>' +
-    '<button class="btn btn-primary" onclick="freteConfirmarDesconto(&quot;' + valeId + '&quot;)">Confirmar desconto</button>' +
+    '<button class="btn btn-ghost" onclick="freteFecharParcelarVale()">Cancelar</button>' +
+    '<button class="btn btn-primary" onclick="freteConfirmarParcelamento(&quot;'+valeId+'&quot;,'+valorTotal+')">Confirmar parcelamento</button>' +
     '</div></div></div>';
   document.body.appendChild(overlay);
+  freteGerarParcelas(valorTotal);
 }
-function freteFecharDescontoVale(){ const o = document.getElementById('vale-desconto-overlay'); if(o) o.remove(); }
-async function freteConfirmarDesconto(valeId){
-  const valorNovo = Number(document.getElementById('vd-valor').value || 0);
-  const data = document.getElementById('vd-data').value;
-  if(!valorNovo || valorNovo <= 0 || !data){ toast('Preencha o valor e a data.'); return; }
-  const rAtual = await sb.from('comercial_frete_vales').select('valor,descontado_valor').eq('id', valeId).maybeSingle();
-  if(!rAtual.data){ toast('Vale não encontrado.'); return; }
-  const novoDescontado = Number(rAtual.data.descontado_valor||0) + valorNovo;
-  await sb.from('comercial_frete_vales').update({ descontado_valor: novoDescontado, descontado_em: data }).eq('id', valeId);
-  freteFecharDescontoVale();
-  toast('Desconto registrado.');
+function freteGerarParcelas(valorTotal){
+  const n = Math.max(1, parseInt(document.getElementById('pv-num-parcelas').value) || 1);
+  const base = Math.floor((valorTotal / n) * 100) / 100;
+  const soma = base * (n - 1);
+  const ultima = Math.round((valorTotal - soma) * 100) / 100;
+  let html = '';
+  for(let i = 1; i <= n; i++){
+    const valorP = (i === n) ? ultima : base;
+    html += '<div class="field" style="margin-bottom:8px;"><label>Parcela ' + i + '/' + n + '</label><input type="number" step="0.01" class="pv-parcela-valor" value="' + valorP.toFixed(2) + '" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;"></div>';
+  }
+  document.getElementById('pv-parcelas-lista').innerHTML = html;
+}
+function freteFecharParcelarVale(){ const o = document.getElementById('parcelar-vale-overlay'); if(o) o.remove(); }
+async function freteConfirmarParcelamento(valeId, valorTotal){
+  const inputs = Array.from(document.querySelectorAll('.pv-parcela-valor'));
+  const valores = inputs.map(function(inp){ return Number(inp.value || 0); });
+  const soma = valores.reduce(function(a,b){ return a+b; }, 0);
+  if(Math.abs(soma - valorTotal) > 0.01){ toast('A soma das parcelas (' + freteFmt(soma) + ') precisa bater com o valor do vale (' + freteFmt(valorTotal) + ').'); return; }
+  const rows = valores.map(function(v, i){ return { vale_id: valeId, numero: i+1, valor: v }; });
+  const r = await sb.from('comercial_frete_vale_parcelas').insert(rows);
+  if(r.error){ toast('Erro: ' + r.error.message); return; }
+  freteFecharParcelarVale();
+  toast('Vale parcelado em ' + rows.length + ' vez(es).');
   await freteRenderConteudo();
 }
+async function freteDarBaixaParcela(parcelaId){
+  await sb.from('comercial_frete_vale_parcelas').update({ paga: true, pago_em: new Date().toISOString().slice(0,10) }).eq('id', parcelaId);
+  toast('Parcela dada baixa.');
+  await freteRenderConteudo();
+}
+async function freteExcluirBaixaParcela(parcelaId){
+  await sb.from('comercial_frete_vale_parcelas').update({ paga: false, pago_em: null }).eq('id', parcelaId);
+  toast('Baixa excluída — parcela voltou a ficar em aberto.');
+  await freteRenderConteudo();
+}
+
 
 /* ===== Contestacoes de frete (Comercial) ===== */
 async function freteCarregarContestacoesPendentes(){
