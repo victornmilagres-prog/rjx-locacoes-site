@@ -1520,7 +1520,13 @@ async function freteAdicionarLancamento(){
 async function freteRemoverLancamento(id){
   const ok = confirm("Tem certeza que deseja excluir esse lançamento?");
   if(!ok) return;
-  await sb.from("comercial_frete_lancamentos").delete().eq("id", id);
+  const rDel = await sb.from("comercial_frete_lancamentos").delete().eq("id", id).select();
+  if(rDel.error){
+    if(rDel.error.code === "23503"){ alert("Não dá pra excluir: esse lançamento tem uma contestação do transportador vinculada. Remova a contestação antes."); }
+    else { alert("Erro ao excluir: " + rDel.error.message); }
+    return;
+  }
+  if(!rDel.data || !rDel.data.length){ alert("Não foi possível excluir esse lançamento (sem permissão ou já removido)."); await carregarFreteComercial(); return; }
   toast("Lançamento excluído.");
   await carregarFreteComercial();
 }
