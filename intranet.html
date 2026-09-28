@@ -2398,6 +2398,7 @@ async function selectTransportesSubtab(tab){
 
 
 async function carregarPremiacaoTransportes(){
+  if(currentUsuario.papel === 'gerencial'){ return tsGerCarregarPremiacao(); }
   const content = document.getElementById("transportes-content");
   window.__tsPremSubtab = window.__tsPremSubtab || "locacoes";
   let shell = '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">' +
@@ -6435,8 +6436,584 @@ async function ccPrevisualizarDoc(){
   docFinal.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
+/* ===== Transportes - visao Gerencial (resumo de todos os transportadores) ===== */
+window.__tsGerSub = window.__tsGerSub || 'vigente';
+window.__tsGerMes = window.__tsGerMes || (function(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); })();
+window.__tsGerFechMes = window.__tsGerFechMes || null;
+window.__tsGerExpand = window.__tsGerExpand || {};
+window.__tsGerData = null;
+window.__tsGerPremData = null;
+
+function tsGerEnsureStyle(){
+  if(document.getElementById('tsger-style')) return;
+  const st = document.createElement('style');
+  st.id = 'tsger-style';
+  st.textContent =
+    '.tsg-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--paper);margin-bottom:16px;}' +
+    '.tsg-table{width:100%;border-collapse:collapse;font-size:13.5px;}' +
+    '.tsg-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--gray);padding:10px;border-bottom:1px solid var(--line);white-space:nowrap;}' +
+    '.tsg-table td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap;}' +
+    '.tsg-table tr:last-child td{border-bottom:none;}' +
+    '.tsg-nome{font-weight:700;}' +
+    '.tsg-sub{font-size:11px;color:var(--gray);display:block;margin-top:1px;font-weight:400;}' +
+    '.tsg-mut{color:var(--gray);}' +
+    '.tsg-pos{color:var(--ok);font-weight:700;}' +
+    '.tsg-neg{color:var(--alert);font-weight:700;}' +
+    '.tsg-bar{background:var(--paper-soft);border-radius:20px;height:7px;width:90px;overflow:hidden;}' +
+    '.tsg-bar>div{height:100%;border-radius:20px;}' +
+    '.tsg-exp{padding:14px 18px 16px 30px;background:var(--paper-soft);white-space:normal;}' +
+    '.tsg-loc{margin-bottom:14px;}' +
+    '.tsg-loc-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;font-weight:700;margin-bottom:6px;}' +
+    '.tsg-etapas{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:2px 18px;}' +
+    '.tsg-et{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px;}' +
+    '.tsg-ck{width:16px;height:16px;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}' +
+    '.tsg-ck.y{background:var(--ok);} .tsg-ck.n{background:var(--alert);} .tsg-ck.o{background:var(--gray);}' +
+    '.tsg-et .no{color:var(--gray);text-decoration:line-through;}' +
+    '.tsg-mes{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:6px 14px;font-size:12.5px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;}' +
+    '.tsg-mes.active{background:var(--wine);border-color:var(--wine);color:#fff;}' +
+    '.tsg-pdf-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px;}' +
+    '.tsg-pdf-total{display:flex;justify-content:space-between;padding-top:10px;margin-top:6px;border-top:2px solid var(--ink);font-weight:700;font-size:14.5px;}';
+  document.head.appendChild(st);
+}
+
+async function tsGerFetchAll(makeQuery){
+  let all = [], from = 0;
+  while(true){
+    const r = await makeQuery().range(from, from + 999);
+    if(r.error || !r.data) break;
+    all = all.concat(r.data);
+    if(r.data.length < 1000) break;
+    from += 1000;
+  }
+  return all;
+}
+
+function tsGerMesesOpcoes(){
+  const out = [], d = new Date();
+  for(let i = 0; i < 3; i++){
+    const x = new Date(d.getFullYear(), d.getMonth() - i, 1);
+    out.push(x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0'));
+  }
+  return out;
+}
+
+/* ---- pontuacao de premiacao de todos os transportadores (mesma regra do painel do transportador) ---- */
+async function tsGerCalcularPremiacao(motoristas){
+  const usuarioIds = motoristas.map(function(m){ return m.usuario_id; }).filter(Boolean);
+  const res = {};
+  if(!usuarioIds.length) return res;
+  const locs = await tsGerFetchAll(function(){
+    return sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status').in('motorista_id', usuarioIds).order('data_locacao', { ascending: false }).order('id');
+  });
+  let etapas = [];
+  for(let i = 0; i < locs.length; i += 100){
+    const ids = locs.slice(i, i + 100).map(function(l){ return l.id; });
+    const part = await tsGerFetchAll(function(){
+      return sb.from('premiacao_etapas').select('id,locacao_id,ordem,nome,concluida,motorista_id').in('locacao_id', ids).order('locacao_id').order('ordem');
+    });
+    etapas = etapas.concat(part);
+  }
+  const selfies = await tsGerFetchAll(function(){
+    return sb.from('premiacao_selfies_dia').select('*').in('motorista_id', usuarioIds).order('data_ref');
+  });
+  const hoje = new Date().toISOString().slice(0,10);
+  const P = PONTOS_UNIFORME_PREMIACAO;
+  usuarioIds.forEach(function(uid){
+    const minhas = locs.filter(function(l){ return l.motorista_id === uid; });
+    let pontos = 0, possiveis = 0, etapasOk = 0, etapasTot = 0;
+    const locsDet = minhas.map(function(loc){
+      const et = etapas.filter(function(e){ return e.locacao_id === loc.id; });
+      let feitas = 0;
+      et.forEach(function(e){
+        possiveis += 1; etapasTot += 1;
+        if(e.concluida && e.motorista_id === uid){ pontos += 1; feitas += 1; etapasOk += 1; }
+      });
+      return { loc: loc, etapas: et, feitas: feitas };
+    });
+    const diasSet = {};
+    minhas.forEach(function(l){ diasSet[l.data_locacao] = true; });
+    let diasOk = 0;
+    const diasDet = Object.keys(diasSet).sort().reverse().map(function(dia){
+      const s = selfies.find(function(x){ return x.motorista_id === uid && x.data_ref === dia; });
+      possiveis += P;
+      let estado = 'pendente';
+      if(s && s.validada === true){ pontos += P; estado = 'ok'; diasOk += 1; }
+      else if(s && s.validada === false && s.motivo === 'expirada'){ pontos -= P; estado = 'expirada'; }
+      else if(s && s.validada === false && s.motivo === 'reprovada' && (!s.retry_ate || new Date(s.retry_ate) <= new Date())){ pontos -= P; estado = 'reprovada'; }
+      else if((!s || !s.enviada) && dia !== hoje){ pontos -= P; estado = 'nao_enviada'; }
+      return { dia: dia, estado: estado };
+    });
+    const pctBruto = possiveis > 0 ? Math.round((pontos / possiveis) * 100) : 0;
+    res[uid] = { pct: Math.max(0, pctBruto), ganhando: pctBruto >= 80, pontos: pontos, possiveis: possiveis, locs: locsDet, dias: diasDet, diasOk: diasOk, etapasOk: etapasOk, etapasTot: etapasTot };
+  });
+  return res;
+}
+
+/* ---- dados do fechamento (mes escolhido) ---- */
+async function tsGerCarregarDados(){
+  const mesRef = window.__tsGerMes;
+  const rMot = await sb.from('comercial_frete_motoristas').select('*').eq('ativo', true).order('ordem');
+  const motoristas = rMot.data || [];
+  const rMotAll = await sb.from('comercial_frete_motoristas').select('id,nome,vinculo_tipo');
+  const nomes = {};
+  (rMotAll.data || []).forEach(function(m){ nomes[m.id] = m; });
+  const rTab = await sb.from('comercial_frete_tabelas').select('*');
+  const tabelas = {};
+  (rTab.data || []).forEach(function(t){ tabelas[t.motorista_id] = t; });
+  const lanc = await tsGerFetchAll(function(){ return sb.from('comercial_frete_lancamentos').select('*').gte('data', mesRef + '-01').order('data').order('id'); });
+  const rVales = await sb.from('comercial_frete_vales').select('*');
+  const vales = rVales.data || [];
+  const parcelas = await freteCarregarParcelasPorVale(vales.map(function(v){ return v.id; }));
+  const rFech = await sb.from('comercial_frete_fechamentos').select('*').order('criado_em');
+  const prem = await tsGerCalcularPremiacao(motoristas);
+  const linhas = motoristas.map(function(m){
+    const tabela = tabelas[m.id];
+    const lancMes = lanc.filter(function(l){ return l.motorista_id === m.id && l.data.slice(0,7) === mesRef; });
+    let variavel = 0, semTabela = false;
+    lancMes.forEach(function(l){
+      try{
+        if(!tabela){ semTabela = true; return; }
+        const t = freteCalcular(l, tabela).total;
+        if(isFinite(t)) variavel += t;
+      }catch(e){ semTabela = true; }
+    });
+    const meusVales = vales.filter(function(v){ return v.motorista_id === m.id; });
+    const saldo = meusVales.reduce(function(a, v){
+      const pago = (parcelas[v.id] || []).reduce(function(s, p){ return s + (p.paga ? Number(p.valor) : 0); }, 0);
+      return a + (Number(v.valor) - pago);
+    }, 0);
+    const desconto = meusVales.reduce(function(a, v){
+      return a + (parcelas[v.id] || []).reduce(function(s, p){ return s + ((p.paga && p.pago_em && p.pago_em.slice(0,7) === mesRef) ? Number(p.valor) : 0); }, 0);
+    }, 0);
+    const fixo = (m.valor_fixo != null && Number(m.valor_fixo) > 0) ? Number(m.valor_fixo) : 0;
+    const pr = m.usuario_id ? (prem[m.usuario_id] || { pct: 0, ganhando: false, semLocacoes: true }) : { pct: 0, ganhando: false, semUsuario: true };
+    const valorPremio = pr.ganhando ? 500 : 0;
+    return { m: m, lancMes: lancMes, variavel: variavel, semTabela: semTabela, saldo: saldo, desconto: desconto, fixo: fixo, pr: pr, valorPremio: valorPremio, total: fixo + variavel + valorPremio - desconto };
+  });
+  window.__tsGerData = { mesRef: mesRef, linhas: linhas, nomes: nomes, fechamentos: rFech.data || [] };
+}
+
+async function tsGerRecarregar(){
+  await tsGerCarregarDados();
+  tsGerRenderControles();
+}
+
+async function tsGerCarregarControles(){
+  tsGerEnsureStyle();
+  const content = document.getElementById('transportes-content');
+  content.innerHTML = '<p class="empty-hint">Carregando...</p>';
+  try{
+    await tsGerCarregarDados();
+  }catch(e){
+    content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(e.message || String(e)) + '</p>';
+    return;
+  }
+  tsGerRenderControles();
+}
+
+function tsGerSetSub(sub){
+  window.__tsGerSub = sub;
+  tsGerRenderControles();
+}
+async function tsGerTrocarMes(mes){
+  window.__tsGerMes = mes;
+  const content = document.getElementById('transportes-content');
+  content.innerHTML = '<p class="empty-hint">Carregando...</p>';
+  await tsGerRecarregar();
+}
+function tsGerSetFechMes(mes){
+  window.__tsGerFechMes = mes;
+  tsGerRenderControles();
+}
+
+function tsGerRenderControles(){
+  const d = window.__tsGerData;
+  const sub = window.__tsGerSub;
+  const content = document.getElementById('transportes-content');
+  let html = '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">' +
+    '<button class="subtab' + (sub === 'vigente' ? ' active' : '') + '" onclick="tsGerSetSub(&quot;vigente&quot;)">Mês vigente</button>' +
+    '<button class="subtab' + (sub === 'fechados' ? ' active' : '') + '" onclick="tsGerSetSub(&quot;fechados&quot;)">Fretes fechados</button>' +
+    '</div>';
+  html += (sub === 'fechados') ? tsGerHtmlFechados(d) : tsGerHtmlVigente(d);
+  content.innerHTML = html;
+}
+
+function tsGerHtmlVigente(d){
+  const mesRef = d.mesRef;
+  const fechMes = {};
+  d.fechamentos.forEach(function(f){ if(f.mes_ref === mesRef) fechMes[f.motorista_id] = f; });
+  const opts = tsGerMesesOpcoes().map(function(k){
+    return '<option value="' + k + '"' + (k === mesRef ? ' selected' : '') + '>' + freteMesLabel(k) + '</option>';
+  }).join('');
+  const linhas = d.linhas.filter(function(L){ const f = fechMes[L.m.id]; return !(f && f.status === 'enviado'); });
+  let sFixo = 0, sVar = 0, sPrem = 0, sDesc = 0;
+  const rows = linhas.map(function(L){
+    const f = fechMes[L.m.id];
+    const v = f
+      ? { fixo: Number(f.valor_fixo), variavel: Number(f.valor_variavel), premio: Number(f.valor_premio), pct: f.premio_pct, desconto: Number(f.desconto_vale), saldo: Number(f.saldo_vale), total: Number(f.valor_total), n: f.qtd_corridas }
+      : { fixo: L.fixo, variavel: L.variavel, premio: L.valorPremio, pct: L.pr.pct, desconto: L.desconto, saldo: L.saldo, total: L.total, n: L.lancMes.length };
+    sFixo += v.fixo; sVar += v.variavel; sPrem += v.premio; sDesc += v.desconto;
+    let premioHtml;
+    if(!f && L.pr.semUsuario) premioHtml = '<span class="tsg-mut">sem usuário</span>';
+    else if(v.premio > 0) premioHtml = '<span class="tsg-pos">+ ' + freteFmt(v.premio) + '</span> <span class="tsg-sub" style="display:inline;">(' + v.pct + '%)</span>';
+    else premioHtml = '<span class="tsg-mut">— (' + v.pct + '%)</span>';
+    let acao;
+    if(f){
+      acao = '<button class="btn btn-primary btn-sm" onclick="tsGerEnviarFinanceiro(&quot;' + f.id + '&quot;)">Enviar para o financeiro</button> ' +
+        '<button class="btn btn-ghost btn-sm" onclick="tsGerBaixarPDF(&quot;' + f.id + '&quot;)">PDF</button> ' +
+        '<button class="icon-btn" title="Desfazer fechamento" onclick="tsGerDesfazer(&quot;' + f.id + '&quot;)">↺</button>';
+    } else {
+      acao = '<button class="btn btn-outline btn-sm" onclick="tsGerAbrirFechar(&quot;' + L.m.id + '&quot;)">Fechar frete</button>';
+    }
+    const vinc = L.m.vinculo_tipo === 'clt' ? 'CLT' : 'PJ';
+    return '<tr>' +
+      '<td><span class="tsg-nome">' + escapeHtml(L.m.nome) + '</span><span class="tsg-sub">' + vinc + (f ? ' · <span style="color:var(--wine);font-weight:700;">PDF gerado</span>' : '') + '</span></td>' +
+      '<td>' + (v.fixo > 0 ? freteFmt(v.fixo) : '<span class="tsg-mut">—</span>') + '</td>' +
+      '<td><span class="tsg-pos">+ ' + freteFmt(v.variavel) + '</span><span class="tsg-sub">' + v.n + ' corrida(s)' + ((!f && L.semTabela) ? ' · sem tabela de frete' : '') + '</span></td>' +
+      '<td>' + premioHtml + '</td>' +
+      '<td>' + (v.desconto > 0 ? '<span class="tsg-neg">– ' + freteFmt(v.desconto) + '</span>' : '<span class="tsg-mut">—</span>') + '</td>' +
+      '<td>' + (v.saldo > 0.005 ? freteFmt(v.saldo) : '<span class="tsg-mut">—</span>') + '</td>' +
+      '<td style="font-weight:700;">' + freteFmt(v.total) + '</td>' +
+      '<td>' + acao + '</td></tr>';
+  }).join('');
+  let html = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;"><label style="font-size:13px;font-weight:600;">Mês de referência</label>' +
+    '<select onchange="tsGerTrocarMes(this.value)" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:13.5px;">' + opts + '</select></div>';
+  html += '<div class="summary-row">' +
+    '<div class="summary-box"><div class="num">' + linhas.length + '</div><div class="lbl">Transportadores em aberto</div></div>' +
+    '<div class="summary-box"><div class="num">' + freteFmt(sFixo) + '</div><div class="lbl">Fixo total</div></div>' +
+    '<div class="summary-box"><div class="num">' + freteFmt(sVar) + '</div><div class="lbl">Variável total</div></div>' +
+    '<div class="summary-box"><div class="num">' + freteFmt(sPrem) + '</div><div class="lbl">Premiação total</div></div>' +
+    '<div class="summary-box"><div class="num" style="color:var(--alert);">' + (sDesc > 0 ? '– ' + freteFmt(sDesc) : '—') + '</div><div class="lbl">Descontos de vale</div></div>' +
+    '</div>';
+  if(!linhas.length){
+    html += '<p class="empty-hint">Todos os fretes de ' + freteMesLabel(mesRef) + ' já foram enviados ao financeiro. Veja em "Fretes fechados".</p>';
+    return html;
+  }
+  html += '<div class="tsg-wrap"><table class="tsg-table"><thead><tr><th>Transportador</th><th>Fixo</th><th>Variável</th><th>Premiação</th><th>Desconto vale (mês)</th><th>Saldo vale</th><th>Total a receber</th><th>Ação</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  html += '<p class="cardsub">"Fechar frete" congela os valores do mês, gera o PDF com campo de assinatura pra enviar ao transportador e depois libera o botão "Enviar para o financeiro".</p>';
+  return html;
+}
+
+/* ---- modal: conferir e fechar frete ---- */
+function tsGerFecharModal(){
+  const o = document.getElementById('tsger-fechar-overlay');
+  if(o) o.remove();
+}
+function tsGerAbrirFechar(motId){
+  const d = window.__tsGerData;
+  const L = d.linhas.find(function(x){ return x.m.id === motId; });
+  if(!L) return;
+  tsGerFecharModal();
+  const linha = function(lbl, val, cor){ return '<div class="tsg-pdf-row"><span>' + lbl + '</span><span' + (cor ? ' style="color:' + cor + ';font-weight:700;"' : '') + '>' + val + '</span></div>'; };
+  let avisos = '';
+  if(L.semTabela) avisos += '<p class="cardsub" style="color:var(--alert);">Atenção: este transportador não tem tabela de frete cadastrada, então o variável pode estar incompleto.</p>';
+  if(L.pr.semUsuario) avisos += '<p class="cardsub" style="color:var(--wait);">Este transportador não tem usuário vinculado — premiação considerada como não ganha.</p>';
+  const overlay = document.createElement('div');
+  overlay.id = 'tsger-fechar-overlay';
+  overlay.className = 'rjx-modal-overlay';
+  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Fechar frete — ' + escapeHtml(L.m.nome) + '</h3><button class="rjx-modal-close" onclick="tsGerFecharModal()">✕</button></div><div class="rjx-modal-body">' +
+    '<p class="cardsub" style="margin-top:0;">Confira os valores de ' + freteMesLabel(d.mesRef) + '. Ao confirmar, os valores ficam congelados e o PDF é gerado pra enviar ao transportador.</p>' + avisos +
+    '<div style="background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:16px;">' +
+    linha(L.m.vinculo_tipo === 'clt' ? 'Salário fixo' : 'Valor fixo', L.fixo > 0 ? freteFmt(L.fixo) : '—') +
+    linha('Variável (' + L.lancMes.length + ' corridas)', freteFmt(L.variavel)) +
+    linha('Premiação Logística (' + L.pr.pct + '%)', L.valorPremio > 0 ? freteFmt(L.valorPremio) : '—') +
+    linha('Desconto de vale (mês)', L.desconto > 0 ? '– ' + freteFmt(L.desconto) : '—', L.desconto > 0 ? 'var(--alert)' : '') +
+    linha('Saldo de vale em aberto', L.saldo > 0.005 ? freteFmt(L.saldo) : '—') +
+    '<div class="tsg-pdf-total"><span>Total a receber</span><span>' + freteFmt(L.total) + '</span></div></div>' +
+    '</div><div class="rjx-modal-foot"><div></div><div class="right-group">' +
+    '<button class="btn btn-ghost" onclick="tsGerFecharModal()">Cancelar</button>' +
+    '<button class="btn btn-primary" id="tsger-btn-confirmar" onclick="tsGerConfirmarFechar(&quot;' + motId + '&quot;)">Confirmar e gerar PDF</button>' +
+    '</div></div></div>';
+  document.body.appendChild(overlay);
+}
+
+async function tsGerConfirmarFechar(motId){
+  const d = window.__tsGerData;
+  const L = d.linhas.find(function(x){ return x.m.id === motId; });
+  if(!L) return;
+  const btn = document.getElementById('tsger-btn-confirmar');
+  if(btn){ btn.disabled = true; btn.textContent = 'Gerando...'; }
+  const payload = {
+    motorista_id: L.m.id, mes_ref: d.mesRef,
+    valor_fixo: L.fixo, valor_variavel: Math.round(L.variavel * 100) / 100, valor_premio: L.valorPremio, premio_pct: L.pr.pct,
+    desconto_vale: L.desconto, saldo_vale: Math.round(L.saldo * 100) / 100, valor_total: Math.round(L.total * 100) / 100,
+    qtd_corridas: L.lancMes.length, status: 'aguardando_financeiro', pdf_gerado_em: new Date().toISOString(), enviado_em: null,
+    criado_por: currentUsuario.id
+  };
+  const r = await sb.from('comercial_frete_fechamentos').upsert(payload, { onConflict: 'motorista_id,mes_ref' }).select().single();
+  if(r.error){
+    alert('Erro ao fechar frete: ' + r.error.message);
+    if(btn){ btn.disabled = false; btn.textContent = 'Confirmar e gerar PDF'; }
+    return;
+  }
+  tsGerFecharModal();
+  try{ await tsGerBaixarPDF(r.data.id); }catch(e){ alert('Frete fechado, mas houve erro ao gerar o PDF: ' + (e.message || e) + '. Use o botão PDF pra tentar de novo.'); }
+  await tsGerRecarregar();
+}
+
+async function tsGerEnviarFinanceiro(fid){
+  if(!confirm('Enviar este frete para o financeiro? Ele sai da lista do mês e vai para "Fretes fechados".')) return;
+  const r = await sb.from('comercial_frete_fechamentos').update({ status: 'enviado', enviado_em: new Date().toISOString() }).eq('id', fid);
+  if(r.error){ alert('Erro: ' + r.error.message); return; }
+  await tsGerRecarregar();
+}
+async function tsGerDesfazer(fid){
+  if(!confirm('Desfazer o fechamento? Os valores voltam a ser calculados em tempo real e o PDF gerado deixa de valer.')) return;
+  const r = await sb.from('comercial_frete_fechamentos').delete().eq('id', fid).eq('status', 'aguardando_financeiro');
+  if(r.error){ alert('Erro: ' + r.error.message); return; }
+  await tsGerRecarregar();
+}
+
+/* ---- PDF do fechamento ---- */
+async function tsGerBaixarPDF(fid){
+  const rf = await sb.from('comercial_frete_fechamentos').select('*').eq('id', fid).single();
+  if(rf.error || !rf.data){ alert('Fechamento não encontrado.'); return; }
+  const f = rf.data;
+  const rm = await sb.from('comercial_frete_motoristas').select('*').eq('id', f.motorista_id).single();
+  const m = rm.data;
+  const rt = await sb.from('comercial_frete_tabelas').select('*').eq('motorista_id', m.id).maybeSingle();
+  const tabela = rt.data || null;
+  const p = f.mes_ref.split('-');
+  const prox = new Date(Number(p[0]), Number(p[1]), 1);
+  const fim = prox.getFullYear() + '-' + String(prox.getMonth()+1).padStart(2,'0') + '-01';
+  const rl = await sb.from('comercial_frete_lancamentos').select('*').eq('motorista_id', m.id).gte('data', f.mes_ref + '-01').lt('data', fim).order('data').order('id');
+  const rv = await sb.from('comercial_frete_vales').select('*').eq('motorista_id', m.id).order('data');
+  const vales = rv.data || [];
+  const parcelas = await freteCarregarParcelasPorVale(vales.map(function(v){ return v.id; }));
+  tsGerGerarPDF(m, f, tabela, rl.data || [], vales, parcelas);
+}
+
+function tsGerGerarPDF(m, f, tabela, lanc, vales, parcelas){
+  const jsPDF = window.jspdf.jsPDF;
+  const doc = new jsPDF();
+  const M = 14, R = 196;
+  let y = 18;
+  const ensure = function(h){ if(y + h > 280){ doc.addPage(); y = 18; } };
+  const linha = function(lbl, val, bold){
+    ensure(7);
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.text(lbl, M, y);
+    doc.text(val, R, y, { align: 'right' });
+    y += 6.5;
+  };
+  const secao = function(t){
+    ensure(14);
+    y += 3;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+    doc.text(t, M, y);
+    y += 2;
+    doc.setDrawColor(200); doc.line(M, y, R, y);
+    y += 6;
+    doc.setFontSize(10.5); doc.setFont('helvetica', 'normal');
+  };
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+  doc.text('RJX Baiense Locações - Fechamento de Frete', M, y); y += 9;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+  doc.text('Transportador: ' + m.nome, M, y); y += 6;
+  doc.text('Vínculo: ' + (m.vinculo_tipo === 'clt' ? 'CLT' : 'PJ') + '     Referência: ' + freteMesLabel(f.mes_ref), M, y); y += 6;
+  doc.text('Emitido em: ' + new Date(f.pdf_gerado_em).toLocaleString('pt-BR'), M, y); y += 4;
+  doc.setFontSize(10.5);
+
+  secao('1. Resumo do fechamento');
+  linha(m.vinculo_tipo === 'clt' ? 'Salário fixo' : 'Valor fixo', Number(f.valor_fixo) > 0 ? freteFmt(f.valor_fixo) : '-');
+  linha('Variável (' + f.qtd_corridas + ' corridas)', freteFmt(f.valor_variavel));
+  linha('Premiação Logística (' + f.premio_pct + '% da meta)', Number(f.valor_premio) > 0 ? freteFmt(f.valor_premio) : '-');
+  linha('Desconto de vale (mês)', Number(f.desconto_vale) > 0 ? '- ' + freteFmt(f.desconto_vale) : '-');
+  y += 1; ensure(10);
+  doc.setDrawColor(23); doc.line(M, y - 3.5, R, y - 3.5);
+  doc.setFontSize(12);
+  linha('TOTAL A RECEBER', freteFmt(f.valor_total), true);
+  doc.setFontSize(10.5);
+  linha('Saldo de vale em aberto (informativo)', Number(f.saldo_vale) > 0.005 ? freteFmt(f.saldo_vale) : '-');
+
+  secao('2. Corridas do mês');
+  if(!lanc.length){
+    doc.text('Nenhuma corrida lançada no mês.', M, y); y += 6.5;
+  } else {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Data', M, y); doc.text('Pedido', 36, y); doc.text('Equipamento', 68, y); doc.text('Km', 150, y, { align: 'right' }); doc.text('Valor', R, y, { align: 'right' });
+    y += 5; doc.setFont('helvetica', 'normal');
+    lanc.forEach(function(l){
+      ensure(7);
+      const eq = FRETE_EQUIPAMENTOS.find(function(e){ return e.id === l.equipamento; });
+      let valor = '-';
+      try{ if(tabela){ const t = freteCalcular(l, tabela).total; if(isFinite(t)) valor = freteFmt(t); } }catch(e){}
+      let eqTxt = eq ? eq.label : String(l.equipamento || '');
+      if(l.espera) eqTxt += ' +espera ' + l.espera;
+      if(Number(l.extra) > 0) eqTxt += ' +extra';
+      if(eqTxt.length > 42) eqTxt = eqTxt.slice(0, 41) + '.';
+      doc.text(freteFmtData(l.data), M, y);
+      doc.text(String(l.pedido || '-').slice(0, 16), 36, y);
+      doc.text(eqTxt, 68, y);
+      doc.text(String(l.km != null ? l.km : '-'), 150, y, { align: 'right' });
+      doc.text(valor, R, y, { align: 'right' });
+      y += 5.5;
+    });
+    y += 1;
+  }
+
+  const valesRel = vales.map(function(v){
+    const ps = parcelas[v.id] || [];
+    const pago = ps.reduce(function(s, q){ return s + (q.paga ? Number(q.valor) : 0); }, 0);
+    const pagoMes = ps.reduce(function(s, q){ return s + ((q.paga && q.pago_em && q.pago_em.slice(0,7) === f.mes_ref) ? Number(q.valor) : 0); }, 0);
+    return { v: v, saldo: Number(v.valor) - pago, pagoMes: pagoMes };
+  }).filter(function(x){ return x.saldo > 0.005 || x.pagoMes > 0; });
+  secao('3. Vales');
+  if(!valesRel.length){
+    doc.text('Nenhum vale em aberto ou descontado neste mês.', M, y); y += 6.5;
+  } else {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Data / motivo', M, y); doc.text('Valor', 120, y, { align: 'right' }); doc.text('Desc. no mês', 158, y, { align: 'right' }); doc.text('Saldo', R, y, { align: 'right' });
+    y += 5; doc.setFont('helvetica', 'normal');
+    valesRel.forEach(function(x){
+      ensure(7);
+      doc.text((freteFmtData(x.v.data) + ' ' + (x.v.motivo || '')).slice(0, 48), M, y);
+      doc.text(freteFmt(x.v.valor), 120, y, { align: 'right' });
+      doc.text(x.pagoMes > 0 ? freteFmt(x.pagoMes) : '-', 158, y, { align: 'right' });
+      doc.text(freteFmt(x.saldo), R, y, { align: 'right' });
+      y += 5.5;
+    });
+  }
+
+  ensure(50);
+  y += 8;
+  doc.setFontSize(10);
+  doc.text('Declaro que conferi os valores acima e estou de acordo com o fechamento de ' + freteMesLabel(f.mes_ref) + '.', M, y);
+  y += 24;
+  doc.setDrawColor(60); doc.line(M, y, 110, y); doc.line(128, y, R, y);
+  y += 5; doc.setFontSize(9);
+  doc.text('Assinatura do transportador', M, y);
+  doc.text('Data', 128, y);
+  const nomeArq = 'Fechamento-Frete-' + m.nome.replace(/[^A-Za-z0-9]+/g, '-') + '-' + f.mes_ref + '.pdf';
+  doc.save(nomeArq);
+}
+
+/* ---- Fretes fechados (por mes) ---- */
+function tsGerHtmlFechados(d){
+  const enviados = d.fechamentos.filter(function(f){ return f.status === 'enviado'; });
+  const meses = Array.from(new Set(enviados.map(function(f){ return f.mes_ref; }))).sort().reverse();
+  if(!meses.length){
+    return '<p class="empty-hint">Nenhum frete enviado ao financeiro ainda. Quando você clicar em "Enviar para o financeiro", ele aparece aqui, separado por mês.</p>';
+  }
+  let sel = window.__tsGerFechMes;
+  if(!sel || meses.indexOf(sel) < 0) sel = meses[0];
+  const abas = '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">' + meses.map(function(k){
+    return '<button class="tsg-mes' + (k === sel ? ' active' : '') + '" onclick="tsGerSetFechMes(&quot;' + k + '&quot;)">' + freteMesLabel(k) + '</button>';
+  }).join('') + '</div>';
+  const itens = enviados.filter(function(f){ return f.mes_ref === sel; });
+  const soma = function(campo){ return itens.reduce(function(a, f){ return a + Number(f[campo]); }, 0); };
+  const rows = itens.map(function(f){
+    const nm = d.nomes[f.motorista_id];
+    const dt = f.enviado_em ? new Date(f.enviado_em).toLocaleDateString('pt-BR') : '—';
+    return '<tr>' +
+      '<td><span class="tsg-nome">' + escapeHtml(nm ? nm.nome : '—') + '</span><span class="tsg-sub">' + (nm && nm.vinculo_tipo === 'clt' ? 'CLT' : 'PJ') + '</span></td>' +
+      '<td>' + (Number(f.valor_fixo) > 0 ? freteFmt(f.valor_fixo) : '<span class="tsg-mut">—</span>') + '</td>' +
+      '<td>' + freteFmt(f.valor_variavel) + '<span class="tsg-sub">' + f.qtd_corridas + ' corrida(s)</span></td>' +
+      '<td>' + (Number(f.valor_premio) > 0 ? freteFmt(f.valor_premio) : '<span class="tsg-mut">—</span>') + '<span class="tsg-sub">' + f.premio_pct + '%</span></td>' +
+      '<td>' + (Number(f.desconto_vale) > 0 ? '<span class="tsg-neg">– ' + freteFmt(f.desconto_vale) + '</span>' : '<span class="tsg-mut">—</span>') + '</td>' +
+      '<td style="font-weight:700;">' + freteFmt(f.valor_total) + '</td>' +
+      '<td>' + dt + '</td>' +
+      '<td><button class="btn btn-ghost btn-sm" onclick="tsGerBaixarPDF(&quot;' + f.id + '&quot;)">PDF</button></td></tr>';
+  }).join('');
+  return abas +
+    '<div class="summary-row">' +
+    '<div class="summary-box"><div class="num">' + itens.length + '</div><div class="lbl">Fretes fechados</div></div>' +
+    '<div class="summary-box"><div class="num">' + freteFmt(soma('valor_total')) + '</div><div class="lbl">Total enviado ao financeiro</div></div>' +
+    '<div class="summary-box"><div class="num">' + freteFmt(soma('valor_premio')) + '</div><div class="lbl">Premiação paga</div></div>' +
+    '<div class="summary-box"><div class="num" style="color:var(--alert);">' + (soma('desconto_vale') > 0 ? '– ' + freteFmt(soma('desconto_vale')) : '—') + '</div><div class="lbl">Descontos de vale</div></div>' +
+    '</div>' +
+    '<div class="tsg-wrap"><table class="tsg-table"><thead><tr><th>Transportador</th><th>Fixo</th><th>Variável</th><th>Premiação</th><th>Desconto vale</th><th>Total</th><th>Enviado em</th><th>PDF</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
+/* ---- Premiacao detalhada (gerencial) ---- */
+async function tsGerCarregarPremiacao(){
+  tsGerEnsureStyle();
+  const content = document.getElementById('transportes-content');
+  content.innerHTML = '<p class="empty-hint">Carregando...</p>';
+  try{
+    const rMot = await sb.from('comercial_frete_motoristas').select('*').eq('ativo', true).order('ordem');
+    const motoristas = rMot.data || [];
+    const prem = await tsGerCalcularPremiacao(motoristas);
+    window.__tsGerPremData = { motoristas: motoristas, prem: prem };
+  }catch(e){
+    content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(e.message || String(e)) + '</p>';
+    return;
+  }
+  tsGerRenderPremiacao();
+}
+function tsGerToggleExp(id){
+  window.__tsGerExpand[id] = !window.__tsGerExpand[id];
+  tsGerRenderPremiacao();
+}
+function tsGerRenderPremiacao(){
+  const d = window.__tsGerPremData;
+  const content = document.getElementById('transportes-content');
+  let ganhando = 0, risco = 0, abaixo = 0, sem = 0;
+  const infoDe = function(m){
+    const pr = m.usuario_id ? d.prem[m.usuario_id] : null;
+    if(!pr || !pr.locs.length) return { pr: pr, st: 'sem', cls: 'status-info', txt: m.usuario_id ? 'Sem locações' : 'Sem usuário', fill: 'var(--gray)' };
+    if(pr.pct >= 80) return { pr: pr, st: 'ok', cls: 'status-ok', txt: 'Ganhando', fill: 'var(--ok)' };
+    if(pr.pct >= 50) return { pr: pr, st: 'risco', cls: 'status-wait', txt: 'Em risco', fill: 'var(--wait)' };
+    return { pr: pr, st: 'abaixo', cls: 'status-wait', txt: 'Abaixo de 50%', fill: 'var(--alert)' };
+  };
+  d.motoristas.forEach(function(m){
+    const i = infoDe(m);
+    if(i.st === 'ok') ganhando++; else if(i.st === 'risco') risco++; else if(i.st === 'abaixo') abaixo++; else sem++;
+  });
+  let rows = '';
+  d.motoristas.forEach(function(m){
+    const i = infoDe(m), pr = i.pr;
+    const aberto = !!window.__tsGerExpand[m.id];
+    rows += '<tr style="cursor:pointer;" onclick="tsGerToggleExp(&quot;' + m.id + '&quot;)">' +
+      '<td style="color:var(--gray);width:20px;">' + (aberto ? '▾' : '▸') + '</td>' +
+      '<td><span class="tsg-nome">' + escapeHtml(m.nome) + '</span><span class="tsg-sub">' + (m.vinculo_tipo === 'clt' ? 'CLT' : 'PJ') + '</span></td>' +
+      '<td>' + (pr ? pr.locs.length : '—') + '</td>' +
+      '<td>' + (pr ? pr.etapasOk + ' / ' + pr.etapasTot : '—') + '</td>' +
+      '<td>' + (pr ? pr.diasOk + ' / ' + pr.dias.length + ' dia(s)' : '—') + '</td>' +
+      '<td>' + (pr && pr.locs.length ? '<div style="display:flex;align-items:center;gap:8px;"><div class="tsg-bar"><div style="width:' + Math.min(pr.pct, 100) + '%;background:' + i.fill + ';"></div></div><span style="font-weight:700;">' + pr.pct + '%</span></div>' : '<span class="tsg-mut">—</span>') + '</td>' +
+      '<td><span class="status-pill ' + i.cls + '"><span class="dot"></span>' + i.txt + '</span></td></tr>';
+    if(aberto){
+      let corpo;
+      if(!pr || !pr.locs.length){
+        corpo = '<p class="cardsub" style="margin:0;">' + (m.usuario_id ? 'Nenhuma locação registrada na Premiação Logística.' : 'Este transportador não tem usuário vinculado, então não participa da Premiação Logística.') + '</p>';
+      } else {
+        corpo = '<p class="cardsub" style="margin:0 0 12px;"><b>' + pr.pontos + '</b> ponto(s) de <b>' + pr.possiveis + '</b> possíveis = <b>' + pr.pct + '%</b> (meta: 80% para ganhar R$ 500,00). Cada etapa concluída vale 1 ponto; cada dia com selfie de uniforme validada vale +' + PONTOS_UNIFORME_PREMIACAO + ' e, se não enviada/expirada/reprovada, tira ' + PONTOS_UNIFORME_PREMIACAO + '.</p>';
+        corpo += pr.locs.map(function(ld){
+          const loc = ld.loc;
+          const eqLbl = PREMIACAO_EQUIP[loc.equipamento] ? PREMIACAO_EQUIP[loc.equipamento].label : loc.equipamento;
+          const completa = ld.etapas.length > 0 && ld.feitas === ld.etapas.length;
+          const etHtml = ld.etapas.map(function(e){
+            const meu = e.concluida && e.motorista_id === m.usuario_id;
+            const outro = e.concluida && !meu;
+            return '<div class="tsg-et"><span class="tsg-ck ' + (meu ? 'y' : (outro ? 'o' : 'n')) + '">' + (meu ? '✓' : (outro ? '–' : '✕')) + '</span><span class="' + (meu ? '' : 'no') + '">' + escapeHtml(e.nome) + (outro ? ' (feita por outro transportador)' : '') + '</span></div>';
+          }).join('');
+          return '<div class="tsg-loc"><div class="tsg-loc-head"><span class="status-pill ' + (completa ? 'status-ok' : 'status-wait') + '"><span class="dot"></span>' + escapeHtml(eqLbl) + ' #' + escapeHtml(loc.numero || '') + '</span>' +
+            '<span style="color:var(--gray);font-weight:400;">' + freteFmtData(loc.data_locacao) + ' · ' + ld.feitas + ' / ' + ld.etapas.length + ' etapas</span></div>' +
+            '<div class="tsg-etapas">' + etHtml + '</div></div>';
+        }).join('');
+        const rot = { ok: ['y', '✓', 'Selfie validada (+' + PONTOS_UNIFORME_PREMIACAO + ')'], nao_enviada: ['n', '✕', 'Selfie não enviada (–' + PONTOS_UNIFORME_PREMIACAO + ')'], expirada: ['n', '✕', 'Selfie expirada (–' + PONTOS_UNIFORME_PREMIACAO + ')'], reprovada: ['n', '✕', 'Selfie reprovada (–' + PONTOS_UNIFORME_PREMIACAO + ')'], pendente: ['o', '…', 'Aguardando selfie'] };
+        corpo += '<div class="tsg-loc"><div class="tsg-loc-head">Uniforme (selfie do dia)</div><div class="tsg-etapas">' + pr.dias.map(function(dd){
+          const r = rot[dd.estado] || rot.pendente;
+          return '<div class="tsg-et"><span class="tsg-ck ' + r[0] + '">' + r[1] + '</span><span>' + freteFmtData(dd.dia) + ' — ' + r[2] + '</span></div>';
+        }).join('') + '</div></div>';
+      }
+      rows += '<tr><td colspan="7" style="padding:0;"><div class="tsg-exp">' + corpo + '</div></td></tr>';
+    }
+  });
+  content.innerHTML =
+    '<div class="summary-row">' +
+    '<div class="summary-box"><div class="num">' + ganhando + '</div><div class="lbl">Ganhando (80%+)</div></div>' +
+    '<div class="summary-box"><div class="num">' + risco + '</div><div class="lbl">Em risco (50–79%)</div></div>' +
+    '<div class="summary-box"><div class="num">' + abaixo + '</div><div class="lbl">Abaixo de 50%</div></div>' +
+    '<div class="summary-box"><div class="num">' + freteFmt(ganhando * 500) + '</div><div class="lbl">Premiação projetada</div></div>' +
+    '</div>' +
+    '<p class="cardsub">Mesma pontuação que cada transportador vê no painel dele. Clique num nome pra ver locações, etapas e selfies.</p>' +
+    '<div class="tsg-wrap"><table class="tsg-table"><thead><tr><th></th><th>Transportador</th><th>Locações</th><th>Etapas ok</th><th>Uniforme</th><th>% pontuação</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
 /* ===== Meus Controles (Transportes) ===== */
 async function tsCarregarMeusControles(){
+  if(currentUsuario.papel === 'gerencial'){ return tsGerCarregarControles(); }
   const content = document.getElementById('transportes-content');
   content.innerHTML = '<p class="empty-hint">Carregando...</p>';
   const rMot = await sb.from('comercial_frete_motoristas').select('*').eq('usuario_id', currentUsuario.id).maybeSingle();
