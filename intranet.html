@@ -1065,14 +1065,16 @@ function freteCalcular(l, tabela){
 async function carregarFreteComercial(){
   const content = document.getElementById("comercial-content");
   content.innerHTML = "<p class=\"empty-hint\">Carregando...</p>";
-  const rMot = await sb.from("comercial_frete_motoristas").select("*").eq("ativo", true).order("ordem");
-  window.__freteMotoristas = rMot.data || [];
+  const rMot = await sb.from("comercial_frete_motoristas").select("*").order("ordem");
+  window.__freteMotoristasTodos = rMot.data || [];
+  window.__freteMotoristas = window.__freteMotoristasTodos.filter(function(x){ return x.ativo !== false; });
+  window.__freteMotoristasInativos = window.__freteMotoristasTodos.filter(function(x){ return x.ativo === false; });
   const rTab = await sb.from("comercial_frete_tabelas").select("*");
   window.__freteTabelas = {};
   (rTab.data||[]).forEach(function(tb){ window.__freteTabelas[tb.motorista_id] = tb; });
   const rUsu = await sb.from("usuarios").select("id,nome").eq("papel","transportes").eq("ativo", true).order("nome");
   window.__freteUsuariosTransportes = rUsu.data || [];
-  if(!window.__freteMotoristaAtual && window.__freteMotoristas.length){ window.__freteMotoristaAtual = window.__freteMotoristas[0].id; }
+  if((!window.__freteMotoristaAtual || !window.__freteMotoristas.some(function(x){ return x.id === window.__freteMotoristaAtual; })) && window.__freteMotoristas.length){ window.__freteMotoristaAtual = window.__freteMotoristas[0].id; }
   window.__fretePrecoAberto = window.__fretePrecoAberto || false;
   await freteRenderConteudo();
 }
@@ -1085,7 +1087,24 @@ function freteMotoristaCompleto(m){
 }
 function freteRenderGestaoTransportadores(){
   const motoristas = window.__freteMotoristas || [];
-  let html = '<div class="list-title">Transportadores</div>';
+  const abaT = window.__freteTranspAba || 'ativos';
+  const inativos = window.__freteMotoristasInativos || [];
+  let html = '<div class="list-title">Transportadores</div>' +
+    '<div style="display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap;">' +
+    '<button type="button" class="subtab' + (abaT === 'ativos' ? ' active' : '') + '" onclick="freteSetTranspAba(&quot;ativos&quot;)">Ativos (' + motoristas.length + ')</button>' +
+    '<button type="button" class="subtab' + (abaT === 'inativos' ? ' active' : '') + '" onclick="freteSetTranspAba(&quot;inativos&quot;)">Inativos (' + inativos.length + ')</button>' +
+    '</div>';
+  if(abaT === 'inativos'){
+    if(!inativos.length){ return html + '<p class="empty-hint">Nenhum transportador inativo.</p>'; }
+    html += '<div class="transp-grid">' + inativos.map(function(mi){
+      return '<div class="transp-tile" style="cursor:default;opacity:.85;">' +
+        '<div class="tt-nome">' + escapeHtml(mi.nome) + '</div>' +
+        '<div class="tt-info"><span class="tt-tag">' + freteVinculoLabel(mi.vinculo_tipo) + '</span></div>' +
+        '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="freteReativarTransportador(&quot;' + mi.id + '&quot;)">Reativar</button>' +
+        '</div>';
+    }).join('') + '</div>';
+    return html;
+  }
   html += '<div class="transp-grid">';
   motoristas.forEach(function(m, i){
     const completo = freteMotoristaCompleto(m);
@@ -1151,6 +1170,7 @@ function freteRenderFormTransportador(m, idx){
         '<option value="pf"' + (vinculoTipo==='pf'?' selected':'') + '>Pessoa física / autônomo</option>' +
       '</select></div>' +
     '</div>' +
+    (isNovo ? '' : '<div class="field"><label>Situação</label><select id="f-ativo-' + prefix + '"><option value="ativo"' + (m.ativo === false ? '' : ' selected') + '>Ativo</option><option value="inativo"' + (m.ativo === false ? ' selected' : '') + '>Saiu da empresa (inativo)</option></select></div>') +
     '<div class="grid2 campo-pj-' + prefix + '" style="' + (vinculoTipo==='pj'?'':'display:none;') + '">' +
       '<div class="field"><label>Tem valor fixo de contrato?</label><select id="f-pjfixo-' + prefix + '" onchange="freteAplicarVisibilidadePjFixo(&quot;' + prefix + '&quot;)">' +
         '<option value="nao"' + (pjFixo==='nao'?' selected':'') + '>Não, só variável</option>' +
@@ -1237,7 +1257,8 @@ function freteColetarForm(prefix){
     placa: document.getElementById('f-placa-' + prefix).value.trim(),
     usuarioId: document.getElementById('f-usuario-' + prefix).value,
     vinculoTipo: vinculoTipo,
-    valorFixo: valorFixo
+    valorFixo: valorFixo,
+    ativo: (document.getElementById('f-ativo-' + prefix) ? document.getElementById('f-ativo-' + prefix).value !== 'inativo' : true)
   };
 }
 async function freteSalvarNovo(){
@@ -1258,16 +1279,47 @@ async function freteTransportadorSalvarEdicao(idx){
   if(!m) return;
   const dados = freteColetarForm('edit' + idx);
   if(!dados.nome){ alert('Informe o nome do transportador.'); return; }
+  if(dados.ativo === false){
+    const abertos = await freteFretesAbertos(m.id);
+    if(abertos.length){
+      alert('Não dá pra inativar ' + m.nome + ': ainda tem frete em aberto em ' + abertos.map(freteMesLabel).join(', ') + '. Feche o frete e envie pro financeiro em Transportes > Meus controles (Mês vigente) e depois volte aqui pra inativar.');
+      return;
+    }
+    if(!confirm('Inativar ' + m.nome + '? Ele sai das listas de lançamento, do resumo do mês e da premiação. Dá pra reativar depois na aba Inativos.')) return;
+  }
   const upd = await sb.from('comercial_frete_motoristas').update({
     nome: dados.nome, telefone: dados.telefone,
     veiculo_tipo: dados.veiculoTipo, veiculo_modelo: dados.modelo, veiculo_placa: dados.placa,
-    usuario_id: dados.usuarioId || null, vinculo_tipo: dados.vinculoTipo, valor_fixo: dados.valorFixo
+    usuario_id: dados.usuarioId || null, vinculo_tipo: dados.vinculoTipo, valor_fixo: dados.valorFixo,
+    ativo: dados.ativo !== false
   }).eq('id', m.id);
   if(upd.error){ alert('Erro ao salvar: ' + upd.error.message); return; }
   window.__freteEditIndex = null;
   await carregarFreteComercial();
 }
 
+function freteSetTranspAba(aba){
+  window.__freteTranspAba = aba;
+  window.__freteEditIndex = null;
+  window.__freteNovoAberto = false;
+  freteRenderConteudo();
+}
+async function freteFretesAbertos(motId){
+  const meses = tsGerMesesOpcoes();
+  const maisAntigo = meses[meses.length - 1];
+  const rl = await sb.from('comercial_frete_lancamentos').select('data').eq('motorista_id', motId).gte('data', maisAntigo + '-01');
+  const comLanc = {};
+  (rl.data || []).forEach(function(l){ comLanc[l.data.slice(0,7)] = true; });
+  const rf = await sb.from('comercial_frete_fechamentos').select('mes_ref,status').eq('motorista_id', motId).eq('status', 'enviado');
+  const enviados = {};
+  (rf.data || []).forEach(function(f){ enviados[f.mes_ref] = true; });
+  return meses.filter(function(k){ return comLanc[k] && !enviados[k]; }).sort();
+}
+async function freteReativarTransportador(id){
+  const r = await sb.from('comercial_frete_motoristas').update({ ativo: true }).eq('id', id);
+  if(r.error){ alert('Erro ao reativar: ' + r.error.message); return; }
+  await carregarFreteComercial();
+}
 function freteSelecionarMotorista(id){
   window.__freteMotoristaAtual = id;
   window.__fretePrecoAberto = false;
