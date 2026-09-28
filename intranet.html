@@ -792,13 +792,28 @@ function renderShell(){
   });
   atualizarBadgeContestacoesSidebar();
 
-  if(firstEnabled){ selectModule(firstEnabled.id); }
+  if(firstEnabled){
+    let moduloSalvo = null;
+    try{ moduloSalvo = localStorage.getItem('rjx_modulo'); }catch(e){}
+    selectModule(moduloSalvo || firstEnabled.id);
+  }
 }
 
+function rjxSubSalvo(mod, prefixoId, padrao){
+  try{
+    const s = localStorage.getItem('rjx_sub_' + mod);
+    if(s && document.getElementById(prefixoId + s)) return s;
+  }catch(e){}
+  return padrao;
+}
+function rjxSubSalvar(mod, tab){
+  try{ localStorage.setItem('rjx_sub_' + mod, tab); }catch(e){}
+}
 function selectModule(modId){
   const permMods = moduleList();
   const permitido = permMods.find(function(m){ return m.id === modId; });
   if(!permitido || !permitido.enabled){ const fb = permMods.find(function(m){ return m.enabled; }); modId = fb ? fb.id : modId; }
+  try{ localStorage.setItem('rjx_modulo', modId); }catch(e){}
   document.querySelectorAll('.mod-link[data-mod]').forEach(function(l){ l.classList.toggle('active', l.dataset.mod === modId); });
   const mainArea = document.getElementById('main-area');
   if(modId === 'gerencial'){ renderGerencial(mainArea); }
@@ -1029,7 +1044,7 @@ async function renderComercial(container){
     '<div class="content" id="comercial-content"><p class="empty-hint">Carregando...</p></div>';
 
   
-  await selectComercialSubtab('insumos');
+  await selectComercialSubtab(rjxSubSalvo('comercial', 'cs-tab-', 'insumos'));
 }
 
 
@@ -1573,6 +1588,7 @@ async function freteSalvarEdicao(id){
 }
 
 async function selectComercialSubtab(tab){
+  rjxSubSalvar('comercial', tab);
   document.getElementById('cs-tab-insumos').classList.toggle('active', tab==='insumos');
   document.getElementById('cs-tab-leads').classList.toggle('active', tab==='leads');
   document.getElementById('cs-tab-comissao').classList.toggle('active', tab==='comissao');
@@ -2441,10 +2457,11 @@ async function renderTransportes(container){
 '</div>' +
     '<div class="content" id="transportes-content"><p class="empty-hint">Carregando...</p></div>';
   
-  await selectTransportesSubtab('insumos');
+  await selectTransportesSubtab(rjxSubSalvo('transportes', 'ts-tab-', 'insumos'));
 }
 
 async function selectTransportesSubtab(tab){
+  rjxSubSalvar('transportes', tab);
   document.getElementById('ts-tab-insumos').classList.toggle('active', tab==='insumos');
   document.getElementById('ts-tab-premiacao').classList.toggle('active', tab==='premiacao');
   document.getElementById('ts-tab-manual').classList.toggle('active', tab==='manual');
@@ -3005,10 +3022,11 @@ async function renderOperacional(container){
     '<button class="subtab" id="op-tab-premiacao" onclick="selectOperacionalSubtab(&quot;premiacao&quot;)">Premiação Logística</button>' +
     '</div>' +
     '<div class="content" id="operacional-content"><p class="empty-hint">Carregando...</p></div>';
-  await carregarEquipamentosOperacional();
+  await selectOperacionalSubtab(rjxSubSalvo('operacional', 'op-tab-', 'equip'));
 }
 
 async function selectOperacionalSubtab(tab){
+  rjxSubSalvar('operacional', tab);
   document.getElementById("op-tab-equip").classList.toggle("active", tab==="equip");
   document.getElementById("op-tab-manut").classList.toggle("active", tab==="manut");
   document.getElementById("op-tab-seguros").classList.toggle("active", tab==="seguros");
