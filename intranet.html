@@ -7380,7 +7380,9 @@ async function freteCarregarParcelasPorVale(idsVales){
 }
 function freteRenderCardVales(m, vales, parcelasPorVale, saldoMotorista){
   window.__freteParcelasPorVale = parcelasPorVale;
-  let html = '<div class="card form-card">' +
+  window.__freteValesAtual = vales;
+  window.__freteSaldoMotoristaAtual = saldoMotorista;
+  let html = '<div class="card form-card" id="frete-vales-card">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
     '<div><h3 style="margin-bottom:2px;">Vales — ' + escapeHtml(m.nome) + '</h3><p class="cardsub" style="margin:0;">Registro simples. O desconto pode ser parcelado, e cada parcela dá baixa separadamente.</p></div>' +
     '<div style="text-align:right;"><div style="font-family:\'Fraunces\',Georgia,serif;font-size:19px;font-weight:600;color:' + (saldoMotorista>0?'var(--alert)':'var(--gray)') + ';">' + freteFmt(saldoMotorista) + '</div><div style="font-size:10.5px;color:var(--gray);text-transform:uppercase;">saldo em aberto</div></div>' +
@@ -7416,7 +7418,18 @@ function freteRenderCardVales(m, vales, parcelasPorVale, saldoMotorista){
       html += '<button class="icon-btn" title="Excluir vale" style="border-color:var(--alert);color:var(--alert);" onclick="freteExcluirVale(&quot;'+v.id+'&quot;)">✕</button>';
       html += '</div></div>';
       if(parcelas.length){
+        const muitasParcelas = parcelas.length > 6;
+        const parcelasAberta = !!(window.__freteParcelasAbertas && window.__freteParcelasAbertas[v.id]);
+        if(muitasParcelas && !parcelasAberta){
+          const pagas = parcelas.filter(function(p){ return p.paga; }).length;
+          html += '<div style="margin-top:8px;">' +
+            '<button type="button" style="background:transparent;border:none;color:var(--wine);font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;" onclick="freteToggleParcelas(&quot;'+v.id+'&quot;)">Ver as ' + parcelas.length + ' parcelas (' + pagas + ' pagas, ' + (parcelas.length-pagas) + ' em aberto) ▾</button>' +
+            '</div>';
+        } else {
         html += '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">';
+        if(muitasParcelas){
+          html += '<button type="button" style="align-self:flex-start;background:transparent;border:none;color:var(--gray);font-size:11.5px;cursor:pointer;text-decoration:underline;margin-bottom:2px;" onclick="freteToggleParcelas(&quot;'+v.id+'&quot;)">▴ Recolher parcelas</button>';
+        }
         parcelas.forEach(function(p){
           const statusHtml = p.paga
             ? ('<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--ok-bg);color:var(--ok);">Paga em ' + (p.pago_em ? p.pago_em.split('-').reverse().join('/') : '') + '</span><button style="background:transparent;border:none;color:var(--alert);font-size:11px;cursor:pointer;text-decoration:underline;" onclick="freteExcluirBaixaParcela(&quot;'+p.id+'&quot;)">Excluir baixa</button></div>')
@@ -7425,12 +7438,22 @@ function freteRenderCardVales(m, vales, parcelasPorVale, saldoMotorista){
             '<span>Parcela ' + p.numero + '/' + parcelas.length + ' — ' + freteFmt(p.valor) + '</span>' + statusHtml + '</div>';
         });
         html += '</div>';
+        }
       }
       html += '</div>';
     });
   }
   html += '</div>';
   return html;
+}
+function freteToggleParcelas(valeId){
+  window.__freteParcelasAbertas = window.__freteParcelasAbertas || {};
+  window.__freteParcelasAbertas[valeId] = !window.__freteParcelasAbertas[valeId];
+  const m = (window.__freteMotoristas||[]).find(function(x){ return x.id === window.__freteMotoristaAtual; });
+  const container = document.getElementById('frete-vales-card');
+  if(m && container && window.__freteValesAtual){
+    container.outerHTML = freteRenderCardVales(m, window.__freteValesAtual, window.__freteParcelasPorVale, window.__freteSaldoMotoristaAtual || 0);
+  }
 }
 async function freteLancarVale(motoristaId){
   const valor = document.getElementById('vale-novo-valor').value;
