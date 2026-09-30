@@ -5128,7 +5128,7 @@ const CC_MODULE_HTML = `<div class="cc-mod">
         </div>
         <div>
           <label style="display:flex;align-items:center;justify-content:space-between;">Número de inscrição <button type="button" class="copy-mini" title="Copiar número" onclick="ccCopiarCampo(&quot;conselho-numero&quot;, this)">📋</button></label>
-          <input type="text" id="conselho-numero" placeholder="Ex: 123456-RJ">
+          <input type="text" id="conselho-numero" placeholder="Ex: 123456-RJ" oninput="ccAtualizarGateConselho()">
         </div>
       </div>
       <div class="field-row">
@@ -5163,6 +5163,7 @@ const CC_MODULE_HTML = `<div class="cc-mod">
             <div id="conselho-carteira-verso-nome" class="hint"></div>
           </div>
         </div>
+        <div id="conselho-carteira-dispensa-hint" class="hint" style="margin-top:2px;"></div>
         <div class="field-row" style="margin-top:10px;">
           <div>
             <label>Print da consulta</label>
@@ -5373,8 +5374,8 @@ const CC_MODULE_HTML = `<div class="cc-mod">
     </div>
 
     <div class="finalize-box" id="finalize-box" style="display:none;">
-      <p><b>Só falta um dado</b> pra levar esse cliente pra "Análise de clientes ativos": a carteirinha do conselho foi lida pela IA (situação), mas ainda não extraímos dela uma data de vencimento. Informe abaixo:</p>
-      <div class="field" style="max-width:220px;">
+      <p id="fz-venc-msg"><b>Só falta um dado</b> pra levar esse cliente pra "Análise de clientes ativos": a carteirinha do conselho foi lida pela IA (situação), mas ainda não extraímos dela uma data de vencimento. Informe abaixo:</p>
+      <div class="field" id="fz-venc-conselho-wrap" style="max-width:220px;">
         <label>Vencimento da carteira do conselho</label>
         <input type="date" id="fz-venc-conselho">
       </div>
@@ -5575,7 +5576,18 @@ function ccPreencherComDadosConselho(d){
 }
 
 function ccAtualizarGateConselho(){
-  ccState.conselhoConsultado = !!(ccState.conselhoLido && ccState.conselhoCarteiraFrenteNome && ccState.conselhoCarteiraVersoNome && ccState.conselhoPrintNome);
+  const numeroEl = document.getElementById('conselho-numero');
+  const numeroPreenchido = !!(numeroEl && numeroEl.value.trim());
+  const comCarteira = !!(ccState.conselhoCarteiraFrenteNome && ccState.conselhoCarteiraVersoNome);
+  const dispensaCarteira = !!(ccState.conselhoLido && ccState.conselhoAtivo && ccState.conselhoPrintNome && numeroPreenchido && !comCarteira);
+  ccState.conselhoCarteiraDispensada = dispensaCarteira;
+  ccState.conselhoConsultado = !!(ccState.conselhoLido && ccState.conselhoPrintNome && (comCarteira || dispensaCarteira));
+  const hint = document.getElementById('conselho-carteira-dispensa-hint');
+  if(hint){
+    hint.textContent = dispensaCarteira
+      ? 'Carteira dispensada: nº do conselho informado e consulta aprovada (ativa).'
+      : (comCarteira ? '' : (ccState.conselhoLido && ccState.conselhoAtivo && ccState.conselhoPrintNome ? 'Informe o nº do conselho acima pra dispensar o anexo da carteira.' : ''));
+  }
   ccCheckStep1Ready();
 }
 
@@ -6198,12 +6210,24 @@ function ccDataBRParaISO(str){
 function ccToggleFinalize(){
   const box = document.getElementById('finalize-box');
   if(!box) return;
-  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  const abrindo = box.style.display === 'none';
+  box.style.display = abrindo ? 'block' : 'none';
+  if(abrindo){
+    const msg = document.getElementById('fz-venc-msg');
+    const wrap = document.getElementById('fz-venc-conselho-wrap');
+    if(ccState.conselhoCarteiraDispensada){
+      if(msg) msg.innerHTML = '<b>Tudo certo.</b> A carteira do conselho não foi anexada, mas o nº informado e a consulta aprovada dispensam ela. Pode confirmar:';
+      if(wrap) wrap.style.display = 'none';
+    } else {
+      if(msg) msg.innerHTML = '<b>Só falta um dado</b> pra levar esse cliente pra "Análise de clientes ativos": a carteirinha do conselho foi lida pela IA (situação), mas ainda não extraímos dela uma data de vencimento. Informe abaixo:';
+      if(wrap) wrap.style.display = '';
+    }
+  }
 }
 
 async function ccConfirmarFinalizar(){
   const vencConselhoIso = document.getElementById('fz-venc-conselho').value;
-  if(!vencConselhoIso){
+  if(!vencConselhoIso && !ccState.conselhoCarteiraDispensada){
     alert('Informe o vencimento da carteira do conselho antes de finalizar.');
     return;
   }
@@ -6220,7 +6244,7 @@ async function ccConfirmarFinalizar(){
     alvara_ativo: ccState.pj ? ccState.alvaraAtivo : null,
     alvara_vencimento: ccState.pj ? ccDataBRParaISO(ccState.alvaraVencimento) : null,
     conselho_ativo: ccState.conselhoAtivo,
-    conselho_vencimento: vencConselhoIso,
+    conselho_vencimento: vencConselhoIso || null,
     credito_status: creditoStatus,
     criado_por: currentUsuario.id
   };
