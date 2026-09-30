@@ -6682,13 +6682,14 @@ async function tsGerCarregarDados(){
       const pago = (parcelas[v.id] || []).reduce(function(s, p){ return s + (p.paga ? Number(p.valor) : 0); }, 0);
       return a + (Number(v.valor) - pago);
     }, 0);
-    const desconto = meusVales.reduce(function(a, v){
-      return a + (parcelas[v.id] || []).reduce(function(s, p){ return s + ((p.paga && p.pago_em && p.pago_em.slice(0,7) === mesRef) ? Number(p.valor) : 0); }, 0);
-    }, 0);
+    const parcelasDoMes = meusVales.reduce(function(arr, v){
+      return arr.concat((parcelas[v.id] || []).filter(function(p){ return p.mes_referencia === mesRef; }).map(function(p){ return { vale: v, parcela: p }; }));
+    }, []);
+    const desconto = parcelasDoMes.reduce(function(s, x){ return s + Number(x.parcela.valor); }, 0);
     const fixo = (m.valor_fixo != null && Number(m.valor_fixo) > 0) ? Number(m.valor_fixo) : 0;
     const pr = m.usuario_id ? (prem[m.usuario_id] || { pct: 0, ganhando: false, semLocacoes: true }) : { pct: 0, ganhando: false, semUsuario: true };
     const valorPremio = pr.ganhando ? 500 : 0;
-    return { m: m, lancMes: lancMes, variavel: variavel, semTabela: semTabela, saldo: saldo, desconto: desconto, fixo: fixo, pr: pr, valorPremio: valorPremio, total: fixo + variavel + valorPremio - desconto };
+    return { m: m, lancMes: lancMes, variavel: variavel, semTabela: semTabela, saldo: saldo, desconto: desconto, parcelasDoMes: parcelasDoMes, fixo: fixo, pr: pr, valorPremio: valorPremio, total: fixo + variavel + valorPremio - desconto };
   });
   window.__tsGerData = { mesRef: mesRef, linhas: linhas, nomes: nomes, fechamentos: rFech.data || [] };
 }
@@ -6833,18 +6834,22 @@ async function tsGerConfirmarFechar(motId){
   if(!L) return;
   const btn = document.getElementById('tsger-btn-confirmar');
   if(btn){ btn.disabled = true; btn.textContent = 'Gerando...'; }
+  const idsParaBaixar = (L.parcelasDoMes || []).filter(function(x){ return !x.parcela.paga; }).map(function(x){ return x.parcela.id; });
   const payload = {
     motorista_id: L.m.id, mes_ref: d.mesRef,
     valor_fixo: L.fixo, valor_variavel: Math.round(L.variavel * 100) / 100, valor_premio: L.valorPremio, premio_pct: L.pr.pct,
     desconto_vale: L.desconto, saldo_vale: Math.round(L.saldo * 100) / 100, valor_total: Math.round(L.total * 100) / 100,
     qtd_corridas: L.lancMes.length, status: 'aguardando_financeiro', pdf_gerado_em: new Date().toISOString(), enviado_em: null,
-    criado_por: currentUsuario.id
+    criado_por: currentUsuario.id, parcelas_baixadas: idsParaBaixar
   };
   const r = await sb.from('comercial_frete_fechamentos').upsert(payload, { onConflict: 'motorista_id,mes_ref' }).select().single();
   if(r.error){
     alert('Erro ao fechar frete: ' + r.error.message);
     if(btn){ btn.disabled = false; btn.textContent = 'Confirmar e gerar PDF'; }
     return;
+  }
+  if(idsParaBaixar.length){
+    await sb.from('comercial_frete_vale_parcelas').update({ paga: true, pago_em: new Date().toISOString().slice(0,10) }).in('id', idsParaBaixar);
   }
   tsGerFecharModal();
   try{ await tsGerBaixarPDF(r.data.id); }catch(e){ alert('Frete fechado, mas houve erro ao gerar o PDF: ' + (e.message || e) + '. Use o botão PDF pra tentar de novo.'); }
@@ -6858,7 +6863,12 @@ async function tsGerEnviarFinanceiro(fid){
   await tsGerRecarregar();
 }
 async function tsGerDesfazer(fid){
-  if(!confirm('Desfazer o fechamento? Os valores voltam a ser calculados em tempo real e o PDF gerado deixa de valer.')) return;
+  if(!confirm('Desfazer o fechamento? Os valores voltam a ser calculados em tempo real, o PDF gerado deixa de valer e as parcelas de vale dadas baixa automaticamente voltam a ficar em aberto.')) return;
+  const rf = await sb.from('comercial_frete_fechamentos').select('parcelas_baixadas').eq('id', fid).single();
+  const idsParaReverter = (rf.data && rf.data.parcelas_baixadas) || [];
+  if(idsParaReverter.length){
+    await sb.from('comercial_frete_vale_parcelas').update({ paga: false, pago_em: null }).in('id', idsParaReverter);
+  }
   const r = await sb.from('comercial_frete_fechamentos').delete().eq('id', fid).eq('status', 'aguardando_financeiro');
   if(r.error){ alert('Erro: ' + r.error.message); return; }
   await tsGerRecarregar();
@@ -7339,7 +7349,7 @@ async function mcRenderVales(){
           ? ('<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--ok-bg);color:var(--ok);">Paga em ' + (p.pago_em ? p.pago_em.split('-').reverse().join('/') : '') + '</span>')
           : '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--alert-bg);color:var(--alert);">Em aberto</span>';
         html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--paper-soft);border-radius:6px;font-size:12.5px;">' +
-          '<span>Parcela ' + p.numero + '/' + parcelas.length + ' — ' + freteFmt(p.valor) + '</span>' + statusHtml + '</div>';
+          '<span>Parcela ' + p.numero + '/' + parcelas.length + ' — ' + freteFmt(p.valor) + (p.mes_referencia && !p.paga ? ' <span style="color:var(--gray);">· desconto em ' + freteMesLabel(p.mes_referencia) + '</span>' : '') + '</span>' + statusHtml + '</div>';
       });
       html += '</div>';
     }
@@ -7435,7 +7445,7 @@ function freteRenderCardVales(m, vales, parcelasPorVale, saldoMotorista){
             ? ('<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--ok-bg);color:var(--ok);">Paga em ' + (p.pago_em ? p.pago_em.split('-').reverse().join('/') : '') + '</span><button style="background:transparent;border:none;color:var(--alert);font-size:11px;cursor:pointer;text-decoration:underline;" onclick="freteExcluirBaixaParcela(&quot;'+p.id+'&quot;)">Excluir baixa</button></div>')
             : '<button class="btn btn-primary" style="padding:5px 12px;font-size:11.5px;" onclick="freteDarBaixaParcela(&quot;'+p.id+'&quot;)">Dar baixa</button>';
           html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--paper-soft);border-radius:6px;font-size:12.5px;">' +
-            '<span>Parcela ' + p.numero + '/' + parcelas.length + ' — ' + freteFmt(p.valor) + '</span>' + statusHtml + '</div>';
+            '<span>Parcela ' + p.numero + '/' + parcelas.length + ' — ' + freteFmt(p.valor) + (p.mes_referencia && !p.paga ? ' <span style="color:var(--gray);">· desconto em ' + freteMesLabel(p.mes_referencia) + '</span>' : '') + '</span>' + statusHtml + '</div>';
         });
         html += '</div>';
         }
@@ -7521,11 +7531,16 @@ async function freteConfirmarParcelamento(valeId, valorTotal){
   const soma = valores.reduce(function(a,b){ return a+b; }, 0);
   if(Math.abs(soma - valorTotal) > 0.01){ toast('A soma das parcelas (' + freteFmt(soma) + ') precisa bater com o valor do vale (' + freteFmt(valorTotal) + ').'); return; }
   await sb.from('comercial_frete_vale_parcelas').delete().eq('vale_id', valeId);
-  const rows = valores.map(function(v, i){ return { vale_id: valeId, numero: i+1, valor: v }; });
+  const hoje = new Date();
+  const rows = valores.map(function(v, i){
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
+    const mesRef = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    return { vale_id: valeId, numero: i+1, valor: v, mes_referencia: mesRef };
+  });
   const r = await sb.from('comercial_frete_vale_parcelas').insert(rows);
   if(r.error){ toast('Erro: ' + r.error.message); return; }
   freteFecharParcelarVale();
-  toast('Vale parcelado em ' + rows.length + ' vez(es).');
+  toast('Vale parcelado em ' + rows.length + ' vez(es) — desconto automático a partir de ' + freteMesLabel(rows[0].mes_referencia) + '.');
   await freteRenderConteudo();
 }
 async function freteCancelarParcelamento(valeId){
