@@ -6545,6 +6545,7 @@ window.__tsGerMes = window.__tsGerMes || (function(){ const d = new Date(); retu
 window.__tsGerFechMes = window.__tsGerFechMes || null;
 window.__tsGerExpand = window.__tsGerExpand || {};
 window.__tsGerCompareOpen = window.__tsGerCompareOpen || {};
+window.__tsGerPremMes = window.__tsGerPremMes || null;
 window.__tsGerData = null;
 window.__tsGerPremData = null;
 
@@ -7177,7 +7178,7 @@ async function tsGerCarregarPremiacao(){
   try{
     const rMot = await sb.from('comercial_frete_motoristas').select('*').eq('ativo', true).order('ordem');
     const motoristas = rMot.data || [];
-    const mesRef = new Date().toISOString().slice(0,7);
+    const mesRef = window.__tsGerPremMes || new Date().toISOString().slice(0,7);
     const prem = await tsGerCalcularPremiacao(motoristas, mesRef);
     window.__tsGerPremData = { motoristas: motoristas, prem: prem, mesRef: mesRef };
   }catch(e){
@@ -7186,6 +7187,10 @@ async function tsGerCarregarPremiacao(){
   }
   tsGerRenderPremiacao();
 }
+async function tsGerPremTrocarMes(mes){
+  window.__tsGerPremMes = mes;
+  await tsGerCarregarPremiacao();
+}
 function tsGerToggleExp(id){
   window.__tsGerExpand[id] = !window.__tsGerExpand[id];
   tsGerRenderPremiacao();
@@ -7193,6 +7198,11 @@ function tsGerToggleExp(id){
 function tsGerRenderPremiacao(){
   const d = window.__tsGerPremData;
   const content = document.getElementById('transportes-content');
+  const mesesOpts = tsGerMesesOpcoes();
+  const mesSel = d.mesRef;
+  const abasMes = '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">' + mesesOpts.map(function(k){
+    return '<button class="tsg-mes' + (k === mesSel ? ' active' : '') + '" onclick="tsGerPremTrocarMes(&quot;' + k + '&quot;)">' + freteMesLabel(k) + '</button>';
+  }).join('') + '</div>';
   const motoristasVis = d.motoristas.filter(function(m){ return m.elegivel_premiacao !== false; });
   let ganhando = 0, risco = 0, abaixo = 0, sem = 0;
   const infoDe = function(m){
@@ -7246,7 +7256,7 @@ function tsGerRenderPremiacao(){
       rows += '<tr><td colspan="7" style="padding:0;"><div class="tsg-exp">' + corpo + '</div></td></tr>';
     }
   });
-  content.innerHTML =
+  content.innerHTML = abasMes +
     '<div class="summary-row">' +
     '<div class="summary-box"><div class="num">' + ganhando + '</div><div class="lbl">Ganhando (80%+)</div></div>' +
     '<div class="summary-box"><div class="num">' + risco + '</div><div class="lbl">Em risco (50–79%)</div></div>' +
