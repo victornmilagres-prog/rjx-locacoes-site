@@ -6817,15 +6817,17 @@ function tsGerHtmlVigente(d){
           '<div class="compare-total"><span>Total equivalente (PJ)</span><span>' + freteFmt(totalPj) + '</span></div></div>' +
         '</div>' +
         '<div class="diff-line ' + (diff > 0 ? 'diff-neg' : 'diff-pos') + '">Como CLT, a empresa ' + (diff > 0 ? 'paga <b>' + freteFmt(diff) + ' a mais</b>' : (diff < 0 ? 'paga <b>' + freteFmt(-diff) + ' a menos</b>' : 'paga o mesmo valor')) + ' este mês do que pagaria no PJ equivalente.</div>' +
-        '<p class="cardsub" style="margin-bottom:0;margin-top:8px;">O variável equivalente usa a mesma tabela de frete e as mesmas corridas do mês, só como referência — não gera PDF nem vai para o financeiro. O pagamento do CLT segue a folha normal.</p>' +
+        '<div style="display:flex;justify-content:flex-end;margin-top:10px;"><button class="btn btn-ghost btn-sm" onclick="tsGerBaixarPDFComparativoCLT(&quot;' + L.m.id + '&quot;)">📄 Baixar PDF do comparativo</button></div>' +
+        '<p class="cardsub" style="margin-bottom:0;margin-top:8px;">O variável equivalente usa a mesma tabela de frete e as mesmas corridas do mês, só como referência — não vai para o financeiro. O pagamento do CLT segue a folha normal.</p>' +
         '</div></td></tr>';
     }
     return html;
   }).join('');
+  const linhasPJAbertas = linhas.filter(function(L){ return !L.ehClt; }).length;
   let html = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;"><label style="font-size:13px;font-weight:600;">Mês de referência</label>' +
     '<select onchange="tsGerTrocarMes(this.value)" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:13.5px;">' + opts + '</select></div>';
   html += '<div class="summary-row">' +
-    '<div class="summary-box"><div class="num">' + linhas.length + '</div><div class="lbl">Transportadores em aberto</div></div>' +
+    '<div class="summary-box"><div class="num">' + linhasPJAbertas + '</div><div class="lbl">Transportadores em aberto (PJ)</div></div>' +
     '<div class="summary-box"><div class="num">' + freteFmt(sFixo) + '</div><div class="lbl">Fixo total</div></div>' +
     '<div class="summary-box"><div class="num">' + freteFmt(sVar) + '</div><div class="lbl">Variável total</div></div>' +
     '<div class="summary-box"><div class="num">' + freteFmt(sPrem) + '</div><div class="lbl">Premiação total</div></div>' +
@@ -6842,6 +6844,71 @@ function tsGerHtmlVigente(d){
 function tsGerToggleCompararCLT(motId){
   window.__tsGerCompareOpen[motId] = !window.__tsGerCompareOpen[motId];
   tsGerRenderControles();
+}
+function tsGerBaixarPDFComparativoCLT(motId){
+  const d = window.__tsGerData;
+  const L = d.linhas.find(function(x){ return x.m.id === motId; });
+  if(!L) return;
+  const totalClt = L.fixo + L.valorPremio - L.desconto;
+  const totalPj = L.variavel + L.valorPremio - L.desconto;
+  const diff = totalClt - totalPj;
+  const jsPDF = window.jspdf.jsPDF;
+  const doc = new jsPDF();
+  const M = 14, R = 196;
+  let y = 18;
+  const linha = function(lbl, val, bold){
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.text(lbl, M, y);
+    doc.text(val, R, y, { align: 'right' });
+    y += 7;
+  };
+  const secao = function(t){
+    y += 3;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+    doc.text(t, M, y);
+    y += 2;
+    doc.setDrawColor(200); doc.line(M, y, R, y);
+    y += 7;
+    doc.setFontSize(10.5); doc.setFont('helvetica', 'normal');
+  };
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+  doc.text('RJX Baiense Locações - Comparativo CLT x PJ', M, y); y += 9;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+  doc.text('Transportador: ' + L.m.nome, M, y); y += 6;
+  doc.text('Referência: ' + freteMesLabel(d.mesRef), M, y); y += 6;
+  doc.text('Emitido em: ' + new Date().toLocaleString('pt-BR'), M, y); y += 4;
+  doc.setFontSize(10.5);
+
+  secao('O que ele recebe (CLT)');
+  linha('Salário fixo', freteFmt(L.fixo));
+  linha('Premiação Logística', L.valorPremio > 0 ? freteFmt(L.valorPremio) : '-');
+  linha('Desconto de vale', L.desconto > 0 ? ('- ' + freteFmt(L.desconto)) : '-');
+  doc.setFontSize(12);
+  linha('TOTAL PAGO (CLT)', freteFmt(totalClt), true);
+  doc.setFontSize(10.5);
+
+  secao('Se ele fosse PJ (equivalente)');
+  linha('Variável (' + L.lancMes.length + ' corrida(s), tabela dele)', freteFmt(L.variavel));
+  linha('Premiação Logística', L.valorPremio > 0 ? freteFmt(L.valorPremio) : '-');
+  linha('Desconto de vale', L.desconto > 0 ? ('- ' + freteFmt(L.desconto)) : '-');
+  doc.setFontSize(12);
+  linha('TOTAL EQUIVALENTE (PJ)', freteFmt(totalPj), true);
+  doc.setFontSize(10.5);
+
+  y += 5;
+  secao('Diferença');
+  doc.setFontSize(11);
+  const txtDiff = diff > 0
+    ? ('Como CLT, a empresa paga ' + freteFmt(diff) + ' a mais neste mês do que pagaria no PJ equivalente.')
+    : (diff < 0 ? ('Como CLT, a empresa paga ' + freteFmt(-diff) + ' a menos neste mês do que pagaria no PJ equivalente.') : 'Os dois valores são iguais neste mês.');
+  const linhasTxt = doc.splitTextToSize(txtDiff, R - M);
+  doc.text(linhasTxt, M, y); y += linhasTxt.length * 6 + 6;
+  doc.setFontSize(9); doc.setTextColor(120);
+  doc.text(doc.splitTextToSize('O variável equivalente usa a mesma tabela de frete e as mesmas corridas do mês, só como referência de comparação. O pagamento do CLT segue a folha normal — este PDF não representa um fechamento de frete.', R - M), M, y);
+  doc.setTextColor(0);
+
+  const nomeArq = 'Comparativo-CLT-PJ-' + L.m.nome.replace(/[^A-Za-z0-9]+/g, '-') + '-' + d.mesRef + '.pdf';
+  doc.save(nomeArq);
 }
 
 /* ---- modal: conferir e fechar frete ---- */
