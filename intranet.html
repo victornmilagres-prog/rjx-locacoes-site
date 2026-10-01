@@ -1186,6 +1186,7 @@ function freteRenderFormTransportador(m, idx){
       '</select></div>' +
     '</div>' +
     (isNovo ? '' : '<div class="field"><label>Situação</label><select id="f-ativo-' + prefix + '"><option value="ativo"' + (m.ativo === false ? '' : ' selected') + '>Ativo</option><option value="inativo"' + (m.ativo === false ? ' selected' : '') + '>Saiu da empresa (inativo)</option></select></div>') +
+    '<div class="field"><label>Elegível à premiação?</label><select id="f-premio-' + prefix + '"><option value="sim"' + (m.elegivel_premiacao === false ? '' : ' selected') + '>Sim</option><option value="nao"' + (m.elegivel_premiacao === false ? ' selected' : '') + '>Não</option></select></div>' +
     '<div class="grid2 campo-pj-' + prefix + '" style="' + (vinculoTipo==='pj'?'':'display:none;') + '">' +
       '<div class="field"><label>Tem valor fixo de contrato?</label><select id="f-pjfixo-' + prefix + '" onchange="freteAplicarVisibilidadePjFixo(&quot;' + prefix + '&quot;)">' +
         '<option value="nao"' + (pjFixo==='nao'?' selected':'') + '>Não, só variável</option>' +
@@ -1273,7 +1274,8 @@ function freteColetarForm(prefix){
     usuarioId: document.getElementById('f-usuario-' + prefix).value,
     vinculoTipo: vinculoTipo,
     valorFixo: valorFixo,
-    ativo: (document.getElementById('f-ativo-' + prefix) ? document.getElementById('f-ativo-' + prefix).value !== 'inativo' : true)
+    ativo: (document.getElementById('f-ativo-' + prefix) ? document.getElementById('f-ativo-' + prefix).value !== 'inativo' : true),
+    elegivelPremiacao: (document.getElementById('f-premio-' + prefix) ? document.getElementById('f-premio-' + prefix).value !== 'nao' : true)
   };
 }
 async function freteSalvarNovo(){
@@ -1283,7 +1285,8 @@ async function freteSalvarNovo(){
   const ins = await sb.from('comercial_frete_motoristas').insert({
     nome: dados.nome, telefone: dados.telefone, ativo: true, ordem: ordem,
     veiculo_tipo: dados.veiculoTipo, veiculo_modelo: dados.modelo, veiculo_placa: dados.placa,
-    usuario_id: dados.usuarioId || null, vinculo_tipo: dados.vinculoTipo, valor_fixo: dados.valorFixo
+    usuario_id: dados.usuarioId || null, vinculo_tipo: dados.vinculoTipo, valor_fixo: dados.valorFixo,
+    elegivel_premiacao: dados.elegivelPremiacao !== false
   });
   if(ins.error){ alert('Erro ao salvar: ' + ins.error.message); return; }
   window.__freteNovoAberto = false;
@@ -1306,7 +1309,7 @@ async function freteTransportadorSalvarEdicao(idx){
     nome: dados.nome, telefone: dados.telefone,
     veiculo_tipo: dados.veiculoTipo, veiculo_modelo: dados.modelo, veiculo_placa: dados.placa,
     usuario_id: dados.usuarioId || null, vinculo_tipo: dados.vinculoTipo, valor_fixo: dados.valorFixo,
-    ativo: dados.ativo !== false
+    ativo: dados.ativo !== false, elegivel_premiacao: dados.elegivelPremiacao !== false
   }).eq('id', m.id);
   if(upd.error){ alert('Erro ao salvar: ' + upd.error.message); return; }
   window.__freteEditIndex = null;
@@ -6612,12 +6615,14 @@ function tsGerMesesOpcoes(){
 }
 
 /* ---- pontuacao de premiacao de todos os transportadores (mesma regra do painel do transportador) ---- */
-async function tsGerCalcularPremiacao(motoristas){
-  const usuarioIds = motoristas.map(function(m){ return m.usuario_id; }).filter(Boolean);
+async function tsGerCalcularPremiacao(motoristas, mesRef){
+  const elegiveis = motoristas.filter(function(m){ return m.elegivel_premiacao !== false; });
+  const usuarioIds = elegiveis.map(function(m){ return m.usuario_id; }).filter(Boolean);
   const res = {};
   if(!usuarioIds.length) return res;
+  const fimMes = (function(){ const p = mesRef.split('-'); const d = new Date(Number(p[0]), Number(p[1]), 1); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01'; })();
   const locs = await tsGerFetchAll(function(){
-    return sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status').in('motorista_id', usuarioIds).order('data_locacao', { ascending: false }).order('id');
+    return sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status').in('motorista_id', usuarioIds).gte('data_locacao', mesRef + '-01').lt('data_locacao', fimMes).order('data_locacao', { ascending: false }).order('id');
   });
   let etapas = [];
   for(let i = 0; i < locs.length; i += 100){
@@ -6628,7 +6633,7 @@ async function tsGerCalcularPremiacao(motoristas){
     etapas = etapas.concat(part);
   }
   const selfies = await tsGerFetchAll(function(){
-    return sb.from('premiacao_selfies_dia').select('*').in('motorista_id', usuarioIds).order('data_ref');
+    return sb.from('premiacao_selfies_dia').select('*').in('motorista_id', usuarioIds).gte('data_ref', mesRef + '-01').lt('data_ref', fimMes).order('data_ref');
   });
   const hoje = new Date().toISOString().slice(0,10);
   const P = PONTOS_UNIFORME_PREMIACAO;
@@ -6679,7 +6684,7 @@ async function tsGerCarregarDados(){
   const vales = rVales.data || [];
   const parcelas = await freteCarregarParcelasPorVale(vales.map(function(v){ return v.id; }));
   const rFech = await sb.from('comercial_frete_fechamentos').select('*').order('criado_em');
-  const prem = await tsGerCalcularPremiacao(motoristas);
+  const prem = await tsGerCalcularPremiacao(motoristas, mesRef);
   const linhas = motoristas.map(function(m){
     const tabela = tabelas[m.id];
     const lancMes = lanc.filter(function(l){ return l.motorista_id === m.id && l.data.slice(0,7) === mesRef; });
@@ -6701,7 +6706,9 @@ async function tsGerCarregarDados(){
     }, []);
     const desconto = parcelasDoMes.reduce(function(s, x){ return s + Number(x.parcela.valor); }, 0);
     const fixo = (m.valor_fixo != null && Number(m.valor_fixo) > 0) ? Number(m.valor_fixo) : 0;
-    const pr = m.usuario_id ? (prem[m.usuario_id] || { pct: 0, ganhando: false, semLocacoes: true }) : { pct: 0, ganhando: false, semUsuario: true };
+    const pr = !m.usuario_id ? { pct: 0, ganhando: false, semUsuario: true }
+      : (m.elegivel_premiacao === false ? { pct: 0, ganhando: false, naoElegivel: true }
+      : (prem[m.usuario_id] || { pct: 0, ganhando: false, semLocacoes: true }));
     const valorPremio = pr.ganhando ? 500 : 0;
     const ehClt = m.vinculo_tipo === 'clt';
     const total = ehClt ? (fixo + valorPremio - desconto) : (fixo + variavel + valorPremio - desconto);
@@ -6774,6 +6781,7 @@ function tsGerHtmlVigente(d){
     if(!ehClt) sVar += v.variavel;
     let premioHtml;
     if(!f && L.pr.semUsuario) premioHtml = '<span class="tsg-mut">sem usuário</span>';
+    else if(!f && L.pr.naoElegivel) premioHtml = '<span class="tsg-mut">Não elegível</span>';
     else if(v.premio > 0) premioHtml = '<span class="tsg-pos">+ ' + freteFmt(v.premio) + '</span> <span class="tsg-sub" style="display:inline;">(' + v.pct + '%)</span>';
     else premioHtml = '<span class="tsg-mut">— (' + v.pct + '%)</span>';
     let acao, variavelHtml;
@@ -7159,8 +7167,9 @@ async function tsGerCarregarPremiacao(){
   try{
     const rMot = await sb.from('comercial_frete_motoristas').select('*').eq('ativo', true).order('ordem');
     const motoristas = rMot.data || [];
-    const prem = await tsGerCalcularPremiacao(motoristas);
-    window.__tsGerPremData = { motoristas: motoristas, prem: prem };
+    const mesRef = new Date().toISOString().slice(0,7);
+    const prem = await tsGerCalcularPremiacao(motoristas, mesRef);
+    window.__tsGerPremData = { motoristas: motoristas, prem: prem, mesRef: mesRef };
   }catch(e){
     content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(e.message || String(e)) + '</p>';
     return;
@@ -7174,6 +7183,7 @@ function tsGerToggleExp(id){
 function tsGerRenderPremiacao(){
   const d = window.__tsGerPremData;
   const content = document.getElementById('transportes-content');
+  const motoristasVis = d.motoristas.filter(function(m){ return m.elegivel_premiacao !== false; });
   let ganhando = 0, risco = 0, abaixo = 0, sem = 0;
   const infoDe = function(m){
     const pr = m.usuario_id ? d.prem[m.usuario_id] : null;
@@ -7182,12 +7192,12 @@ function tsGerRenderPremiacao(){
     if(pr.pct >= 50) return { pr: pr, st: 'risco', cls: 'status-wait', txt: 'Em risco', fill: 'var(--wait)' };
     return { pr: pr, st: 'abaixo', cls: 'status-wait', txt: 'Abaixo de 50%', fill: 'var(--alert)' };
   };
-  d.motoristas.forEach(function(m){
+  motoristasVis.forEach(function(m){
     const i = infoDe(m);
     if(i.st === 'ok') ganhando++; else if(i.st === 'risco') risco++; else if(i.st === 'abaixo') abaixo++; else sem++;
   });
   let rows = '';
-  d.motoristas.forEach(function(m){
+  motoristasVis.forEach(function(m){
     const i = infoDe(m), pr = i.pr;
     const aberto = !!window.__tsGerExpand[m.id];
     rows += '<tr style="cursor:pointer;" onclick="tsGerToggleExp(&quot;' + m.id + '&quot;)">' +
@@ -7233,7 +7243,7 @@ function tsGerRenderPremiacao(){
     '<div class="summary-box"><div class="num">' + abaixo + '</div><div class="lbl">Abaixo de 50%</div></div>' +
     '<div class="summary-box"><div class="num">' + freteFmt(ganhando * 500) + '</div><div class="lbl">Premiação projetada</div></div>' +
     '</div>' +
-    '<p class="cardsub">Mesma pontuação que cada transportador vê no painel dele. Clique num nome pra ver locações, etapas e selfies.</p>' +
+    '<p class="cardsub">Referente a <b>' + freteMesLabel(d.mesRef) + '</b> — reinicia do zero a cada mês. Mesma pontuação que cada transportador vê no painel dele. Clique num nome pra ver locações, etapas e selfies.</p>' +
     '<div class="tsg-wrap"><table class="tsg-table"><thead><tr><th></th><th>Transportador</th><th>Locações</th><th>Etapas ok</th><th>Uniforme</th><th>% pontuação</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
 }
 
@@ -7267,7 +7277,10 @@ function mcRenderShell(){
 function mcSelectTab(tab){ window.__mcTab = tab; mcRenderShell(); }
 
 async function mcCalcularPremiacaoPct(){
-  const result = await sb.from('premiacao_locacoes').select('id,data_locacao').eq('motorista_id', currentUsuario.id);
+  const mesAtual = new Date().toISOString().slice(0,7);
+  const hojeD = new Date();
+  const fimMesAtual = (function(){ const dd = new Date(hojeD.getFullYear(), hojeD.getMonth()+1, 1); return dd.getFullYear() + '-' + String(dd.getMonth()+1).padStart(2,'0') + '-01'; })();
+  const result = await sb.from('premiacao_locacoes').select('id,data_locacao').eq('motorista_id', currentUsuario.id).gte('data_locacao', mesAtual + '-01').lt('data_locacao', fimMesAtual);
   const locs = result.data || [];
   const idsLocs = locs.map(function(l){ return l.id; });
   let etapasPorLoc = {};
@@ -7284,7 +7297,7 @@ async function mcCalcularPremiacaoPct(){
   const hoje = new Date().toISOString().slice(0,10);
   let selfiesPorDia = {};
   if(dias.length){
-    const rSelfies = await sb.from('premiacao_selfies_dia').select('*').eq('motorista_id', currentUsuario.id).in('data_ref', dias);
+    const rSelfies = await sb.from('premiacao_selfies_dia').select('*').eq('motorista_id', currentUsuario.id).in('data_ref', dias).gte('data_ref', mesAtual + '-01').lt('data_ref', fimMesAtual);
     (rSelfies.data||[]).forEach(function(s){ selfiesPorDia[s.data_ref] = s; });
   }
   let pontos = 0, possiveis = 0;
@@ -7327,7 +7340,8 @@ async function mcRenderResumo(){
   }, 0);
   const temFixo = m.valor_fixo != null && m.valor_fixo !== '' && Number(m.valor_fixo) > 0;
   const valorFixo = temFixo ? Number(m.valor_fixo) : 0;
-  const premio = await mcCalcularPremiacaoPct();
+  const elegivelPremiacao = m.elegivel_premiacao !== false;
+  const premio = elegivelPremiacao ? await mcCalcularPremiacaoPct() : { pct: 0, ganhando: false };
   const valorPremio = premio.ganhando ? 500 : 0;
   const ehClt = m.vinculo_tipo === 'clt';
   const total = valorFixo + (ehClt ? 0 : totalVariavel) + valorPremio - descontoMes;
@@ -7338,7 +7352,7 @@ async function mcRenderResumo(){
   let html = '<div class="summary-row">' +
     '<div class="summary-box"><div class="num">' + freteFmt(valorFixo) + '</div><div class="lbl">' + (ehClt?'Salário fixo':'Valor fixo') + ' (mês)</div></div>' +
     (ehClt ? '' : '<div class="summary-box"><div class="num">' + freteFmt(totalVariavel) + '</div><div class="lbl">Variável (' + lancamentosMes.length + ' corridas)</div></div>') +
-    '<div class="summary-box"><div class="num">' + (premio.ganhando ? freteFmt(500) : '—') + '</div><div class="lbl">Premiação (' + premio.pct + '%)</div></div>' +
+    (elegivelPremiacao ? '<div class="summary-box"><div class="num">' + (premio.ganhando ? freteFmt(500) : '—') + '</div><div class="lbl">Premiação (' + premio.pct + '%)</div></div>' : '') +
     '<div class="summary-box"><div class="num" style="color:var(--alert);">' + (descontoMes>0 ? '– ' + freteFmt(descontoMes) : '—') + '</div><div class="lbl">Desconto de vale (mês)</div></div>' +
     '</div>';
 
@@ -7347,15 +7361,17 @@ async function mcRenderResumo(){
     '<p class="cardsub">Atualizado em tempo real conforme a Yasmin lança as corridas. ' + (diasRestantes>0 ? ('Faltam ' + diasRestantes + ' dia(s) pra fechar o mês.') : 'Último dia do mês.') + '</p>' +
     '<div style="' + lbRow + '"><span>' + (ehClt?'Salário fixo':'Valor fixo') + '</span><span style="font-weight:700;color:var(--ok);">+ ' + freteFmt(valorFixo) + '</span></div>' +
     (ehClt ? '' : '<div style="' + lbRow + '"><span>Ganho variável (' + lancamentosMes.length + ' corridas)</span><span style="font-weight:700;color:var(--ok);">+ ' + freteFmt(totalVariavel) + '</span></div>') +
-    '<div style="' + lbRow + '"><span>Premiação Logística</span><span style="font-weight:700;color:var(--ok);">+ ' + freteFmt(valorPremio) + '</span></div>' +
+    (elegivelPremiacao ? '<div style="' + lbRow + '"><span>Premiação Logística</span><span style="font-weight:700;color:var(--ok);">+ ' + freteFmt(valorPremio) + '</span></div>' : '') +
     '<div style="' + lbRow + '"><span>Desconto de vale (mês)</span><span style="font-weight:700;color:var(--alert);">– ' + freteFmt(descontoMes) + '</span></div>' +
     '<div style="display:flex;justify-content:space-between;align-items:center;border-top:1.5px solid var(--ink);margin-top:4px;padding-top:12px;"><span style="font-weight:700;">Total do mês</span><span style="font-weight:700;color:var(--ok);font-size:17px;">' + freteFmt(total) + '</span></div>' +
     '</div>';
 
-  html += '<div class="card form-card"><h3>🏆 Premiação Logística</h3>' +
-    '<div class="premio-barra"><div class="premio-fill ' + (premio.ganhando?'':'abaixo') + '" style="width:' + Math.min(premio.pct,100) + '%;"></div><div class="premio-meta-marca" style="left:80%;"></div></div>' +
-    '<p class="cardsub" style="margin-bottom:0;">' + premio.pct + '% da meta' + (premio.ganhando ? ' — parabéns, você já bateu os 80% e ganhou R$ 500,00!' : (' — faltam ' + (80-premio.pct) + ' pontos percentuais pra bater os 80% e ganhar R$ 500,00.')) + '</p>' +
-    '</div>';
+  if(elegivelPremiacao){
+    html += '<div class="card form-card"><h3>🏆 Premiação Logística</h3>' +
+      '<div class="premio-barra"><div class="premio-fill ' + (premio.ganhando?'':'abaixo') + '" style="width:' + Math.min(premio.pct,100) + '%;"></div><div class="premio-meta-marca" style="left:80%;"></div></div>' +
+      '<p class="cardsub" style="margin-bottom:0;">' + premio.pct + '% da meta' + (premio.ganhando ? ' — parabéns, você já bateu os 80% e ganhou R$ 500,00!' : (' — faltam ' + (80-premio.pct) + ' pontos percentuais pra bater os 80% e ganhar R$ 500,00.')) + '</p>' +
+      '</div>';
+  }
 
   if(saldoVale > 0){
     html += '<div class="card form-card" style="background:var(--paper-soft);"><p class="cardsub" style="margin:0;">Você tem <b>' + freteFmt(saldoVale) + '</b> de vale em aberto. Veja os detalhes na aba <b>Vales</b>.</p></div>';
