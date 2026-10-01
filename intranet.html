@@ -6541,6 +6541,7 @@ window.__tsGerSub = window.__tsGerSub || 'vigente';
 window.__tsGerMes = window.__tsGerMes || (function(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); })();
 window.__tsGerFechMes = window.__tsGerFechMes || null;
 window.__tsGerExpand = window.__tsGerExpand || {};
+window.__tsGerCompareOpen = window.__tsGerCompareOpen || {};
 window.__tsGerData = null;
 window.__tsGerPremData = null;
 
@@ -6572,7 +6573,20 @@ function tsGerEnsureStyle(){
     '.tsg-mes{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:6px 14px;font-size:12.5px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;}' +
     '.tsg-mes.active{background:var(--wine);border-color:var(--wine);color:#fff;}' +
     '.tsg-pdf-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px;}' +
-    '.tsg-pdf-total{display:flex;justify-content:space-between;padding-top:10px;margin-top:6px;border-top:2px solid var(--ink);font-weight:700;font-size:14.5px;}';
+    '.tsg-pdf-total{display:flex;justify-content:space-between;padding-top:10px;margin-top:6px;border-top:2px solid var(--ink);font-weight:700;font-size:14.5px;}' +
+    '.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px;}' +
+    '@media(max-width:640px){.compare-grid{grid-template-columns:1fr;}}' +
+    '.compare-box{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px;}' +
+    '.compare-box h4{font-family:Fraunces,serif;font-size:13.5px;margin:0 0 10px;display:flex;align-items:center;gap:8px;}' +
+    '.compare-row{display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px;border-bottom:1px dashed var(--line);}' +
+    '.compare-row:last-of-type{border-bottom:none;}' +
+    '.compare-total{display:flex;justify-content:space-between;padding-top:8px;margin-top:4px;border-top:2px solid var(--ink);font-weight:700;font-size:13.5px;}' +
+    '.diff-line{text-align:center;font-size:12.5px;margin-top:6px;padding:9px;border-radius:7px;}' +
+    '.diff-pos{background:var(--ok-bg);color:var(--ok);}' +
+    '.diff-neg{background:var(--alert-bg);color:var(--alert);}' +
+    '.badge-clt,.badge-pj{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:100px;}' +
+    '.badge-clt{background:var(--info-bg);color:var(--info);}' +
+    '.badge-pj{background:var(--ok-bg);color:var(--ok);}';
   document.head.appendChild(st);
 }
 
@@ -6689,7 +6703,9 @@ async function tsGerCarregarDados(){
     const fixo = (m.valor_fixo != null && Number(m.valor_fixo) > 0) ? Number(m.valor_fixo) : 0;
     const pr = m.usuario_id ? (prem[m.usuario_id] || { pct: 0, ganhando: false, semLocacoes: true }) : { pct: 0, ganhando: false, semUsuario: true };
     const valorPremio = pr.ganhando ? 500 : 0;
-    return { m: m, lancMes: lancMes, variavel: variavel, semTabela: semTabela, saldo: saldo, desconto: desconto, parcelasDoMes: parcelasDoMes, fixo: fixo, pr: pr, valorPremio: valorPremio, total: fixo + variavel + valorPremio - desconto };
+    const ehClt = m.vinculo_tipo === 'clt';
+    const total = ehClt ? (fixo + valorPremio - desconto) : (fixo + variavel + valorPremio - desconto);
+    return { m: m, lancMes: lancMes, variavel: variavel, semTabela: semTabela, saldo: saldo, desconto: desconto, parcelasDoMes: parcelasDoMes, fixo: fixo, pr: pr, valorPremio: valorPremio, ehClt: ehClt, total: total };
   });
   window.__tsGerData = { mesRef: mesRef, linhas: linhas, nomes: nomes, fechamentos: rFech.data || [] };
 }
@@ -6750,32 +6766,61 @@ function tsGerHtmlVigente(d){
   let sFixo = 0, sVar = 0, sPrem = 0, sDesc = 0;
   const rows = linhas.map(function(L){
     const f = fechMes[L.m.id];
+    const ehClt = !!L.ehClt;
     const v = f
       ? { fixo: Number(f.valor_fixo), variavel: Number(f.valor_variavel), premio: Number(f.valor_premio), pct: f.premio_pct, desconto: Number(f.desconto_vale), saldo: Number(f.saldo_vale), total: Number(f.valor_total), n: f.qtd_corridas }
       : { fixo: L.fixo, variavel: L.variavel, premio: L.valorPremio, pct: L.pr.pct, desconto: L.desconto, saldo: L.saldo, total: L.total, n: L.lancMes.length };
-    sFixo += v.fixo; sVar += v.variavel; sPrem += v.premio; sDesc += v.desconto;
+    sFixo += v.fixo; sPrem += v.premio; sDesc += v.desconto;
+    if(!ehClt) sVar += v.variavel;
     let premioHtml;
     if(!f && L.pr.semUsuario) premioHtml = '<span class="tsg-mut">sem usuário</span>';
     else if(v.premio > 0) premioHtml = '<span class="tsg-pos">+ ' + freteFmt(v.premio) + '</span> <span class="tsg-sub" style="display:inline;">(' + v.pct + '%)</span>';
     else premioHtml = '<span class="tsg-mut">— (' + v.pct + '%)</span>';
-    let acao;
-    if(f){
+    let acao, variavelHtml;
+    if(ehClt){
+      acao = '<button class="btn btn-outline btn-sm" onclick="tsGerToggleCompararCLT(&quot;' + L.m.id + '&quot;)">' + (window.__tsGerCompareOpen[L.m.id] ? 'Fechar comparativo ▴' : 'Ver comparativo ▾') + '</button>';
+      variavelHtml = '<span class="tsg-mut">— não pago (CLT)</span>';
+    } else if(f){
       acao = '<button class="btn btn-primary btn-sm" onclick="tsGerEnviarFinanceiro(&quot;' + f.id + '&quot;)">Enviar para o financeiro</button> ' +
         '<button class="btn btn-ghost btn-sm" onclick="tsGerBaixarPDF(&quot;' + f.id + '&quot;)">PDF</button> ' +
         '<button class="icon-btn" title="Desfazer fechamento" onclick="tsGerDesfazer(&quot;' + f.id + '&quot;)">↺</button>';
+      variavelHtml = '<span class="tsg-pos">+ ' + freteFmt(v.variavel) + '</span><span class="tsg-sub">' + v.n + ' corrida(s)' + '</span>';
     } else {
       acao = '<button class="btn btn-outline btn-sm" onclick="tsGerAbrirFechar(&quot;' + L.m.id + '&quot;)">Fechar frete</button>';
+      variavelHtml = '<span class="tsg-pos">+ ' + freteFmt(v.variavel) + '</span><span class="tsg-sub">' + v.n + ' corrida(s)' + (L.semTabela ? ' · sem tabela de frete' : '') + '</span>';
     }
-    const vinc = L.m.vinculo_tipo === 'clt' ? 'CLT' : 'PJ';
-    return '<tr>' +
+    const vinc = ehClt ? 'CLT' : 'PJ';
+    let html = '<tr>' +
       '<td><span class="tsg-nome">' + escapeHtml(L.m.nome) + '</span><span class="tsg-sub">' + vinc + (f ? ' · <span style="color:var(--wine);font-weight:700;">PDF gerado</span>' : '') + '</span></td>' +
       '<td>' + (v.fixo > 0 ? freteFmt(v.fixo) : '<span class="tsg-mut">—</span>') + '</td>' +
-      '<td><span class="tsg-pos">+ ' + freteFmt(v.variavel) + '</span><span class="tsg-sub">' + v.n + ' corrida(s)' + ((!f && L.semTabela) ? ' · sem tabela de frete' : '') + '</span></td>' +
+      '<td>' + variavelHtml + '</td>' +
       '<td>' + premioHtml + '</td>' +
       '<td>' + (v.desconto > 0 ? '<span class="tsg-neg">– ' + freteFmt(v.desconto) + '</span>' : '<span class="tsg-mut">—</span>') + '</td>' +
       '<td>' + (v.saldo > 0.005 ? freteFmt(v.saldo) : '<span class="tsg-mut">—</span>') + '</td>' +
       '<td style="font-weight:700;">' + freteFmt(v.total) + '</td>' +
       '<td>' + acao + '</td></tr>';
+    if(ehClt && window.__tsGerCompareOpen[L.m.id]){
+      const totalClt = v.fixo + v.premio - v.desconto;
+      const totalPj = v.variavel + v.premio - v.desconto;
+      const diff = totalClt - totalPj;
+      html += '<tr class="exp-row"><td colspan="8"><div class="tsg-exp">' +
+        '<div class="compare-grid">' +
+        '<div class="compare-box"><h4><span class="badge-clt">CLT</span> O que ele recebe</h4>' +
+          '<div class="compare-row"><span>Salário fixo</span><span>' + freteFmt(v.fixo) + '</span></div>' +
+          '<div class="compare-row"><span>Premiação Logística</span><span>' + (v.premio > 0 ? freteFmt(v.premio) : '—') + '</span></div>' +
+          '<div class="compare-row"><span>Desconto de vale</span><span>' + (v.desconto > 0 ? '– ' + freteFmt(v.desconto) : '—') + '</span></div>' +
+          '<div class="compare-total"><span>Total pago (CLT)</span><span>' + freteFmt(totalClt) + '</span></div></div>' +
+        '<div class="compare-box"><h4><span class="badge-pj">Equivalente PJ</span> Se ele fosse PJ</h4>' +
+          '<div class="compare-row"><span>Variável (' + v.n + ' corrida(s), tabela dele)' + (L.semTabela ? ' · sem tabela' : '') + '</span><span>' + freteFmt(v.variavel) + '</span></div>' +
+          '<div class="compare-row"><span>Premiação Logística</span><span>' + (v.premio > 0 ? freteFmt(v.premio) : '—') + '</span></div>' +
+          '<div class="compare-row"><span>Desconto de vale</span><span>' + (v.desconto > 0 ? '– ' + freteFmt(v.desconto) : '—') + '</span></div>' +
+          '<div class="compare-total"><span>Total equivalente (PJ)</span><span>' + freteFmt(totalPj) + '</span></div></div>' +
+        '</div>' +
+        '<div class="diff-line ' + (diff >= 0 ? 'diff-pos' : 'diff-neg') + '">Como CLT, a empresa ' + (diff >= 0 ? 'paga <b>' + freteFmt(diff) + ' a menos</b>' : 'paga <b>' + freteFmt(-diff) + ' a mais</b>') + ' este mês do que pagaria no PJ equivalente.</div>' +
+        '<p class="cardsub" style="margin-bottom:0;margin-top:8px;">O variável equivalente usa a mesma tabela de frete e as mesmas corridas do mês, só como referência — não gera PDF nem vai para o financeiro. O pagamento do CLT segue a folha normal.</p>' +
+        '</div></td></tr>';
+    }
+    return html;
   }).join('');
   let html = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;"><label style="font-size:13px;font-weight:600;">Mês de referência</label>' +
     '<select onchange="tsGerTrocarMes(this.value)" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:13.5px;">' + opts + '</select></div>';
@@ -6791,8 +6836,12 @@ function tsGerHtmlVigente(d){
     return html;
   }
   html += '<div class="tsg-wrap"><table class="tsg-table"><thead><tr><th>Transportador</th><th>Fixo</th><th>Variável</th><th>Premiação</th><th>Desconto vale (mês)</th><th>Saldo vale</th><th>Total a receber</th><th>Ação</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
-  html += '<p class="cardsub">"Fechar frete" congela os valores do mês, gera o PDF com campo de assinatura pra enviar ao transportador e depois libera o botão "Enviar para o financeiro".</p>';
+  html += '<p class="cardsub">"Fechar frete" congela os valores do mês, gera o PDF com campo de assinatura pra enviar ao transportador e depois libera o botão "Enviar para o financeiro". Transportadores CLT não fecham frete — o pagamento deles segue a folha; "Ver comparativo" só mostra quanto a empresa pagaria se ele fosse PJ, pra referência.</p>';
   return html;
+}
+function tsGerToggleCompararCLT(motId){
+  window.__tsGerCompareOpen[motId] = !window.__tsGerCompareOpen[motId];
+  tsGerRenderControles();
 }
 
 /* ---- modal: conferir e fechar frete ---- */
@@ -7213,14 +7262,15 @@ async function mcRenderResumo(){
   const valorFixo = temFixo ? Number(m.valor_fixo) : 0;
   const premio = await mcCalcularPremiacaoPct();
   const valorPremio = premio.ganhando ? 500 : 0;
-  const total = valorFixo + totalVariavel + valorPremio - descontoMes;
+  const ehClt = m.vinculo_tipo === 'clt';
+  const total = valorFixo + (ehClt ? 0 : totalVariavel) + valorPremio - descontoMes;
   const hoje = new Date();
   const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).getDate();
   const diasRestantes = ultimoDiaMes - hoje.getDate();
 
   let html = '<div class="summary-row">' +
-    '<div class="summary-box"><div class="num">' + freteFmt(valorFixo) + '</div><div class="lbl">' + (m.vinculo_tipo==='clt'?'Salário fixo':'Valor fixo') + ' (mês)</div></div>' +
-    '<div class="summary-box"><div class="num">' + freteFmt(totalVariavel) + '</div><div class="lbl">Variável (' + lancamentosMes.length + ' corridas)</div></div>' +
+    '<div class="summary-box"><div class="num">' + freteFmt(valorFixo) + '</div><div class="lbl">' + (ehClt?'Salário fixo':'Valor fixo') + ' (mês)</div></div>' +
+    (ehClt ? '' : '<div class="summary-box"><div class="num">' + freteFmt(totalVariavel) + '</div><div class="lbl">Variável (' + lancamentosMes.length + ' corridas)</div></div>') +
     '<div class="summary-box"><div class="num">' + (premio.ganhando ? freteFmt(500) : '—') + '</div><div class="lbl">Premiação (' + premio.pct + '%)</div></div>' +
     '<div class="summary-box"><div class="num" style="color:var(--alert);">' + (descontoMes>0 ? '– ' + freteFmt(descontoMes) : '—') + '</div><div class="lbl">Desconto de vale (mês)</div></div>' +
     '</div>';
@@ -7228,8 +7278,8 @@ async function mcRenderResumo(){
   const lbRow = 'display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px;';
   html += '<div class="card form-card"><h3>Total até hoje — ' + freteMesLabel(mesAtual) + '</h3>' +
     '<p class="cardsub">Atualizado em tempo real conforme a Yasmin lança as corridas. ' + (diasRestantes>0 ? ('Faltam ' + diasRestantes + ' dia(s) pra fechar o mês.') : 'Último dia do mês.') + '</p>' +
-    '<div style="' + lbRow + '"><span>' + (m.vinculo_tipo==='clt'?'Salário fixo':'Valor fixo') + '</span><span style="font-weight:700;color:var(--ok);">+ ' + freteFmt(valorFixo) + '</span></div>' +
-    '<div style="' + lbRow + '"><span>Ganho variável (' + lancamentosMes.length + ' corridas)</span><span style="font-weight:700;color:var(--ok);">+ ' + freteFmt(totalVariavel) + '</span></div>' +
+    '<div style="' + lbRow + '"><span>' + (ehClt?'Salário fixo':'Valor fixo') + '</span><span style="font-weight:700;color:var(--ok);">+ ' + freteFmt(valorFixo) + '</span></div>' +
+    (ehClt ? '' : '<div style="' + lbRow + '"><span>Ganho variável (' + lancamentosMes.length + ' corridas)</span><span style="font-weight:700;color:var(--ok);">+ ' + freteFmt(totalVariavel) + '</span></div>') +
     '<div style="' + lbRow + '"><span>Premiação Logística</span><span style="font-weight:700;color:var(--ok);">+ ' + freteFmt(valorPremio) + '</span></div>' +
     '<div style="' + lbRow + '"><span>Desconto de vale (mês)</span><span style="font-weight:700;color:var(--alert);">– ' + freteFmt(descontoMes) + '</span></div>' +
     '<div style="display:flex;justify-content:space-between;align-items:center;border-top:1.5px solid var(--ink);margin-top:4px;padding-top:12px;"><span style="font-weight:700;">Total do mês</span><span style="font-weight:700;color:var(--ok);font-size:17px;">' + freteFmt(total) + '</span></div>' +
