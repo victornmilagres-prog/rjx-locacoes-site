@@ -6799,7 +6799,7 @@ function tsGerHtmlVigente(d){
     }
     const vinc = ehClt ? 'CLT' : 'PJ';
     let html = '<tr>' +
-      '<td><span class="tsg-nome">' + escapeHtml(L.m.nome) + '</span><span class="tsg-sub">' + vinc + (f ? ' · <span style="color:var(--wine);font-weight:700;">PDF gerado</span>' : '') + '</span></td>' +
+      '<td><span class="tsg-nome">' + escapeHtml(L.m.nome) + '</span><span class="tsg-sub">' + vinc + (f ? (f.assinado ? ' · <span style="color:var(--ok);font-weight:700;">✓ Assinado em ' + new Date(f.assinado_em).toLocaleDateString('pt-BR') + '</span>' : ' · <span style="color:var(--wine);font-weight:700;">Aguardando assinatura</span>') : '') + '</span></td>' +
       '<td>' + (v.fixo > 0 ? freteFmt(v.fixo) : '<span class="tsg-mut">—</span>') + '</td>' +
       '<td>' + variavelHtml + '</td>' +
       '<td>' + premioHtml + '</td>' +
@@ -7109,15 +7109,24 @@ function tsGerGerarPDF(m, f, tabela, lanc, vales, parcelas){
     });
   }
 
-  ensure(50);
+  ensure(55);
   y += 8;
   doc.setFontSize(10);
   doc.text('Declaro que conferi os valores acima e estou de acordo com o fechamento de ' + freteMesLabel(f.mes_ref) + '.', M, y);
-  y += 24;
-  doc.setDrawColor(60); doc.line(M, y, 110, y); doc.line(128, y, R, y);
-  y += 5; doc.setFontSize(9);
-  doc.text('Assinatura do transportador', M, y);
-  doc.text('Data', 128, y);
+  y += 10;
+  if(f.assinado && f.assinatura_data){
+    try{ doc.addImage(f.assinatura_data, 'PNG', M, y, 70, 22); }catch(e){}
+    y += 24;
+    doc.setDrawColor(60); doc.line(M, y, 110, y);
+    y += 5; doc.setFontSize(9);
+    doc.text('Assinado digitalmente em ' + new Date(f.assinado_em).toLocaleString('pt-BR'), M, y);
+  } else {
+    y += 14;
+    doc.setDrawColor(60); doc.line(M, y, 110, y); doc.line(128, y, R, y);
+    y += 5; doc.setFontSize(9);
+    doc.text('Assinatura do transportador', M, y);
+    doc.text('Data', 128, y);
+  }
   const nomeArq = 'Fechamento-Frete-' + m.nome.replace(/[^A-Za-z0-9]+/g, '-') + '-' + f.mes_ref + '.pdf';
   doc.save(nomeArq);
 }
@@ -7146,6 +7155,7 @@ function tsGerHtmlFechados(d){
       '<td>' + (Number(f.valor_premio) > 0 ? freteFmt(f.valor_premio) : '<span class="tsg-mut">—</span>') + '<span class="tsg-sub">' + f.premio_pct + '%</span></td>' +
       '<td>' + (Number(f.desconto_vale) > 0 ? '<span class="tsg-neg">– ' + freteFmt(f.desconto_vale) + '</span>' : '<span class="tsg-mut">—</span>') + '</td>' +
       '<td style="font-weight:700;">' + freteFmt(f.valor_total) + '</td>' +
+      '<td>' + (f.assinado ? '<span class="status-pill status-ok"><span class="dot"></span>Assinado</span>' : '<span class="status-pill status-wait"><span class="dot"></span>Sem assinatura</span>') + '</td>' +
       '<td>' + dt + '</td>' +
       '<td><button class="btn btn-ghost btn-sm" onclick="tsGerBaixarPDF(&quot;' + f.id + '&quot;)">PDF</button></td></tr>';
   }).join('');
@@ -7156,7 +7166,7 @@ function tsGerHtmlFechados(d){
     '<div class="summary-box"><div class="num">' + freteFmt(soma('valor_premio')) + '</div><div class="lbl">Premiação paga</div></div>' +
     '<div class="summary-box"><div class="num" style="color:var(--alert);">' + (soma('desconto_vale') > 0 ? '– ' + freteFmt(soma('desconto_vale')) : '—') + '</div><div class="lbl">Descontos de vale</div></div>' +
     '</div>' +
-    '<div class="tsg-wrap"><table class="tsg-table"><thead><tr><th>Transportador</th><th>Fixo</th><th>Variável</th><th>Premiação</th><th>Desconto vale</th><th>Total</th><th>Enviado em</th><th>PDF</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    '<div class="tsg-wrap"><table class="tsg-table"><thead><tr><th>Transportador</th><th>Fixo</th><th>Variável</th><th>Premiação</th><th>Desconto vale</th><th>Total</th><th>Assinatura</th><th>Enviado em</th><th>PDF</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
 }
 
 /* ---- Premiacao detalhada (gerencial) ---- */
@@ -7324,6 +7334,20 @@ async function mcRenderResumo(){
   const m = window.__mcMotorista, tabela = window.__mcTabela || {};
   const wrap = document.getElementById('mc-content');
   const mesAtual = new Date().toISOString().slice(0,7);
+  const rFechPend = await sb.from('comercial_frete_fechamentos').select('*').eq('motorista_id', m.id).neq('status', 'enviado').order('mes_ref', { ascending: false });
+  const fechamentosPendentes = rFechPend.data || [];
+  const cardsAssinatura = fechamentosPendentes.map(function(f){
+    if(f.assinado){
+      return '<div class="card form-card" style="background:var(--ok-bg);border:1px solid var(--ok);"><p class="cardsub" style="margin:0;color:var(--ok);"><b>✓ Fechamento de ' + freteMesLabel(f.mes_ref) + ' assinado</b> em ' + new Date(f.assinado_em).toLocaleString('pt-BR') + '. Aguardando confirmação do financeiro.</p></div>';
+    }
+    return '<div class="card form-card" style="border:2px solid var(--wine);"><h3>✍️ Assine o fechamento de ' + freteMesLabel(f.mes_ref) + '</h3>' +
+      '<p class="cardsub">Confira o valor total (<b>' + freteFmt(f.valor_total) + '</b>) e assine abaixo pra confirmar que está de acordo.</p>' +
+      '<canvas class="sig-canvas" id="mc-sig-' + f.id + '" style="width:100%;height:140px;background:#fff;border:1.5px dashed var(--line);border-radius:4px;"></canvas>' +
+      '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="mcLimparAssinaturaFechamento(&quot;' + f.id + '&quot;)">Limpar assinatura</button>' +
+      '<div id="mc-sig-err-' + f.id + '" style="display:none;color:var(--alert);font-size:12.5px;margin:8px 0 0;"></div>' +
+      '<button class="btn btn-primary" id="mc-sig-btn-' + f.id + '" style="margin-top:10px;" onclick="mcAssinarFechamento(&quot;' + f.id + '&quot;)">Confirmar assinatura</button>' +
+      '</div>';
+  }).join('');
   const rLanc = await sb.from('comercial_frete_lancamentos').select('*').eq('motorista_id', m.id);
   const lancamentosMes = (rLanc.data||[]).filter(function(l){ return l.data.slice(0,7) === mesAtual; });
   const totalVariavel = lancamentosMes.reduce(function(a,l){ return a + freteCalcular(l, tabela).total; }, 0);
@@ -7349,7 +7373,7 @@ async function mcRenderResumo(){
   const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).getDate();
   const diasRestantes = ultimoDiaMes - hoje.getDate();
 
-  let html = '<div class="summary-row">' +
+  let html = cardsAssinatura + '<div class="summary-row">' +
     '<div class="summary-box"><div class="num">' + freteFmt(valorFixo) + '</div><div class="lbl">' + (ehClt?'Salário fixo':'Valor fixo') + ' (mês)</div></div>' +
     (ehClt ? '' : '<div class="summary-box"><div class="num">' + freteFmt(totalVariavel) + '</div><div class="lbl">Variável (' + lancamentosMes.length + ' corridas)</div></div>') +
     (elegivelPremiacao ? '<div class="summary-box"><div class="num">' + (premio.ganhando ? freteFmt(500) : '—') + '</div><div class="lbl">Premiação (' + premio.pct + '%)</div></div>' : '') +
@@ -7378,6 +7402,33 @@ async function mcRenderResumo(){
   }
 
   wrap.innerHTML = html;
+  window.__mcSigPads = {};
+  fechamentosPendentes.forEach(function(f){
+    if(!f.assinado){ window.__mcSigPads[f.id] = initSignaturePad('mc-sig-' + f.id); }
+  });
+}
+async function mcAssinarFechamento(fid){
+  const pad = window.__mcSigPads && window.__mcSigPads[fid];
+  if(!pad || pad.isEmpty()){
+    const err = document.getElementById('mc-sig-err-' + fid);
+    if(err){ err.textContent = 'Colete a assinatura antes de confirmar.'; err.style.display = 'block'; }
+    return;
+  }
+  const btn = document.getElementById('mc-sig-btn-' + fid);
+  if(btn){ btn.disabled = true; btn.textContent = 'Salvando...'; }
+  const assinatura = pad.toDataURL();
+  const r = await sb.rpc('assinar_fechamento_frete', { p_fechamento_id: fid, p_assinatura: assinatura });
+  if(r.error){
+    alert('Erro ao assinar: ' + r.error.message);
+    if(btn){ btn.disabled = false; btn.textContent = 'Confirmar assinatura'; }
+    return;
+  }
+  toast('Fechamento assinado!');
+  mcRenderResumo();
+}
+function mcLimparAssinaturaFechamento(fid){
+  const pad = window.__mcSigPads && window.__mcSigPads[fid];
+  if(pad) pad.clear();
 }
 
 async function mcRenderFrete(){
