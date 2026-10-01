@@ -6779,7 +6779,7 @@ function tsGerHtmlVigente(d){
     let acao, variavelHtml;
     if(ehClt){
       acao = '<button class="btn btn-outline btn-sm" onclick="tsGerToggleCompararCLT(&quot;' + L.m.id + '&quot;)">' + (window.__tsGerCompareOpen[L.m.id] ? 'Fechar comparativo ▴' : 'Ver comparativo ▾') + '</button>';
-      variavelHtml = '<span class="tsg-mut">— não pago (CLT)</span>';
+      variavelHtml = '<span class="tsg-pos">' + freteFmt(v.variavel) + '</span><span class="tsg-sub">' + v.n + ' corrida(s) · equivalente PJ, não pago</span>';
     } else if(f){
       acao = '<button class="btn btn-primary btn-sm" onclick="tsGerEnviarFinanceiro(&quot;' + f.id + '&quot;)">Enviar para o financeiro</button> ' +
         '<button class="btn btn-ghost btn-sm" onclick="tsGerBaixarPDF(&quot;' + f.id + '&quot;)">PDF</button> ' +
