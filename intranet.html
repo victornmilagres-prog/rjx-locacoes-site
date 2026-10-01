@@ -6816,7 +6816,7 @@ function tsGerHtmlVigente(d){
           '<div class="compare-row"><span>Desconto de vale</span><span>' + (v.desconto > 0 ? '– ' + freteFmt(v.desconto) : '—') + '</span></div>' +
           '<div class="compare-total"><span>Total equivalente (PJ)</span><span>' + freteFmt(totalPj) + '</span></div></div>' +
         '</div>' +
-        '<div class="diff-line ' + (diff >= 0 ? 'diff-pos' : 'diff-neg') + '">Como CLT, a empresa ' + (diff >= 0 ? 'paga <b>' + freteFmt(diff) + ' a menos</b>' : 'paga <b>' + freteFmt(-diff) + ' a mais</b>') + ' este mês do que pagaria no PJ equivalente.</div>' +
+        '<div class="diff-line ' + (diff > 0 ? 'diff-neg' : 'diff-pos') + '">Como CLT, a empresa ' + (diff > 0 ? 'paga <b>' + freteFmt(diff) + ' a mais</b>' : (diff < 0 ? 'paga <b>' + freteFmt(-diff) + ' a menos</b>' : 'paga o mesmo valor')) + ' este mês do que pagaria no PJ equivalente.</div>' +
         '<p class="cardsub" style="margin-bottom:0;margin-top:8px;">O variável equivalente usa a mesma tabela de frete e as mesmas corridas do mês, só como referência — não gera PDF nem vai para o financeiro. O pagamento do CLT segue a folha normal.</p>' +
         '</div></td></tr>';
     }
