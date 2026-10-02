@@ -7099,7 +7099,7 @@ async function tsGerDesfazer(fid){
   if(idsParaReverter.length){
     await sb.from('comercial_frete_vale_parcelas').update({ paga: false, pago_em: null }).in('id', idsParaReverter);
   }
-  const r = await sb.from('comercial_frete_fechamentos').delete().eq('id', fid).eq('status', 'aguardando_financeiro');
+  const r = await sb.from('comercial_frete_fechamentos').delete().eq('id', fid);
   if(r.error){ alert('Erro: ' + r.error.message); return; }
   await tsGerRecarregar();
 }
