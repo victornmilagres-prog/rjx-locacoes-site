@@ -6293,7 +6293,11 @@ function ccToggleFinalize(){
   if(abrindo){
     const msg = document.getElementById('fz-venc-msg');
     const wrap = document.getElementById('fz-venc-conselho-wrap');
-    if(ccState.conselhoCarteiraDispensada){
+    const ehEsteticistaFz = document.getElementById('conselho-tipo').value.indexOf('Esteticista') === 0;
+    if(ehEsteticistaFz){
+      if(msg) msg.innerHTML = '<b>Tudo certo.</b> Esteticista não tem carteira de conselho nem data de vencimento — o certificado do curso já basta. Pode confirmar:';
+      if(wrap) wrap.style.display = 'none';
+    } else if(ccState.conselhoCarteiraDispensada){
       if(msg) msg.innerHTML = '<b>Tudo certo.</b> A carteira do conselho não foi anexada, mas o nº informado e a consulta aprovada dispensam ela. Pode confirmar:';
       if(wrap) wrap.style.display = 'none';
     } else {
@@ -6305,7 +6309,8 @@ function ccToggleFinalize(){
 
 async function ccConfirmarFinalizar(){
   const vencConselhoIso = document.getElementById('fz-venc-conselho').value;
-  if(!vencConselhoIso && !ccState.conselhoCarteiraDispensada){
+  const ehEsteticistaFinal = document.getElementById('conselho-tipo').value.indexOf('Esteticista') === 0;
+  if(!vencConselhoIso && !ccState.conselhoCarteiraDispensada && !ehEsteticistaFinal){
     alert('Informe o vencimento da carteira do conselho antes de finalizar.');
     return;
   }
@@ -6550,7 +6555,8 @@ async function ccMontarDocFinal(){
     ccAnexoFinalBloco(ccState.serasaFile, 'Relatório Serasa', {icone:'📄'}),
     ccAnexoFinalBloco(ccState.conselhoCarteiraFrenteFile, 'Carteira do conselho — frente', {icone:'🪪'}),
     ccAnexoFinalBloco(ccState.conselhoCarteiraVersoFile, 'Carteira do conselho — verso', {icone:'🪪'}),
-    ccAnexoFinalBloco(ccState.conselhoPrintFile, 'Comprovante da consulta ao conselho', {icone:'🖥️'})
+    ccAnexoFinalBloco(ccState.conselhoPrintFile, 'Comprovante da consulta ao conselho', {icone:'🖥️'}),
+    ccAnexoFinalBloco(ccState.certificadoEsteticistaFile, 'Certificado do curso/formação (esteticista)', {icone:'🎓'})
   ]);
   const anexosHtml = anexosArr.filter(Boolean).join('');
 
@@ -6574,7 +6580,9 @@ async function ccMontarDocFinal(){
 
       <div class="doc-section">
         <h3>3. Perfil profissional</h3>
-        <p>${document.getElementById('conselho-tipo').value} — inscrição ${document.getElementById('conselho-numero').value || '(não informado)'}, responsável técnico ${document.getElementById('conselho-nome').value || '(não informado)'}: <strong>${ccState.conselhoAtivo?'ativa':'inativa'}</strong>.</p>
+        <p>${document.getElementById('conselho-tipo').value.indexOf('Esteticista') === 0
+          ? `Esteticista (sem conselho de classe) — responsável técnico ${document.getElementById('conselho-nome').value || '(não informado)'}: <strong>${ccState.certificadoEsteticistaNome ? 'certificado de formação anexado' : 'certificado não anexado'}</strong>.`
+          : `${document.getElementById('conselho-tipo').value} — inscrição ${document.getElementById('conselho-numero').value || '(não informado)'}, responsável técnico ${document.getElementById('conselho-nome').value || '(não informado)'}: <strong>${ccState.conselhoAtivo?'ativa':'inativa'}</strong>.`}</p>
       </div>
 
       <div class="doc-section">
