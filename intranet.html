@@ -7240,16 +7240,17 @@ function tsGerGerarPDF(m, f, tabela, lanc, vales, parcelas){
 /* ---- Fretes fechados (por mes) ---- */
 function tsGerHtmlFechados(d){
   const enviados = d.fechamentos.filter(function(f){ return f.status === 'enviado'; });
-  const meses = Array.from(new Set(enviados.map(function(f){ return f.mes_ref; }))).sort().reverse();
-  if(!meses.length){
-    return '<p class="empty-hint">Nenhum frete enviado ao financeiro ainda. Quando você clicar em "Enviar para o financeiro", ele aparece aqui, separado por mês.</p>';
-  }
+  const mesesComDados = Array.from(new Set(enviados.map(function(f){ return f.mes_ref; })));
+  const meses = Array.from(new Set(tsGerMesesOpcoes().concat(mesesComDados))).sort().reverse();
   let sel = window.__tsGerFechMes;
   if(!sel || meses.indexOf(sel) < 0) sel = meses[0];
   const abas = '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">' + meses.map(function(k){
     return '<button class="tsg-mes' + (k === sel ? ' active' : '') + '" onclick="tsGerSetFechMes(&quot;' + k + '&quot;)">' + freteMesLabel(k) + '</button>';
   }).join('') + '</div>';
   const itens = enviados.filter(function(f){ return f.mes_ref === sel; });
+  if(!itens.length){
+    return abas + '<p class="empty-hint">Nenhum frete fechado em ' + freteMesLabel(sel) + '.</p>';
+  }
   const soma = function(campo){ return itens.reduce(function(a, f){ return a + Number(f[campo]); }, 0); };
   const rows = itens.map(function(f){
     const nm = d.nomes[f.motorista_id];
@@ -7263,7 +7264,7 @@ function tsGerHtmlFechados(d){
       '<td style="font-weight:700;">' + freteFmt(f.valor_total) + '</td>' +
       '<td>' + (f.assinado ? '<span class="status-pill status-ok"><span class="dot"></span>Assinado</span>' : '<span class="status-pill status-wait"><span class="dot"></span>Sem assinatura</span>') + '</td>' +
       '<td>' + dt + '</td>' +
-      '<td><button class="btn btn-ghost btn-sm" onclick="tsGerBaixarPDF(&quot;' + f.id + '&quot;)">PDF</button></td></tr>';
+      '<td><button class="btn btn-ghost btn-sm" onclick="tsGerBaixarPDF(&quot;' + f.id + '&quot;)">PDF</button> <button class="icon-btn" title="Reabrir frete" onclick="tsGerDesfazer(&quot;' + f.id + '&quot;)">↺</button></td></tr>';
   }).join('');
   return abas +
     '<div class="summary-row">' +
@@ -7272,7 +7273,8 @@ function tsGerHtmlFechados(d){
     '<div class="summary-box"><div class="num">' + freteFmt(soma('valor_premio')) + '</div><div class="lbl">Premiação paga</div></div>' +
     '<div class="summary-box"><div class="num" style="color:var(--alert);">' + (soma('desconto_vale') > 0 ? '– ' + freteFmt(soma('desconto_vale')) : '—') + '</div><div class="lbl">Descontos de vale</div></div>' +
     '</div>' +
-    '<div class="tsg-wrap"><table class="tsg-table"><thead><tr><th>Transportador</th><th>Fixo</th><th>Variável</th><th>Premiação</th><th>Desconto vale</th><th>Total</th><th>Assinatura</th><th>Enviado em</th><th>PDF</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    '<div class="tsg-wrap"><table class="tsg-table"><thead><tr><th>Transportador</th><th>Fixo</th><th>Variável</th><th>Premiação</th><th>Desconto vale</th><th>Total</th><th>Assinatura</th><th>Enviado em</th><th>Ação</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<p class="cardsub">O ↺ reabre o frete: ele volta pra "Mês vigente", os valores voltam a ser calculados em tempo real e qualquer parcela de vale baixada automaticamente volta a ficar em aberto.</p>';
 }
 
 /* ---- Premiacao detalhada (gerencial) ---- */
