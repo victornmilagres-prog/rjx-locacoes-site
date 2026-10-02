@@ -6178,7 +6178,9 @@ function ccAvaliar(){
   const equipLabelStr = equipamentos.length ? equipamentos.map(e=>CC_EQUIP_LABEL[e]).join(', ') : '(nenhum equipamento selecionado)';
   const financeiroRuim = ccState.recomendacaoNegativa || ccState.score < 500;
   const cadastralImpeditivo = !ccState.docAtivo || (ccState.pj && !ccState.alvaraAtivo);
-  const profissionalOk = ccState.conselhoAtivo;
+  const tipoConselhoAval = document.getElementById('conselho-tipo').value;
+  const ehEsteticistaAval = tipoConselhoAval.indexOf('Esteticista') === 0;
+  const profissionalOk = ehEsteticistaAval ? !!ccState.certificadoEsteticistaNome : ccState.conselhoAtivo;
   const eliminatorio = cadastralImpeditivo || !profissionalOk;
 
   const fixosSelecionados = equipamentos.filter(e=>CC_EQUIP_FIXO.includes(e));
@@ -6228,9 +6230,15 @@ function ccGerarParecerHtml(r){
   if(r.eliminatorio) financeiroItens.push('Não avaliado a fundo — reprovação em etapa anterior é impeditiva.');
 
   const tipoConselho = document.getElementById('conselho-tipo').value;
-  const numeroConselho = document.getElementById('conselho-numero').value || '(número não informado)';
+  const ehEsteticistaParecer = tipoConselho.indexOf('Esteticista') === 0;
   const nomeProfissional = document.getElementById('conselho-nome').value || '(nome não informado)';
-  let profissionalItens = [`${tipoConselho} — inscrição ${numeroConselho}, responsável técnico ${nomeProfissional}: ${ccState.conselhoAtivo?'ativa':'inativa — impeditivo'}`];
+  let profissionalItens;
+  if(ehEsteticistaParecer){
+    profissionalItens = [`${tipoConselho} — responsável técnico ${nomeProfissional}: ${ccState.certificadoEsteticistaNome ? ('certificado de formação anexado (' + ccState.certificadoEsteticistaNome + ')') : 'certificado não anexado — impeditivo'}`];
+  } else {
+    const numeroConselho = document.getElementById('conselho-numero').value || '(número não informado)';
+    profissionalItens = [`${tipoConselho} — inscrição ${numeroConselho}, responsável técnico ${nomeProfissional}: ${ccState.conselhoAtivo?'ativa':'inativa — impeditivo'}`];
+  }
 
   return `
     <div class="laudo-block"><div class="laudo-head"><span class="idx">1</span><span class="title">Análise cadastral</span>${chip(r.veredito.cadastral)}</div><div class="laudo-body"><ul>${cadastralItens.map(i=>`<li>${i}</li>`).join('')}</ul></div></div>
