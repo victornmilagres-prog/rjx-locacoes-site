@@ -5107,8 +5107,8 @@ const CC_MODULE_HTML = `<div class="cc-mod">
         <div class="checkbox-group" id="equipamento-checks" onchange="ccCheckStep1Ready();">
           <label><input type="checkbox" name="equipamento" value="lavieen"> Lavieen</label>
           <label><input type="checkbox" name="equipamento" value="criodermis"> Criodermis 2.0</label>
-          <label><input type="checkbox" name="equipamento" value="endolaser"> Endolaser Pioon 1470</label>
-          <label><input type="checkbox" name="equipamento" value="ultraformer"> Ultraformer MPT</label>
+          <label class="equip-restrita-esteticista"><input type="checkbox" name="equipamento" value="endolaser"> Endolaser Pioon 1470</label>
+          <label class="equip-restrita-esteticista"><input type="checkbox" name="equipamento" value="ultraformer"> Ultraformer MPT</label>
         </div>
         <div class="field-error" id="erro-equipamento">Selecione ao menos um equipamento.</div>
         <div class="hint">Selecione um ou mais. Se o Ultraformer MPT (valor variável) estiver entre os escolhidos e o financeiro vier restritivo, ele é reprovado automaticamente para aprovação manual, mesmo que os demais entrem na regra de pagamento antecipado.</div>
@@ -5127,9 +5127,10 @@ const CC_MODULE_HTML = `<div class="cc-mod">
             <option>Fisioterapia (CREFITO)</option>
             <option>Biomedicina (CRBM)</option>
             <option>Farmácia (CRF)</option>
+            <option>Esteticista (sem conselho)</option>
           </select>
         </div>
-        <div>
+        <div id="bloco-numero-conselho">
           <label style="display:flex;align-items:center;justify-content:space-between;">Número de inscrição <button type="button" class="copy-mini" title="Copiar número" onclick="ccCopiarCampo(&quot;conselho-numero&quot;, this)">📋</button></label>
           <input type="text" id="conselho-numero" placeholder="Ex: 123456-RJ" oninput="ccAtualizarGateConselho()">
         </div>
@@ -5175,6 +5176,17 @@ const CC_MODULE_HTML = `<div class="cc-mod">
             <div id="conselho-print-nome" class="hint"></div>
           </div>
           <div class="hint" style="align-self:center;">A IA lê o print e identifica a situação e as habilitações automaticamente.</div>
+        </div>
+      </div>
+      <div id="conselho-acao-esteticista" style="display:none;">
+        <div class="field-row" style="margin-top:10px;">
+          <div>
+            <label>Certificado do curso/formação</label>
+            <input type="file" id="conselho-certificado-input" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="ccAnexarCertificadoEsteticista(this.files[0])">
+            <button type="button" class="btn-consultar" onclick="document.getElementById(&quot;conselho-certificado-input&quot;).click()">📎 Anexar certificado</button>
+            <div id="conselho-certificado-nome" class="hint"></div>
+          </div>
+          <div class="hint" style="align-self:center;">Esteticista não tem conselho de classe — anexe o certificado do curso/formação no lugar da carteira.</div>
         </div>
       </div>
       <div id="conselho-resultado" class="readonly-result pending">Ainda não consultado — obrigatório antes de avançar.</div>
@@ -5469,11 +5481,57 @@ const CC_CONSELHO_LINKS = {
 
 function ccOnConselhoTipoChange(){
   const tipo = document.getElementById('conselho-tipo').value;
-  const info = CC_CONSELHO_LINKS[tipo];
-  const btn = document.getElementById('btn-abrir-site-conselho');
-  btn.textContent = info.label;
-  btn.onclick = function(){ window.open(info.url, '_blank'); };
-  document.getElementById('hint-site-conselho').textContent = info.hint + ' Use os botões 📋 ao lado dos campos acima pra copiar cada um.';
+  const ehEsteticista = tipo.indexOf('Esteticista') === 0;
+
+  document.getElementById('conselho-acao-crbm').style.display = ehEsteticista ? 'none' : '';
+  document.getElementById('conselho-acao-esteticista').style.display = ehEsteticista ? '' : 'none';
+  const blocoNumero = document.getElementById('bloco-numero-conselho');
+  if(blocoNumero) blocoNumero.style.display = ehEsteticista ? 'none' : '';
+  document.querySelectorAll('.equip-restrita-esteticista').forEach(function(lbl){
+    lbl.style.display = ehEsteticista ? 'none' : '';
+    if(ehEsteticista){
+      const chk = lbl.querySelector('input');
+      if(chk && chk.checked) chk.checked = false;
+    }
+  });
+
+  ccState.conselhoConsultado = false;
+  ccState.conselhoLido = false;
+  ccState.conselhoAtivo = false;
+  ccState.conselhoCarteiraDispensada = false;
+  ccState.certificadoEsteticistaNome = null;
+  ccState.certificadoEsteticistaFile = null;
+  document.getElementById('conselho-numero').value = '';
+  document.getElementById('conselho-certificado-nome').textContent = '';
+
+  const el = document.getElementById('conselho-resultado');
+  if(ehEsteticista){
+    el.className = 'readonly-result pending';
+    el.textContent = 'Anexe o certificado do curso/formação pra liberar esta etapa.';
+  } else {
+    const info = CC_CONSELHO_LINKS[tipo];
+    const btn = document.getElementById('btn-abrir-site-conselho');
+    btn.textContent = info.label;
+    btn.onclick = function(){ window.open(info.url, '_blank'); };
+    document.getElementById('hint-site-conselho').textContent = info.hint + ' Use os botões 📋 ao lado dos campos acima pra copiar cada um.';
+    el.className = 'readonly-result pending';
+    el.textContent = 'Ainda não consultado — obrigatório antes de avançar.';
+  }
+  ccCheckStep1Ready();
+}
+async function ccAnexarCertificadoEsteticista(file){
+  if(!file) return;
+  const nome = document.getElementById('conselho-nome').value.trim();
+  if(!nome){ ccMarkFieldError('conselho-nome'); alert('Preencha o nome completo do profissional antes de anexar o certificado.'); return; }
+  ccClearFieldError('conselho-nome');
+  ccState.certificadoEsteticistaNome = file.name;
+  ccState.certificadoEsteticistaFile = file;
+  ccState.conselhoConsultado = true;
+  document.getElementById('conselho-certificado-nome').textContent = '📄 ' + file.name + ' — anexado ✓';
+  const el = document.getElementById('conselho-resultado');
+  el.className = 'readonly-result ok';
+  el.textContent = 'Certificado anexado — etapa aprovada (esteticista não precisa de validação de conselho).';
+  ccCheckStep1Ready();
 }
 
 function ccCopiarCampo(fieldId, btn){
