@@ -6756,7 +6756,7 @@ async function tsGerCalcularPremiacao(motoristas, mesRef){
 async function tsGerCarregarDados(){
   const mesRef = window.__tsGerMes;
   const rMot = await sb.from('comercial_frete_motoristas').select('*').eq('ativo', true).order('ordem');
-  const motoristas = rMot.data || [];
+  const motoristas = (rMot.data || []).filter(function(m){ return !m.criado_em || m.criado_em.slice(0,7) <= mesRef; });
   const rMotAll = await sb.from('comercial_frete_motoristas').select('id,nome,vinculo_tipo');
   const nomes = {};
   (rMotAll.data || []).forEach(function(m){ nomes[m.id] = m; });
@@ -6870,7 +6870,8 @@ function tsGerHtmlVigente(d){
     else premioHtml = '<span class="tsg-mut">— (' + v.pct + '%)</span>';
     let acao, variavelHtml;
     if(ehClt){
-      acao = '<button class="btn btn-outline btn-sm" onclick="tsGerToggleCompararCLT(&quot;' + L.m.id + '&quot;)">' + (window.__tsGerCompareOpen[L.m.id] ? 'Fechar comparativo ▴' : 'Ver comparativo ▾') + '</button>';
+      acao = '<button class="btn btn-outline btn-sm" onclick="tsGerToggleCompararCLT(&quot;' + L.m.id + '&quot;)">' + (window.__tsGerCompareOpen[L.m.id] ? 'Fechar comparativo ▴' : 'Ver comparativo ▾') + '</button> ' +
+        '<button class="btn btn-primary btn-sm" onclick="tsGerFecharCLT(&quot;' + L.m.id + '&quot;)">Fechar frete</button>';
       variavelHtml = '<span class="tsg-pos">' + freteFmt(v.variavel) + '</span><span class="tsg-sub">' + v.n + ' corrida(s) · equivalente PJ, não pago</span>';
     } else if(f){
       acao = '<button class="btn btn-primary btn-sm" onclick="tsGerEnviarFinanceiro(&quot;' + f.id + '&quot;)">Enviar para o financeiro</button> ' +
@@ -6936,6 +6937,27 @@ function tsGerHtmlVigente(d){
 function tsGerToggleCompararCLT(motId){
   window.__tsGerCompareOpen[motId] = !window.__tsGerCompareOpen[motId];
   tsGerRenderControles();
+}
+async function tsGerFecharCLT(motId){
+  const d = window.__tsGerData;
+  const L = d.linhas.find(function(x){ return x.m.id === motId; });
+  if(!L) return;
+  if(!confirm('Fechar o frete de ' + L.m.nome + ' em ' + freteMesLabel(d.mesRef) + '? Os valores deste mês ficam congelados — qualquer ajuste feito depois (corrida, vale etc.) não muda mais esse mês.')) return;
+  const idsParaBaixar = (L.parcelasDoMes || []).filter(function(x){ return !x.parcela.paga; }).map(function(x){ return x.parcela.id; });
+  const payload = {
+    motorista_id: L.m.id, mes_ref: d.mesRef,
+    valor_fixo: L.fixo, valor_variavel: Math.round(L.variavel * 100) / 100, valor_premio: L.valorPremio, premio_pct: L.pr.pct,
+    desconto_vale: L.desconto, saldo_vale: Math.round(L.saldo * 100) / 100, valor_total: Math.round(L.total * 100) / 100,
+    qtd_corridas: L.lancMes.length, status: 'enviado', pdf_gerado_em: new Date().toISOString(), enviado_em: new Date().toISOString(),
+    criado_por: currentUsuario.id, parcelas_baixadas: idsParaBaixar
+  };
+  const r = await sb.from('comercial_frete_fechamentos').upsert(payload, { onConflict: 'motorista_id,mes_ref' }).select().single();
+  if(r.error){ alert('Erro ao fechar frete: ' + r.error.message); return; }
+  if(idsParaBaixar.length){
+    await sb.from('comercial_frete_vale_parcelas').update({ paga: true, pago_em: new Date().toISOString().slice(0,10) }).in('id', idsParaBaixar);
+  }
+  toast('Frete de ' + L.m.nome + ' fechado para ' + freteMesLabel(d.mesRef) + '.');
+  await tsGerRecarregar();
 }
 function tsGerBaixarPDFComparativoCLT(motId){
   const d = window.__tsGerData;
@@ -7260,8 +7282,8 @@ async function tsGerCarregarPremiacao(){
   content.innerHTML = '<p class="empty-hint">Carregando...</p>';
   try{
     const rMot = await sb.from('comercial_frete_motoristas').select('*').eq('ativo', true).order('ordem');
-    const motoristas = rMot.data || [];
     const mesRef = window.__tsGerPremMes || new Date().toISOString().slice(0,7);
+    const motoristas = (rMot.data || []).filter(function(m){ return !m.criado_em || m.criado_em.slice(0,7) <= mesRef; });
     const prem = await tsGerCalcularPremiacao(motoristas, mesRef);
     window.__tsGerPremData = { motoristas: motoristas, prem: prem, mesRef: mesRef };
   }catch(e){
