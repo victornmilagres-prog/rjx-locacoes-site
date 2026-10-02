@@ -4479,6 +4479,8 @@ async function opSegExcluir(id){
 
 let opTabAtual = 'aberta';
 function mudarTabOperacionalPremiacao(t){ opTabAtual = t; carregarPremiacaoOperacional(true); }
+window.__opPremMes = window.__opPremMes || null;
+function opPremTrocarMes(mes){ window.__opPremMes = mes; carregarPremiacaoOperacional(true); }
 
 async function opRenderValidacaoSelfies(content, htmlAteAqui){
   const rMot = await sb.from("usuarios").select("id,nome").eq("papel","transportes").eq("ativo",true);
@@ -4695,9 +4697,12 @@ async function carregarPremiacaoOperacional(isGestor){
       '</tbody></table></div>';
   }
   }
+  const mesSelPrem = window.__opPremMes || mesAtualMet;
+  const locsPrem = locs.filter(function(l){ return (l.data_locacao||'').slice(0,7) === mesSelPrem; });
+  const paresListPrem = paresList.filter(function(p){ return (p.data_ref||'').slice(0,7) === mesSelPrem; });
   const dados = {};
   motoristas.forEach(function(m){ dados[m.id] = { nome: m.nome, pontos: 0, possiveis: 0 }; });
-  locs.forEach(function(loc){
+  locsPrem.forEach(function(loc){
     const etapas = etapasPorLoc[loc.id] || [];
     etapas.forEach(function(e){
       const resp = e.motorista_id || loc.motorista_id;
@@ -4706,7 +4711,7 @@ async function carregarPremiacaoOperacional(isGestor){
       if(e.concluida && !loc.atraso) dados[resp].pontos += 1;
     });
   });
-  paresList.forEach(function(par){
+  paresListPrem.forEach(function(par){
     const s = selfiesPorPar[par.motorista_id + '|' + par.data_ref];
     const resp = par.motorista_id;
     if(!dados[resp]) dados[resp] = { nome: motoristaNome[resp] || '-', pontos: 0, possiveis: 0 };
@@ -4715,12 +4720,16 @@ async function carregarPremiacaoOperacional(isGestor){
     else if(s && s.validada === false && s.motivo === 'expirada') dados[resp].pontos -= PONTOS_UNIFORME_PREMIACAO;
   });
   const ranking = Object.values(dados).filter(function(r){ return r.possiveis > 0; }).sort(function(a,b){ return (b.pontos/b.possiveis) - (a.pontos/a.possiveis); });
-  let rankingHtml = "";
+  const mesesOpcoesPrem = tsGerMesesOpcoes();
+  const abasMesPremio = '<div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;">' + mesesOpcoesPrem.map(function(k){
+    return '<button class="subtab' + (k === mesSelPrem ? ' active' : '') + '" onclick="opPremTrocarMes(&quot;' + k + '&quot;)">' + freteMesLabel(k) + '</button>';
+  }).join('') + '</div>';
+  let rankingHtml = abasMesPremio;
   if(!ranking.length){
-    rankingHtml += '<div class="card form-card" style="margin-top:20px;"><h3 style="font-size:16px;">🏆 Quem está ganhando o Prêmio Logística</h3><p class="empty-hint">Sem dados ainda.</p></div>';
+    rankingHtml += '<div class="card form-card" style="margin-top:12px;"><h3 style="font-size:16px;">🏆 Quem está ganhando o Prêmio Logística — ' + freteMesLabel(mesSelPrem) + '</h3><p class="empty-hint">Sem dados neste mês.</p></div>';
   } else {
-    rankingHtml += '<div class="card premio-card" style="margin-top:20px;"><div class="premio-head"><h3>🏆 Quem está ganhando o Prêmio Logística</h3><span class="premio-valor">R$ 500,00</span></div>';
-    rankingHtml += '<p class="cardsub" style="margin-bottom:10px;">Precisa bater 80% das metas do mês. Pode ganhar mais de um motorista.</p>';
+    rankingHtml += '<div class="card premio-card" style="margin-top:12px;"><div class="premio-head"><h3>🏆 Quem está ganhando o Prêmio Logística — ' + freteMesLabel(mesSelPrem) + '</h3><span class="premio-valor">R$ 500,00</span></div>';
+    rankingHtml += '<p class="cardsub" style="margin-bottom:10px;">Precisa bater 80% das metas do mês. Pode ganhar mais de um motorista. O mês reinicia do zero.</p>';
     rankingHtml += ranking.map(function(r){
       const pct = Math.round((r.pontos/r.possiveis)*100);
       const ganhando = pct >= 80;
