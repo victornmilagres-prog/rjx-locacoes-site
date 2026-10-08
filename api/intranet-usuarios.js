@@ -118,10 +118,32 @@ if (req.method === 'PATCH') {
 const body = req.body || {};
 const id = body.id;
 if (!id) return res.status(400).json({ error: 'ID obrigatorio.' });
+if (body.novaSenha) {
+if (String(body.novaSenha).length < 6) {
+return res.status(400).json({ error: 'A senha precisa ter pelo menos 6 caracteres.' });
+}
+const resetResp = await fetch(SUPABASE_URL + '/auth/v1/admin/users/' + id, {
+method: 'PUT',
+headers: {
+Authorization: 'Bearer ' + SERVICE_KEY,
+apikey: SERVICE_KEY,
+'Content-Type': 'application/json'
+},
+body: JSON.stringify({ password: body.novaSenha })
+});
+const resetData = await resetResp.json();
+if (!resetResp.ok) {
+return res.status(400).json({ error: resetData.msg || resetData.error_description || resetData.message || 'Falha ao resetar senha.' });
+}
+}
 const patchBody = {};
 if (typeof body.ativo === 'boolean') patchBody.ativo = body.ativo;
 if (body.papel) patchBody.papel = body.papel;
 if (body.nome) patchBody.nome = body.nome;
+if (body.novaSenha) patchBody.senha_temporaria = true;
+if (Object.keys(patchBody).length === 0) {
+return res.status(200).json({ ok: true });
+}
 const r = await fetch(SUPABASE_URL + '/rest/v1/usuarios?id=eq.' + id, {
 method: 'PATCH',
 headers: {
