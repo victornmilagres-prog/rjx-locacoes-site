@@ -2534,6 +2534,10 @@ async function carregarPremiacaoTransportes(){
   else if(window.__tsPremSubtab === "explicacao"){ tsCarregarExplicacaoInner(); }
   else { await tsCarregarLocacoesInner(); }
 }
+function tsPremMesTrocar(mes){
+  window.__tsPremMesDriver = mes;
+  tsCarregarLocacoesInner();
+}
 function tsSelectPremSubtab(tab){
   window.__tsPremSubtab = tab;
   carregarPremiacaoTransportes();
@@ -2546,7 +2550,13 @@ async function tsCarregarLocacoesInner(){
     content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>';
     return;
   }
-  const locs = result.data || [];
+  const locsTodasMeses = result.data || [];
+  const mesAtualDrv = new Date().toISOString().slice(0,7);
+  const mesesDrv = [];
+  for(let k = 0; k < 3; k++){ const dd = new Date(); dd.setDate(1); dd.setMonth(dd.getMonth() - k); mesesDrv.push(dd.getFullYear() + '-' + String(dd.getMonth()+1).padStart(2,'0')); }
+  if(!window.__tsPremMesDriver || mesesDrv.indexOf(window.__tsPremMesDriver) === -1) window.__tsPremMesDriver = mesAtualDrv;
+  const mesSelDrv = window.__tsPremMesDriver;
+  const locs = locsTodasMeses.filter(function(l){ return String(l.data_locacao).slice(0,7) === mesSelDrv; });
   
   const idsLocs = locs.map(function(l){ return l.id; });
   let etapasPorLoc = {};
@@ -2588,7 +2598,10 @@ async function tsCarregarLocacoesInner(){
     else if((!s || !s.enviada) && dia !== hoje) pontos -= PONTOS_UNIFORME_PREMIACAO;
   });
   const pct = possiveis > 0 ? Math.round((pontos/possiveis)*100) : 0;
-  let html = '';
+  const nomesMesDrv = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  let html = '<div class="subnav" style="margin-bottom:14px;">' + mesesDrv.map(function(mm){
+    return '<button type="button" class="subtab' + (mm === mesSelDrv ? ' active' : '') + '" onclick="tsPremMesTrocar(&quot;' + mm + '&quot;)">' + nomesMesDrv[parseInt(mm.slice(5,7),10)-1] + (mm === mesAtualDrv ? ' (atual)' : '') + '</button>';
+  }).join('') + '</div>';
   
 
   html += '<div class="card form-card"><h3>Selfie de uniforme do dia</h3><p class="cardsub">Uma selfie por dia cobre todas as suas locações daquele dia. Sem envio até o fim do dia, você perde ' + PONTOS_UNIFORME_PREMIACAO + ' pontos.</p>';
