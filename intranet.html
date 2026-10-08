@@ -742,7 +742,45 @@ async function boot(){
     document.getElementById('btn-sair').addEventListener('click', async function(){ await sb.auth.signOut(); screenLogin(); });
     return;
   }
+  if(currentUsuario.senha_temporaria){ screenTrocaObrigatoria(); return; }
   renderShell();
+}
+
+function screenTrocaObrigatoria(){
+  app.innerHTML = SITE_HEADER +
+    '<section class="page-hero"><div class="container">' +
+      '<div class="breadcrumb"><a href="index.html">Início</a> / Área do Colaborador</div>' +
+      '<​span class="eyebrow">Troca de senha obrigatória<​/span>' +
+      '<h1 class="mt-16">Defina sua nova senha</h1>' +
+      '<p>O Gerencial resetou sua senha de acesso. Crie uma senha nova, só sua, para continuar.</p>' +
+    '</div></section>' +
+    '<section><div class="container" style="max-width:400px;">' +
+      '<div class="form-card shard-tl">' +
+        '<div id="troca-pw-error" style="display:none;color:var(--alert);background:var(--alert-bg);padding:10px 12px;border-radius:4px;font-size:13px;margin:0 0 16px;"></div>' +
+        '<div class="field"><label for="f-troca-nova">Nova senha</label><input type="password" id="f-troca-nova" placeholder="Mínimo 6 caracteres"></div>' +
+        '<div class="field"><label for="f-troca-conf">Confirmar senha</label><input type="password" id="f-troca-conf" placeholder="Repita a senha"></div>' +
+        '<button class="btn btn-primary btn-block" id="btn-troca-definir">Definir senha e entrar</button>' +
+      '</div>' +
+    '</div></section>' +
+    SITE_FOOTER;
+  document.getElementById('btn-troca-definir').addEventListener('click', doTrocaObrigatoria);
+  document.getElementById('f-troca-conf').addEventListener('keydown', function(e){ if(e.key==='Enter') doTrocaObrigatoria(); });
+}
+
+async function doTrocaObrigatoria(){
+  const p1 = document.getElementById('f-troca-nova').value;
+  const p2 = document.getElementById('f-troca-conf').value;
+  const errEl = document.getElementById('troca-pw-error');
+  errEl.style.display = 'none';
+  if(p1.length < 6){ errEl.textContent='A senha precisa ter pelo menos 6 caracteres.'; errEl.style.display='block'; return; }
+  if(p1 !== p2){ errEl.textContent='As senhas não coincidem.'; errEl.style.display='block'; return; }
+  const btn = document.getElementById('btn-troca-definir');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  const result = await sb.auth.updateUser({ password: p1 });
+  if(result.error){ errEl.textContent = 'Erro ao salvar: ' + result.error.message; errEl.style.display='block'; btn.disabled=false; btn.textContent='Definir senha e entrar'; return; }
+  const rpcResult = await sb.rpc('limpar_senha_temporaria');
+  if(rpcResult.error){ errEl.textContent = 'Senha salva, mas houve um erro ao liberar o acesso: ' + rpcResult.error.message + '. Tente entrar de novo.'; errEl.style.display='block'; btn.disabled=false; btn.textContent='Definir senha e entrar'; return; }
+  await boot();
 }
 
 /* ================= SHELL / SIDEBAR ================= */
@@ -911,13 +949,19 @@ tabela.querySelectorAll(".act-edit").forEach(function(a){
       '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Editar usuário</h3><button class="rjx-modal-close" onclick="document.getElementById(&quot;ger-modal-overlay&quot;).remove()">✕</button></div><div class="rjx-modal-body">' +
       '<div class="field" style="margin-bottom:10px;margin-top:10px;"><label>Nome completo</label><input id="ger-e-nome" value="' + nomeAtual + '"></div>' +
       '<div class="field" style="margin-bottom:14px;"><label>Papel</label><select id="ger-e-papel"><option value="comercial"' + (papelAtual==="comercial"?" selected":"") + '>Comercial</option><option value="transportes"' + (papelAtual==="transportes"?" selected":"") + '>Transportes</option><option value="operacional"' + (papelAtual==="operacional"?" selected":"") + '>Operacional</option><option value="financeiro"' + (papelAtual==="financeiro"?" selected":"") + '>Financeiro</option><option value="gerencial"' + (papelAtual==="gerencial"?" selected":"") + '>Gerencial</option></select></div>' +
+      '<div class="field" style="margin-bottom:6px;"><label style="display:flex;justify-content:space-between;align-items:center;">Senha <button type="button" class="link-btn" style="padding:0;font-size:11.5px;" onclick="var b=document.getElementById(&quot;ger-e-senha-box&quot;);b.style.display=b.style.display===&quot;none&quot;?&quot;block&quot;:&quot;none&quot;;">Resetar senha</button></label></div>' +
+      '<div id="ger-e-senha-box" style="display:none;margin-bottom:14px;"><input id="ger-e-senha" type="text" placeholder="Nova senha (mínimo 6 caracteres)"><p class="inline-note" style="margin-top:4px;">Avise a senha pra pessoa por fora (WhatsApp, por ex). No próximo acesso ela é obrigada a trocar.</p></div>' +
       '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="document.getElementById(&quot;ger-modal-overlay&quot;).remove()">Cancelar</button><button class="btn btn-primary" id="ger-e-salvar">Salvar</button></div></div></div>';
     document.body.appendChild(overlay);
     document.getElementById("ger-e-salvar").addEventListener("click", async function(){
       const nome = document.getElementById("ger-e-nome").value.trim();
       const papel = document.getElementById("ger-e-papel").value;
+      const novaSenha = document.getElementById("ger-e-senha").value.trim();
       if(!nome){ alert("Preencha o nome."); return; }
-      try{ await apiCall("PATCH", { id: id, nome: nome, papel: papel }); overlay.remove(); await carregarUsuarios(); }
+      if(novaSenha && novaSenha.length < 6){ alert("A senha precisa ter pelo menos 6 caracteres."); return; }
+      const payload = { id: id, nome: nome, papel: papel };
+      if(novaSenha) payload.novaSenha = novaSenha;
+      try{ await apiCall("PATCH", payload); overlay.remove(); await carregarUsuarios(); toast(novaSenha ? "Senha redefinida." : "Usuário atualizado."); }
       catch(err){ alert(err.message); }
     });
   });
