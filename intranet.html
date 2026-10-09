@@ -4577,19 +4577,11 @@ async function opRenderValidacaoSelfies(content, htmlAteAqui){
   content.innerHTML = html;
 }
 async function opValidarSelfieManual(motoristaId, dataRef, validada){
-  const rAtual = await sb.from("premiacao_selfies_dia").select("foto_url").eq("motorista_id", motoristaId).eq("data_ref", dataRef).maybeSingle();
-  const fotoUrl = rAtual.data ? rAtual.data.foto_url : null;
-  await sb.from("premiacao_selfies_dia").update({ validada: validada, motivo: validada ? null : "reprovada", foto_url: null, validada_em: new Date().toISOString() }).eq("motorista_id", motoristaId).eq("data_ref", dataRef);
-  if(fotoUrl){
-    try {
-      const path = fotoUrl.split("/selfies-pendentes/")[1];
-      if(path) await sb.storage.from("selfies-pendentes").remove([path]);
-    } catch(err){}
-  }
+  // A foto NAO e apagada aqui: fica guardada pelo prazo de contestacao (3 dias) e some sozinha (api/limpar-selfies).
+  await sb.from("premiacao_selfies_dia").update({ validada: validada, motivo: validada ? null : "reprovada", validada_em: new Date().toISOString() }).eq("motorista_id", motoristaId).eq("data_ref", dataRef);
   toast(validada ? "Selfie validada." : "Selfie reprovada.");
   await carregarPremiacaoOperacional(true);
 }
-
 async function carregarPremiacaoOperacional(isGestor){
   
   const content = document.getElementById('operacional-content');
