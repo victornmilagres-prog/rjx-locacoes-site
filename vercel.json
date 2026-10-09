@@ -1,5 +1,6 @@
 {
   "crons": [
-    { "path": "/api/sync-disparos-estoquenow", "schedule": "50 2 * * *" }
+    { "path": "/api/sync-disparos-estoquenow", "schedule": "50 2 * * *" },
+    { "path": "/api/limpar-selfies", "schedule": "30 5 * * *" }
   ]
 }
