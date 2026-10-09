@@ -2744,11 +2744,12 @@ async function onPremiacaoSelfieFile(e){
   if(iaRespondeu && aprovado === true){
     await sb.from('premiacao_selfies_dia').update({ validada: true, motivo: null, retry_ate: null, foto_url: null, validada_em: new Date().toISOString() }).eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef);
   } else if(iaRespondeu && aprovado === false){
+    const fotoRepro = await premiacaoUploadSelfiePendente(file, currentUsuario.id, dataRef);
     if(eraRetryPendente){
-      await sb.from('premiacao_selfies_dia').update({ validada: false, motivo: 'reprovada', retry_ate: null, foto_url: null, validada_em: new Date().toISOString() }).eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef);
+      await sb.from('premiacao_selfies_dia').update({ validada: false, motivo: 'reprovada', retry_ate: null, foto_url: fotoRepro, validada_em: new Date().toISOString() }).eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef);
     } else {
       const prazo = new Date(Date.now() + PRAZO_RETRY_SELFIE_MIN*60000).toISOString();
-      await sb.from('premiacao_selfies_dia').update({ validada: false, motivo: 'reprovada', retry_ate: prazo, foto_url: null }).eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef);
+      await sb.from('premiacao_selfies_dia').update({ validada: false, motivo: 'reprovada', retry_ate: prazo, foto_url: fotoRepro }).eq('motorista_id', currentUsuario.id).eq('data_ref', dataRef);
     }
   } else {
     const fotoUrl = await premiacaoUploadSelfiePendente(file, currentUsuario.id, dataRef);
@@ -4561,7 +4562,7 @@ async function opRenderValidacaoSelfies(content, htmlAteAqui){
       else { statusTxt = "Aguardando validação"; statusCls = "background:var(--wait-bg,#f7ecd9);color:var(--wait,#8a5a12);"; pontosTxt = "0"; }
       const podeAgir = !(s.validada === true);
       const acao = podeAgir ? ('<button class="icon-btn" title="Validar (+' + PONTOS_UNIFORME_PREMIACAO + ')" style="border-color:var(--ok,#3f6b52);color:var(--ok,#3f6b52);width:auto;padding:0 8px;" onclick="opValidarSelfieManual(&quot;' + s.motorista_id + '&quot;,&quot;' + s.data_ref + '&quot;,true)">Validar</button> <button class="icon-btn" title="Reprovar" style="border-color:var(--alert,#8a2e1f);color:var(--alert,#8a2e1f);width:auto;padding:0 8px;" onclick="opValidarSelfieManual(&quot;' + s.motorista_id + '&quot;,&quot;' + s.data_ref + '&quot;,false)">Reprovar</button>') : "—";
-      const fotoCel = s.foto_url ? ('<a href="' + s.foto_url + '" target="_blank" rel="noopener"><img src="' + s.foto_url + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line);"></a>') : '—';
+      const fotoCel = s.foto_url ? ('<a href="' + s.foto_url + '" target="_blank" rel="noopener"><img src="' + s.foto_url + '" style="width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--line);"></a>') : '—';
       html += '<tr style="border-top:1px solid var(--line);">' +
         '<td style="padding:9px 10px;">' + dataFmt + '</td>' +
         '<td style="padding:9px 10px;font-weight:600;">' + nome + '</td>' +
