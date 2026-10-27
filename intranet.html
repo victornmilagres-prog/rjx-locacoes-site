@@ -4755,7 +4755,7 @@ async function carregarPremiacaoOperacional(isGestor){
           '<td style="padding:11px 10px;">' + feitas + "/" + total + '</td>' +
           '<td style="padding:11px 10px;"><span style="font-size:12px;padding:2px 10px;border-radius:12px;font-weight:600;' + (loc.atraso?"background:var(--alert-bg);color:var(--alert);":"background:var(--ok-bg);color:var(--ok);") + '">' + (loc.atraso?"Sim":"Não") + '</span></td>' +
           '<td style="padding:11px 10px;">' + pontos + ' pts</td>' +
-          '<td style="padding:11px 10px;"><a href="#" onclick="opAbrirDetalhesLocFechada(&quot;' + loc.id + '&quot;);return false;" style="color:var(--wine);text-decoration:underline;font-size:12.5px;">ver detalhes</a></td>' +
+          '<td style="padding:11px 10px;"><a href="#" onclick="opAbrirDetalhesLocFechada(&quot;' + loc.id + '&quot;);return false;" style="color:var(--wine);text-decoration:underline;font-size:12.5px;">ver / editar</a></td>' +
           '</tr>';
       }).join("") +
       '</tbody></table></div>';
@@ -5052,6 +5052,29 @@ function opToggleLocCard(id){
   window.__opLocsAbertasExp[id] = !window.__opLocsAbertasExp[id];
   carregarPremiacaoOperacional(true);
 }
+async function opEditarEtapaFechada(locId, etapaId, checked){
+  // Edicao de lancamento ja fechado: marca/desmarca uma etapa e recarrega (mesmo efeito de marcar na locacao aberta)
+  const updates = { concluida: checked };
+  if(checked){
+    const loc = await sb.from('premiacao_locacoes').select('motorista_id').eq('id', locId).single();
+    updates.motorista_id = loc.data ? loc.data.motorista_id : null;
+    updates.concluida_em = new Date().toISOString();
+  } else {
+    updates.motorista_id = null;
+    updates.concluida_em = null;
+  }
+  const up = await sb.from('premiacao_etapas').update(updates).eq('id', etapaId);
+  if(up.error) toast('Erro ao salvar: ' + up.error.message);
+  await carregarPremiacaoOperacional(true);
+  opAbrirDetalhesLocFechada(locId);
+}
+async function opEditarAtrasoFechada(locId, checked){
+  const up = await sb.from('premiacao_locacoes').update({ atraso: checked }).eq('id', locId);
+  if(up.error) toast('Erro ao salvar: ' + up.error.message);
+  else toast(checked ? 'Atraso marcado — pontos da locação zerados.' : 'Atraso desmarcado.');
+  await carregarPremiacaoOperacional(true);
+  opAbrirDetalhesLocFechada(locId);
+}
 function opAbrirDetalhesLocFechada(id){
   const loc = (window.__opLocacoes||[]).find(function(l){ return l.id === id; });
   if(!loc) return;
@@ -5064,9 +5087,10 @@ function opAbrirDetalhesLocFechada(id){
   overlay.id = "op-modal-overlay";
   overlay.style.cssText = "position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:200;";
   const etapasHtml = etapas.map(function(e){
-    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px;"><input type="checkbox" ' + (e.concluida?"checked":"") + ' disabled style="width:18px;height:18px;accent-color:var(--wine);flex-shrink:0;"><span style="flex:1;' + (e.concluida?"":"color:var(--gray-soft);") + '">' + escapeHtml(e.ordem + ". " + e.nome) + '</span></div>';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px;"><input type="checkbox" ' + (e.concluida?"checked":"") + ' onchange="opEditarEtapaFechada(&quot;' + id + '&quot;, &quot;' + e.id + '&quot;, this.checked)" style="width:18px;height:18px;accent-color:var(--wine);flex-shrink:0;cursor:pointer;"><span style="flex:1;' + (e.concluida?"":"color:var(--gray-soft);") + '">' + escapeHtml(e.ordem + ". " + e.nome) + '</span></div>';
   }).join("");
-  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Locação #' + (loc.numero||"") + '</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body"><p class="cardsub">' + escapeHtml(eq.label||"") + ' · ' + nomeMotor + '</p>' + etapasHtml + '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="opFecharModal()">Fechar</button></div></div></div>';
+  const barraEdicaoHtml = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 10px;"><input type="checkbox" id="op-edit-atraso" ' + (loc.atraso ? "checked" : "") + ' onchange="opEditarAtrasoFechada(&quot;' + id + '&quot;, this.checked)" style="width:18px;height:18px;accent-color:var(--wine);cursor:pointer;"><label for="op-edit-atraso" style="font-weight:600;color:var(--alert);cursor:pointer;font-size:13px;">Atraso (zera os pontos da loca\u00e7\u00e3o)</label><button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="opMarcarTodasEtapas(&quot;' + id + '&quot;)">Marcar todas as etapas</button></div><p class="cardsub" style="margin-bottom:6px;">As altera\u00e7\u00f5es s\u00e3o salvas na hora.</p>';
+  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Locação #' + (loc.numero||"") + '</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body"><p class="cardsub">' + escapeHtml(eq.label||"") + ' · ' + nomeMotor + '</p>' + barraEdicaoHtml + etapasHtml + '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="opFecharModal()">Fechar</button></div></div></div>';
   document.body.appendChild(overlay);
 }
 async function opMarcarTodasEtapas(locId){
@@ -5080,7 +5104,9 @@ async function opMarcarTodasEtapas(locId){
   const up = await sb.from('premiacao_etapas').update({ concluida: true, motorista_id: loc.data ? loc.data.motorista_id : null, concluida_em: new Date().toISOString() }).eq('locacao_id', locId).eq('concluida', false);
   if(up.error){ toast('Erro ao marcar etapas: ' + up.error.message); return; }
   toast('Etapas marcadas.');
+  const modalAberto = !!document.getElementById('op-modal-overlay');
   await carregarPremiacaoOperacional(true);
+  if(modalAberto) opAbrirDetalhesLocFechada(locId);
 }
 async function togglePremiacaoEtapa(etapaId, locId, checked){
   const updates = { concluida: checked };
