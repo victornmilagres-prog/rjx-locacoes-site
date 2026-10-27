@@ -6819,7 +6819,7 @@ async function tsGerCalcularPremiacao(motoristas, mesRef){
   if(!usuarioIds.length) return res;
   const fimMes = (function(){ const p = mesRef.split('-'); const d = new Date(Number(p[0]), Number(p[1]), 1); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01'; })();
   const locs = await tsGerFetchAll(function(){
-    return sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status').in('motorista_id', usuarioIds).gte('data_locacao', mesRef + '-01').lt('data_locacao', fimMes).order('data_locacao', { ascending: false }).order('id');
+    return sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status,atraso').in('motorista_id', usuarioIds).gte('data_locacao', mesRef + '-01').lt('data_locacao', fimMes).order('data_locacao', { ascending: false }).order('id');
   });
   let etapas = [];
   for(let i = 0; i < locs.length; i += 100){
@@ -6834,16 +6834,25 @@ async function tsGerCalcularPremiacao(motoristas, mesRef){
   });
   const hoje = new Date().toISOString().slice(0,10);
   const P = PONTOS_UNIFORME_PREMIACAO;
+  /* Mesma regra da barra do premio (Operacional): cada etapa conta pra quem a fez (ou dono da locacao);
+     atraso na locacao zera os pontos das etapas dela; selfie validada +5 e expirada -5 (nao enviada/reprovada so descontam ao virar o dia) */
+  const etapasPorLocGer = {};
+  etapas.forEach(function(e){ (etapasPorLocGer[e.locacao_id] = etapasPorLocGer[e.locacao_id] || []).push(e); });
   usuarioIds.forEach(function(uid){
     const minhas = locs.filter(function(l){ return l.motorista_id === uid; });
     let pontos = 0, possiveis = 0, etapasOk = 0, etapasTot = 0;
-    const locsDet = minhas.map(function(loc){
-      const et = etapas.filter(function(e){ return e.locacao_id === loc.id; });
-      let feitas = 0;
-      et.forEach(function(e){
+    locs.forEach(function(loc){
+      (etapasPorLocGer[loc.id] || []).forEach(function(e){
+        const resp = e.motorista_id || loc.motorista_id;
+        if(resp !== uid) return;
         possiveis += 1; etapasTot += 1;
-        if(e.concluida && e.motorista_id === uid){ pontos += 1; feitas += 1; etapasOk += 1; }
+        if(e.concluida){ etapasOk += 1; if(!loc.atraso) pontos += 1; }
       });
+    });
+    const locsDet = minhas.map(function(loc){
+      const et = etapasPorLocGer[loc.id] || [];
+      let feitas = 0;
+      et.forEach(function(e){ if(e.concluida && (e.motorista_id || loc.motorista_id) === uid) feitas += 1; });
       return { loc: loc, etapas: et, feitas: feitas };
     });
     const diasSet = {};
@@ -6855,8 +6864,8 @@ async function tsGerCalcularPremiacao(motoristas, mesRef){
       let estado = 'pendente';
       if(s && s.validada === true){ pontos += P; estado = 'ok'; diasOk += 1; }
       else if(s && s.validada === false && s.motivo === 'expirada'){ pontos -= P; estado = 'expirada'; }
-      else if(s && s.validada === false && s.motivo === 'reprovada' && (!s.retry_ate || new Date(s.retry_ate) <= new Date())){ pontos -= P; estado = 'reprovada'; }
-      else if((!s || !s.enviada) && dia !== hoje){ pontos -= P; estado = 'nao_enviada'; }
+      else if(s && s.validada === false && s.motivo === 'reprovada' && (!s.retry_ate || new Date(s.retry_ate) <= new Date())){ estado = 'reprovada'; }
+      else if((!s || !s.enviada) && dia !== hoje){ estado = 'nao_enviada'; }
       return { dia: dia, estado: estado };
     });
     const pctBruto = possiveis > 0 ? Math.round((pontos / possiveis) * 100) : 0;
@@ -7467,7 +7476,7 @@ function tsGerRenderPremiacao(){
             '<span style="color:var(--gray);font-weight:400;">' + freteFmtData(loc.data_locacao) + ' · ' + ld.feitas + ' / ' + ld.etapas.length + ' etapas</span></div>' +
             '<div class="tsg-etapas">' + etHtml + '</div></div>';
         }).join('');
-        const rot = { ok: ['y', '✓', 'Selfie validada (+' + PONTOS_UNIFORME_PREMIACAO + ')'], nao_enviada: ['n', '✕', 'Selfie não enviada (–' + PONTOS_UNIFORME_PREMIACAO + ')'], expirada: ['n', '✕', 'Selfie expirada (–' + PONTOS_UNIFORME_PREMIACAO + ')'], reprovada: ['n', '✕', 'Selfie reprovada (–' + PONTOS_UNIFORME_PREMIACAO + ')'], pendente: ['o', '…', 'Aguardando selfie'] };
+        const rot = { ok: ['y', '✓', 'Selfie validada (+' + PONTOS_UNIFORME_PREMIACAO + ')'], nao_enviada: ['n', '✕', 'Selfie não enviada (desconta ao virar o dia)'], expirada: ['n', '✕', 'Selfie expirada (–' + PONTOS_UNIFORME_PREMIACAO + ')'], reprovada: ['n', '✕', 'Selfie reprovada (desconta ao virar o dia)'], pendente: ['o', '…', 'Aguardando selfie'] };
         corpo += '<div class="tsg-loc"><div class="tsg-loc-head">Uniforme (selfie do dia)</div><div class="tsg-etapas">' + pr.dias.map(function(dd){
           const r = rot[dd.estado] || rot.pendente;
           return '<div class="tsg-et"><span class="tsg-ck ' + r[0] + '">' + r[1] + '</span><span>' + freteFmtData(dd.dia) + ' — ' + r[2] + '</span></div>';
