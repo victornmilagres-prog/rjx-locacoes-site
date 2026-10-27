@@ -4734,6 +4734,7 @@ async function carregarPremiacaoOperacional(isGestor){
           '<span style="font-size:14px;color:var(--gray);">' + (aberto?"▴":"▾") + '</span></div>' +
         '</div>' +
         (aberto ? '<div style="border-top:1px solid var(--line);padding:12px 18px;">' +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +'<input type="checkbox" id="atraso-' + loc.id + '" ' + (loc.atraso ? "checked" : "") + ' onchange="togglePremiacaoAtraso(&quot;' + loc.id + '&quot;, this.checked)">' +'<label for="atraso-' + loc.id + '" style="font-weight:600;color:var(--alert);cursor:pointer;font-size:13px;">Marcar atraso em alguma etapa (zera os pontos da loca\u00e7\u00e3o)</label>' +
+      '<button class="btn btn-ghost btn-sm" onclick="opMarcarTodasEtapas(&quot;' + loc.id + '&quot;)">Marcar todas as etapas</button>' +
       '<button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="opFecharLocacao(&quot;' + loc.id + '&quot;)">Fechar loca\u00e7\u00e3o</button>' +'</div>' +etapasHtml + '</div>' : "") +
         '</div>';
     }).join("");
@@ -5067,6 +5068,19 @@ function opAbrirDetalhesLocFechada(id){
   }).join("");
   overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Locação #' + (loc.numero||"") + '</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body"><p class="cardsub">' + escapeHtml(eq.label||"") + ' · ' + nomeMotor + '</p>' + etapasHtml + '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="opFecharModal()">Fechar</button></div></div></div>';
   document.body.appendChild(overlay);
+}
+async function opMarcarTodasEtapas(locId){
+  // Marca como feitas todas as etapas ainda abertas da locacao (mesmo efeito de marcar uma a uma, em um clique)
+  const pend = await sb.from('premiacao_etapas').select('id', { count: 'exact', head: true }).eq('locacao_id', locId).eq('concluida', false);
+  if(pend.error){ toast('Erro ao conferir etapas: ' + pend.error.message); return; }
+  const n = pend.count || 0;
+  if(!n){ toast('Todas as etapas já estão marcadas.'); return; }
+  if(!confirm('Marcar as ' + n + ' etapa(s) restantes como feitas?')) return;
+  const loc = await sb.from('premiacao_locacoes').select('motorista_id').eq('id', locId).single();
+  const up = await sb.from('premiacao_etapas').update({ concluida: true, motorista_id: loc.data ? loc.data.motorista_id : null, concluida_em: new Date().toISOString() }).eq('locacao_id', locId).eq('concluida', false);
+  if(up.error){ toast('Erro ao marcar etapas: ' + up.error.message); return; }
+  toast('Etapas marcadas.');
+  await carregarPremiacaoOperacional(true);
 }
 async function togglePremiacaoEtapa(etapaId, locId, checked){
   const updates = { concluida: checked };
