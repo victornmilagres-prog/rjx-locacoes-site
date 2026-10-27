@@ -2561,7 +2561,7 @@ async function tsCarregarLocacoesInner(){
   const idsLocs = locs.map(function(l){ return l.id; });
   let etapasPorLoc = {};
   if(idsLocs.length){
-    const rEtapas = await sb.from('premiacao_etapas').select('id,locacao_id,concluida,motorista_id').in('locacao_id', idsLocs);
+    const rEtapas = await premiacaoBuscarEtapas(idsLocs, 'id,locacao_id,concluida,motorista_id');
     (rEtapas.data||[]).forEach(function(e){
       if(!etapasPorLoc[e.locacao_id]) etapasPorLoc[e.locacao_id] = [];
       etapasPorLoc[e.locacao_id].push(e);
@@ -4623,7 +4623,7 @@ async function carregarPremiacaoOperacional(isGestor){
   const idsLocs = locs.map(function(l){ return l.id; });
   let etapasPorLoc = {};
   if(idsLocs.length){
-    const rEtapas = await sb.from('premiacao_etapas').select('id,locacao_id,ordem,nome,concluida,motorista_id').in('locacao_id', idsLocs).order('ordem');
+    const rEtapas = await premiacaoBuscarEtapas(idsLocs, 'id,locacao_id,ordem,nome,concluida,motorista_id');
     (rEtapas.data || []).forEach(function(e){
       if(!etapasPorLoc[e.locacao_id]) etapasPorLoc[e.locacao_id] = [];
       etapasPorLoc[e.locacao_id].push(e);
@@ -4651,7 +4651,7 @@ async function carregarPremiacaoOperacional(isGestor){
   const mesAtualMet = hojeMet.slice(0,7);
   const locsMesMet = (result.data||[]).filter(function(l){ return (l.data_locacao||"").slice(0,7) === mesAtualMet; });
   const locIdsMesMet = locsMesMet.map(function(l){ return l.id; });
-  const rEtapasMet = locIdsMesMet.length ? await sb.from("premiacao_etapas").select("concluida").in("locacao_id", locIdsMesMet) : { data: [] };
+  const rEtapasMet = locIdsMesMet.length ? await premiacaoBuscarEtapas(locIdsMesMet, "concluida") : { data: [] };
   const pontosDistribuidosMet = (rEtapasMet.data||[]).filter(function(e){ return e.concluida; }).length;
   const inicioMesMet = mesAtualMet + "-01";
   const proxMesDateMet = new Date(Number(mesAtualMet.slice(0,4)), Number(mesAtualMet.slice(5,7)), 1);
@@ -4829,7 +4829,7 @@ async function tsCarregarHistoricoInner(){
   if(rLoc.error){ content.innerHTML = '<p class="empty-hint">Erro: ' + escapeHtml(rLoc.error.message) + '</p>'; return; }
   const locs = rLoc.data || [];
   const ids = locs.map(function(l){ return l.id; });
-  const rEtapas = ids.length ? await sb.from("premiacao_etapas").select("locacao_id,ordem,nome,concluida").in("locacao_id", ids).order("ordem") : { data: [] };
+  const rEtapas = ids.length ? await premiacaoBuscarEtapas(ids, "locacao_id,ordem,nome,concluida") : { data: [] };
   const rContest = ids.length ? await sb.from("premiacao_contestacoes").select("*").in("locacao_id", ids) : { data: [] };
   window.__tsHistLocs = locs;
   window.__tsHistEtapas = rEtapas.data || [];
@@ -6751,6 +6751,16 @@ async function tsGerFetchAll(makeQuery){
   }
   return all;
 }
+/* Etapas da premiacao: busca em lotes de 100 locacoes e paginando (o Supabase corta em 1000 linhas por consulta) */
+async function premiacaoBuscarEtapas(ids, cols){
+  let todas = [];
+  for(let i = 0; i < ids.length; i += 100){
+    const lote = ids.slice(i, i + 100);
+    const part = await tsGerFetchAll(function(){ return sb.from('premiacao_etapas').select(cols).in('locacao_id', lote).order('locacao_id').order('ordem'); });
+    todas = todas.concat(part);
+  }
+  return { data: todas, error: null };
+}
 
 function tsGerMesesOpcoes(){
   const out = [], d = new Date();
@@ -7475,7 +7485,7 @@ async function mcCalcularPremiacaoPct(){
   const idsLocs = locs.map(function(l){ return l.id; });
   let etapasPorLoc = {};
   if(idsLocs.length){
-    const rEtapas = await sb.from('premiacao_etapas').select('id,locacao_id,concluida,motorista_id').in('locacao_id', idsLocs);
+    const rEtapas = await premiacaoBuscarEtapas(idsLocs, 'id,locacao_id,concluida,motorista_id');
     (rEtapas.data||[]).forEach(function(e){
       if(!etapasPorLoc[e.locacao_id]) etapasPorLoc[e.locacao_id] = [];
       etapasPorLoc[e.locacao_id].push(e);
