@@ -6317,23 +6317,32 @@ function ccAvaliar(){
     mostrarAprovacaoManual = true;
   }
   // Autorizacao do Victor: so vale para restricao financeira (score baixo / recomendacao negativa).
-  // Impeditivo cadastral ou profissional nao e liberavel. A decisao vale so para este documento + score + equipamentos.
+  // Impeditivo cadastral ou profissional nao e liberavel. O pedido fica gravado no banco (autorizacoes_cadastro)
+  // e vale so para este documento + score + equipamentos.
+  const motivosSistema = [];
+  const scoreNum = Number(ccState.score);
+  if(ccState.score !== null && ccState.score !== '' && ccState.score !== undefined && !isNaN(scoreNum) && scoreNum < 500) motivosSistema.push('score ' + scoreNum + '/1000 abaixo de 500');
+  if(ccState.recomendacaoNegativa) motivosSistema.push('recomendação do Serasa negativa');
+  const motivoSistema = motivosSistema.join('; ');
   const chaveAut = documento + '|' + ccState.score + '|' + equipamentos.join(',');
-  const aut = (ccState.autorizacaoVictor && ccState.autorizacaoVictor.chave === chaveAut) ? ccState.autorizacaoVictor : null;
-  let autorizacao = null;
-  if(!eliminatorio && financeiroRuim){
+  const reg = (ccState.autorizacaoReg && ccState.autorizacaoReg.chave === chaveAut) ? ccState.autorizacaoReg : null;
+  const restricaoFinanceira = !eliminatorio && financeiroRuim;
+  let autorizacao = null, pedido = null;
+  if(restricaoFinanceira){
     mostrarAprovacaoManual = true;
-    if(aut && aut.decisao === 'liberou'){
+    const motivoTxt = motivoSistema ? ' (' + motivoSistema + ')' : '';
+    if(reg && reg.decisao === 'liberou'){
       conclusaoClasse = 'ok'; conclusaoTitulo = 'Aprovado — autorizado pelo Victor';
-      conclusaoTexto = 'Financeiro restritivo (Serasa ' + ccState.score + '/1000), mas a locação de ' + equipLabelStr + ' foi autorizada pelo Victor.';
-    } else if(aut && aut.decisao === 'nao'){
+      conclusaoTexto = 'Análise financeira negada pelo sistema' + motivoTxt + ', mas a locação de ' + equipLabelStr + ' foi autorizada pelo Victor.';
+    } else if(reg && reg.decisao === 'nao'){
       conclusaoClasse = 'bad'; conclusaoTitulo = 'Reprovado — não autorizado pelo Victor';
-      conclusaoTexto = 'Financeiro restritivo (Serasa ' + ccState.score + '/1000) e o Victor não autorizou a locação de ' + equipLabelStr + '.';
+      conclusaoTexto = 'Análise financeira negada pelo sistema' + motivoTxt + ' e o Victor não autorizou a locação de ' + equipLabelStr + '.';
       veredito = Object.assign({}, veredito, { financeiro: 'bad' });
     }
-    autorizacao = aut ? { decisao: aut.decisao, por: aut.por, em: aut.em } : null;
+    if(reg && reg.decisao !== 'pendente') autorizacao = { decisao: reg.decisao, por: reg.decidido_por, em: reg.decidido_em };
+    else if(reg) pedido = { por: reg.solicitante_nome, em: reg.criado_em };
   }
-  return {nome, documento, equipamentos, equipLabelStr, veredito, conclusaoClasse, conclusaoTitulo, conclusaoTexto, mostrarAprovacaoManual, eliminatorio, financeiroRuim, autorizacao, chaveAut};
+  return {nome, documento, equipamentos, equipLabelStr, veredito, conclusaoClasse, conclusaoTitulo, conclusaoTexto, mostrarAprovacaoManual, eliminatorio, financeiroRuim, autorizacao, pedido, chaveAut, motivoSistema, restricaoFinanceira};
 }
 
 function ccChipVeredito(v){ return v==='ok' ? '<span class="verdict-chip ok">Aprovado</span>' : v==='bad' ? '<span class="verdict-chip bad">Reprovado</span>' : '<span class="verdict-chip warn">Atenção</span>'; }
@@ -6374,34 +6383,115 @@ function ccGerarParecerHtml(r){
     </div>`;
 }
 
+function ccFmtDataHora(iso){
+  try { const d = new Date(iso); return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); } catch(e){ return ''; }
+}
+function ccEhVictor(){
+  return typeof currentUsuario !== 'undefined' && !!currentUsuario && currentUsuario.papel === 'gerencial' && String(currentUsuario.email || '').toLowerCase() === 'rjxlocacoes@gmail.com';
+}
 function ccBlocoAutorizacaoHtml(r){
   if(!r.mostrarAprovacaoManual) return '';
-  const aut = r.autorizacao;
-  const ehVictor = (typeof currentUsuario !== 'undefined' && currentUsuario && currentUsuario.papel === 'gerencial');
+  const aut = r.autorizacao, ped = r.pedido;
   const interativo = window.__ccParecerInterativo === true;
-  const fmt = function(iso){ try { return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }); } catch(e){ return ''; } };
   let h = '<div class="manual-approval" style="margin-top:12px;">';
+  h += '<div style="font-size:13px;margin-bottom:6px;"><b>Negado pelo sistema</b>' + (r.motivoSistema ? ' — motivo: ' + escapeHtml(r.motivoSistema) : '') + '.</div>';
   if(aut){
-    h += '<div style="font-weight:600;">' + (aut.decisao === 'liberou' ? '✔ Liberado' : '✕ Não liberado') + ' por ' + escapeHtml(aut.por || '') + ' em ' + fmt(aut.em) + '</div>';
-    if(ehVictor && interativo) h += '<div style="margin-top:6px;"><button class="btn btn-ghost btn-sm" onclick="ccDecidirAutorizacao(null)">Desfazer decisão</button></div>';
-  } else if(ehVictor && interativo){
-    h += '<div style="font-weight:600;margin-bottom:6px;">Autorização do Victor</div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-primary btn-sm" onclick="ccDecidirAutorizacao(&quot;liberou&quot;)">Autorizar locação</button><button class="btn btn-ghost btn-sm" onclick="ccDecidirAutorizacao(&quot;nao&quot;)">Não autorizar</button></div>';
+    h += '<div style="font-weight:600;">' + (aut.decisao === 'liberou' ? '✔ Autorizado' : '✕ Não autorizado') + ' por ' + escapeHtml(aut.por || '') + ' em ' + ccFmtDataHora(aut.em) + '</div>';
+    if(ccEhVictor() && interativo) h += '<div style="margin-top:6px;"><button class="btn btn-ghost btn-sm" onclick="ccDecidirAutorizacao(null)">Desfazer decisão</button></div>';
+  } else if(ccEhVictor() && interativo){
+    h += '<div style="font-weight:600;margin-bottom:6px;">Autorização do Victor' + (ped ? ' <span style="font-weight:400;color:var(--ink-soft);">— pedido de ' + escapeHtml(ped.por || '') + ' em ' + ccFmtDataHora(ped.em) + '</span>' : '') + '</div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-primary btn-sm" onclick="ccDecidirAutorizacao(&quot;liberou&quot;)">Autorizar locação</button><button class="btn btn-ghost btn-sm" onclick="ccDecidirAutorizacao(&quot;nao&quot;)">Não autorizar</button></div>';
   } else {
-    h += '<div style="font-size:13px;">Aguardando autorização do Victor.</div>';
+    h += '<div style="font-size:13px;">' + (ped ? 'Aguardando autorização do Victor — pedido enviado em ' + ccFmtDataHora(ped.em) + '.' : 'Enviando pedido de autorização ao Victor…') + '</div>';
   }
   return h + '</div>';
 }
-function ccDecidirAutorizacao(decisao){
-  if(!(typeof currentUsuario !== 'undefined' && currentUsuario && currentUsuario.papel === 'gerencial')){ toast('Só o Victor pode autorizar.'); return; }
-  if(decisao === null){ ccState.autorizacaoVictor = null; ccGerarParecer(); return; }
-  const r = ccAvaliar();
-  const pergunta = decisao === 'liberou'
-    ? 'Autorizar a locação de ' + r.equipLabelStr + ' para ' + r.nome + ' mesmo com o financeiro restritivo?'
-    : 'Registrar que a locação NÃO foi autorizada para ' + r.nome + '?';
-  if(!confirm(pergunta)) return;
-  ccState.autorizacaoVictor = { decisao: decisao, por: currentUsuario.nome, em: new Date().toISOString(), chave: r.chaveAut };
-  ccGerarParecer();
+async function ccSincronizarAutorizacao(){
+  if(window.__ccSincronizando) return;
+  window.__ccSincronizando = true;
+  try {
+    const r = ccAvaliar();
+    clearTimeout(window.__ccAutTimer);
+    if(!r.restricaoFinanceira){ ccState.autorizacaoReg = null; return; }
+    const antes = JSON.stringify(ccState.autorizacaoReg || null);
+    const q = await sb.from('autorizacoes_cadastro').select('*').eq('chave', r.chaveAut).order('criado_em', { ascending: false }).limit(1);
+    let reg = (q.data || [])[0] || null;
+    if(reg && (Date.now() - new Date(reg.criado_em).getTime()) > 30 * 86400000) reg = null;
+    if(!reg){
+      const ins = await sb.from('autorizacoes_cadastro').insert({ solicitante_id: currentUsuario.id, solicitante_nome: currentUsuario.nome, cliente_nome: r.nome, documento: r.documento, equipamentos: r.equipLabelStr, score: (isNaN(Number(ccState.score)) || ccState.score === null || ccState.score === '' ? null : Number(ccState.score)), recomendacao_negativa: !!ccState.recomendacaoNegativa, motivo: r.motivoSistema, chave: r.chaveAut }).select().single();
+      if(ins.error){ toast('Não consegui registrar o pedido ao Victor: ' + ins.error.message); return; }
+      reg = ins.data;
+      ccAtualizarAvisoAutorizacoes();
+    }
+    ccState.autorizacaoReg = reg;
+    if(JSON.stringify(reg) !== antes) ccGerarParecer();
+    if(reg.decisao === 'pendente'){
+      window.__ccAutTimer = setTimeout(function(){ const pc = document.getElementById('parecer-conteudo'); if(pc && pc.style.display === 'block') ccSincronizarAutorizacao(); }, 15000);
+    }
+  } finally { window.__ccSincronizando = false; }
 }
+async function ccDecidirAutorizacao(decisao){
+  if(!ccEhVictor()){ toast('Só o Victor pode autorizar.'); return; }
+  const reg = ccState.autorizacaoReg;
+  if(!reg){ toast('O pedido ainda está sendo registrado. Tente de novo em instantes.'); return; }
+  const r = ccAvaliar();
+  if(decisao !== null){
+    const pergunta = decisao === 'liberou'
+      ? 'Autorizar a locação de ' + r.equipLabelStr + ' para ' + r.nome + ' mesmo com o financeiro negado pelo sistema?'
+      : 'Registrar que a locação NÃO foi autorizada para ' + r.nome + '?';
+    if(!confirm(pergunta)) return;
+  }
+  const up = await sb.from('autorizacoes_cadastro').update({ decisao: decisao || 'pendente', decidido_por: decisao ? currentUsuario.nome : null, decidido_em: decisao ? new Date().toISOString() : null }).eq('id', reg.id).select().single();
+  if(up.error){ toast('Erro ao salvar a decisão: ' + up.error.message); return; }
+  ccState.autorizacaoReg = up.data;
+  ccGerarParecer();
+  ccAtualizarAvisoAutorizacoes();
+}
+/* Aviso para o Victor: pedidos de autorizacao pendentes (qualquer tela da intranet) */
+async function ccAtualizarAvisoAutorizacoes(){
+  if(!ccEhVictor()) return;
+  const q = await sb.from('autorizacoes_cadastro').select('*').eq('decisao', 'pendente').order('criado_em', { ascending: true });
+  const lista = q.data || [];
+  window.__autPendentes = lista;
+  let box = document.getElementById('aviso-autorizacoes');
+  const ov = document.getElementById('aut-modal-overlay');
+  if(!lista.length){ if(box) box.remove(); if(ov) ov.remove(); return; }
+  if(!box){ box = document.createElement('div'); box.id = 'aviso-autorizacoes'; box.style.cssText = 'position:fixed;top:14px;right:18px;z-index:150;'; document.body.appendChild(box); }
+  box.innerHTML = '<button class="btn btn-primary btn-sm" style="box-shadow:0 4px 14px rgba(0,0,0,.28);" onclick="ccAbrirPendenciasAutorizacao()">🔔 ' + lista.length + (lista.length === 1 ? ' autorização pendente' : ' autorizações pendentes') + '</button>';
+  if(ov) ccAbrirPendenciasAutorizacao();
+}
+function ccAbrirPendenciasAutorizacao(){
+  const lista = window.__autPendentes || [];
+  let ov = document.getElementById('aut-modal-overlay');
+  if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'aut-modal-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:210;';
+  const itens = lista.map(function(p){
+    return '<div style="padding:12px 0;border-bottom:1px solid var(--line);"><div style="font-weight:600;">' + escapeHtml(p.cliente_nome || '') + ' <span style="font-weight:400;color:var(--ink-soft);font-size:12.5px;">· ' + escapeHtml(p.documento || '') + '</span></div><div style="font-size:13px;margin:3px 0;">Equipamento(s): ' + escapeHtml(p.equipamentos || '') + '</div><div style="font-size:13px;color:var(--ink-soft);">Negado pelo sistema — ' + escapeHtml(p.motivo || 'financeiro restritivo') + '</div><div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;">Pedido de ' + escapeHtml(p.solicitante_nome || '') + ' em ' + ccFmtDataHora(p.criado_em) + '</div><div style="display:flex;gap:8px;"><button class="btn btn-primary btn-sm" onclick="ccDecidirPedido(&quot;' + p.id + '&quot;, &quot;liberou&quot;)">Autorizar</button><button class="btn btn-ghost btn-sm" onclick="ccDecidirPedido(&quot;' + p.id + '&quot;, &quot;nao&quot;)">Não autorizar</button></div></div>';
+  }).join('');
+  ov.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Autorizações pendentes</h3><button class="rjx-modal-close" onclick="document.getElementById(&quot;aut-modal-overlay&quot;).remove()">✕</button></div><div class="rjx-modal-body">' + (itens || '<p class="cardsub">Nenhum pedido pendente.</p>') + '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="document.getElementById(&quot;aut-modal-overlay&quot;).remove()">Fechar</button></div></div></div>';
+  document.body.appendChild(ov);
+}
+async function ccDecidirPedido(id, decisao){
+  if(!ccEhVictor()){ toast('Só o Victor pode autorizar.'); return; }
+  const p = (window.__autPendentes || []).find(function(x){ return x.id === id; });
+  const pergunta = decisao === 'liberou'
+    ? 'Autorizar a locação de ' + (p ? p.equipamentos : '') + ' para ' + (p ? p.cliente_nome : '') + '?'
+    : 'Registrar que a locação NÃO foi autorizada para ' + (p ? p.cliente_nome : '') + '?';
+  if(!confirm(pergunta)) return;
+  const up = await sb.from('autorizacoes_cadastro').update({ decisao: decisao, decidido_por: currentUsuario.nome, decidido_em: new Date().toISOString() }).eq('id', id);
+  if(up.error){ toast('Erro ao salvar a decisão: ' + up.error.message); return; }
+  toast(decisao === 'liberou' ? 'Autorização registrada.' : 'Não autorização registrada.');
+  await ccAtualizarAvisoAutorizacoes();
+}
+function ccIniciarAvisoAutorizacoes(){
+  ccAtualizarAvisoAutorizacoes();
+  window.__autInt = setInterval(ccAtualizarAvisoAutorizacoes, 60000);
+}
+setInterval(function(){
+  if(ccEhVictor() && !window.__autInt) ccIniciarAvisoAutorizacoes();
+  else if(!ccEhVictor() && window.__autInt){ clearInterval(window.__autInt); window.__autInt = null; const b = document.getElementById('aviso-autorizacoes'); if(b) b.remove(); }
+}, 5000);
 function ccGerarParecer(){
   const r = ccAvaliar();
   window.__ccParecerInterativo = true; const html = ccGerarParecerHtml(r); window.__ccParecerInterativo = false;
@@ -6411,7 +6501,7 @@ function ccGerarParecer(){
   document.getElementById('parecer-conteudo').style.display = 'block';
   document.getElementById('parecer-vazio').style.display = 'none';
   document.getElementById('parecer-nav').style.display = 'flex';
-  ccGoStep(3);
+  ccGoStep(3); ccSincronizarAutorizacao();
 }
 
 /* ===== Finalizar cadastro → Análise de clientes ativos ===== */
