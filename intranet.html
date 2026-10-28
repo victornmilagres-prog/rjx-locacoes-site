@@ -6316,7 +6316,24 @@ function ccAvaliar(){
     conclusaoTexto = `Financeiro restritivo. ${fixosSelecionados.map(e=>CC_EQUIP_LABEL[e]).join(', ')} (valor fixo) fica aprovado somente para pagamento antecipado. Já o Ultraformer MPT (valor variável por distância) é reprovado automaticamente e depende de decisão manual do Victor.`;
     mostrarAprovacaoManual = true;
   }
-  return {nome, documento, equipamentos, equipLabelStr, veredito, conclusaoClasse, conclusaoTitulo, conclusaoTexto, mostrarAprovacaoManual, eliminatorio, financeiroRuim};
+  // Autorizacao do Victor: so vale para restricao financeira (score baixo / recomendacao negativa).
+  // Impeditivo cadastral ou profissional nao e liberavel. A decisao vale so para este documento + score + equipamentos.
+  const chaveAut = documento + '|' + ccState.score + '|' + equipamentos.join(',');
+  const aut = (ccState.autorizacaoVictor && ccState.autorizacaoVictor.chave === chaveAut) ? ccState.autorizacaoVictor : null;
+  let autorizacao = null;
+  if(!eliminatorio && financeiroRuim){
+    mostrarAprovacaoManual = true;
+    if(aut && aut.decisao === 'liberou'){
+      conclusaoClasse = 'ok'; conclusaoTitulo = 'Aprovado — autorizado pelo Victor';
+      conclusaoTexto = 'Financeiro restritivo (Serasa ' + ccState.score + '/1000), mas a locação de ' + equipLabelStr + ' foi autorizada pelo Victor.';
+    } else if(aut && aut.decisao === 'nao'){
+      conclusaoClasse = 'bad'; conclusaoTitulo = 'Reprovado — não autorizado pelo Victor';
+      conclusaoTexto = 'Financeiro restritivo (Serasa ' + ccState.score + '/1000) e o Victor não autorizou a locação de ' + equipLabelStr + '.';
+      veredito = Object.assign({}, veredito, { financeiro: 'bad' });
+    }
+    autorizacao = aut ? { decisao: aut.decisao, por: aut.por, em: aut.em } : null;
+  }
+  return {nome, documento, equipamentos, equipLabelStr, veredito, conclusaoClasse, conclusaoTitulo, conclusaoTexto, mostrarAprovacaoManual, eliminatorio, financeiroRuim, autorizacao, chaveAut};
 }
 
 function ccChipVeredito(v){ return v==='ok' ? '<span class="verdict-chip ok">Aprovado</span>' : v==='bad' ? '<span class="verdict-chip bad">Reprovado</span>' : '<span class="verdict-chip warn">Atenção</span>'; }
@@ -6352,14 +6369,42 @@ function ccGerarParecerHtml(r){
       <div>
         <h3>${r.conclusaoTitulo}</h3><p>${r.conclusaoTexto}</p>
         <span class="equip-line">Equipamento(s): ${r.equipLabelStr}</span>
-        ${r.mostrarAprovacaoManual ? `<div class="manual-approval"><div class="radio-group"><label><input type="radio" name="vitorLiberou"> Vitor liberou</label><label><input type="radio" name="vitorLiberou"> Vitor não liberou</label></div></div>` : ''}
+        ${ccBlocoAutorizacaoHtml(r)}
       </div>
     </div>`;
 }
 
+function ccBlocoAutorizacaoHtml(r){
+  if(!r.mostrarAprovacaoManual) return '';
+  const aut = r.autorizacao;
+  const ehVictor = (typeof currentUsuario !== 'undefined' && currentUsuario && currentUsuario.papel === 'gerencial');
+  const interativo = window.__ccParecerInterativo === true;
+  const fmt = function(iso){ try { return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }); } catch(e){ return ''; } };
+  let h = '<div class="manual-approval" style="margin-top:12px;">';
+  if(aut){
+    h += '<div style="font-weight:600;">' + (aut.decisao === 'liberou' ? '✔ Liberado' : '✕ Não liberado') + ' por ' + escapeHtml(aut.por || '') + ' em ' + fmt(aut.em) + '</div>';
+    if(ehVictor && interativo) h += '<div style="margin-top:6px;"><button class="btn btn-ghost btn-sm" onclick="ccDecidirAutorizacao(null)">Desfazer decisão</button></div>';
+  } else if(ehVictor && interativo){
+    h += '<div style="font-weight:600;margin-bottom:6px;">Autorização do Victor</div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-primary btn-sm" onclick="ccDecidirAutorizacao(&quot;liberou&quot;)">Autorizar locação</button><button class="btn btn-ghost btn-sm" onclick="ccDecidirAutorizacao(&quot;nao&quot;)">Não autorizar</button></div>';
+  } else {
+    h += '<div style="font-size:13px;">Aguardando autorização do Victor.</div>';
+  }
+  return h + '</div>';
+}
+function ccDecidirAutorizacao(decisao){
+  if(!(typeof currentUsuario !== 'undefined' && currentUsuario && currentUsuario.papel === 'gerencial')){ toast('Só o Victor pode autorizar.'); return; }
+  if(decisao === null){ ccState.autorizacaoVictor = null; ccGerarParecer(); return; }
+  const r = ccAvaliar();
+  const pergunta = decisao === 'liberou'
+    ? 'Autorizar a locação de ' + r.equipLabelStr + ' para ' + r.nome + ' mesmo com o financeiro restritivo?'
+    : 'Registrar que a locação NÃO foi autorizada para ' + r.nome + '?';
+  if(!confirm(pergunta)) return;
+  ccState.autorizacaoVictor = { decisao: decisao, por: currentUsuario.nome, em: new Date().toISOString(), chave: r.chaveAut };
+  ccGerarParecer();
+}
 function ccGerarParecer(){
   const r = ccAvaliar();
-  const html = ccGerarParecerHtml(r);
+  window.__ccParecerInterativo = true; const html = ccGerarParecerHtml(r); window.__ccParecerInterativo = false;
 
   document.getElementById('parecer-conteudo').innerHTML =
     `<h3 style="margin:0 0 4px;">${r.nome}</h3><p style="margin:0 0 18px;color:var(--ink-soft);font-size:13.5px;">${ccState.pj?'CNPJ':'CPF'} ${r.documento} · Equipamento(s): ${r.equipLabelStr}</p>` + html;
