@@ -8118,17 +8118,61 @@ async function freteExcluirVale(valeId){
   toast('Vale excluído.');
   await freteRenderConteudo();
 }
+function freteHojeLocal(){ return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+function freteFecharBaixa(){ const ov = document.getElementById('baixa-modal-overlay'); if(ov) ov.remove(); window.__baixaParcela = null; }
+function freteBaixaDica(){
+  const p = window.__baixaParcela; const inp = document.getElementById('baixa-data'); const dica = document.getElementById('baixa-dica');
+  if(!p || !inp || !dica) return;
+  const v = inp.value;
+  if(!v){ dica.textContent = ''; return; }
+  const mes = v.slice(0, 7);
+  dica.textContent = mes === p.mes_referencia
+    ? 'Conta no frete de ' + freteMesLabel(mes) + '.'
+    : 'Esta parcela estava prevista para ' + freteMesLabel(p.mes_referencia) + '. Com essa data, ela passa a contar no frete de ' + freteMesLabel(mes) + '.';
+}
 async function freteDarBaixaParcela(parcelaId){
-  await sb.from('comercial_frete_vale_parcelas').update({ paga: true, pago_em: new Date().toISOString().slice(0,10) }).eq('id', parcelaId);
-  toast('Parcela dada baixa.');
+  const r = await sb.from('comercial_frete_vale_parcelas').select('id,numero,valor,mes_referencia,mes_referencia_original').eq('id', parcelaId).single();
+  if(r.error || !r.data){ toast('Parcela não encontrada.'); return; }
+  const p = r.data;
+  window.__baixaParcela = p;
+  const hoje = freteHojeLocal();
+  freteFecharBaixa();
+  window.__baixaParcela = p;
+  const ov = document.createElement('div');
+  ov.id = 'baixa-modal-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(23,19,15,.45);display:flex;align-items:center;justify-content:center;z-index:210;';
+  ov.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Dar baixa na parcela ' + p.numero + '</h3><button class="rjx-modal-close" onclick="freteFecharBaixa()">✕</button></div><div class="rjx-modal-body"><p class="cardsub">' + freteFmt(p.valor) + ' · prevista para ' + freteMesLabel(p.mes_referencia) + '</p><label for="baixa-data" style="font-weight:600;font-size:13px;display:block;margin:12px 0 4px;">Data da baixa</label><input type="date" id="baixa-data" value="' + hoje + '" max="' + hoje + '" oninput="freteBaixaDica()" style="padding:10px;border:1px solid var(--line);border-radius:8px;width:100%;font:inherit;"><p id="baixa-dica" class="cardsub" style="margin-top:10px;"></p></div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="freteFecharBaixa()">Cancelar</button><button class="btn btn-primary" onclick="freteConfirmarBaixa(&quot;' + p.id + '&quot;)">Confirmar baixa</button></div></div></div>';
+  document.body.appendChild(ov);
+  freteBaixaDica();
+}
+async function freteConfirmarBaixa(parcelaId){
+  const p = window.__baixaParcela;
+  const inp = document.getElementById('baixa-data');
+  const data = inp ? inp.value : '';
+  if(!p || String(p.id) !== String(parcelaId)){ toast('Reabra a baixa e tente de novo.'); return; }
+  if(!data){ toast('Informe a data da baixa.'); return; }
+  if(data > freteHojeLocal()){ toast('A data da baixa não pode ser futura.'); return; }
+  const mes = data.slice(0, 7);
+  const upd = { paga: true, pago_em: data };
+  if(mes !== p.mes_referencia){
+    // baixa dada em outro mes: a parcela passa a contar no frete do mes da data; o mes original fica guardado pra desfazer
+    upd.mes_referencia = mes;
+    upd.mes_referencia_original = p.mes_referencia_original || p.mes_referencia;
+  }
+  const up = await sb.from('comercial_frete_vale_parcelas').update(upd).eq('id', parcelaId);
+  if(up.error){ toast('Erro ao dar baixa: ' + up.error.message); return; }
+  freteFecharBaixa();
+  toast(mes !== p.mes_referencia ? 'Baixa em ' + freteFmtData(data) + ' — conta no frete de ' + freteMesLabel(mes) + '.' : 'Parcela dada baixa em ' + freteFmtData(data) + '.');
   await freteRenderConteudo();
 }
 async function freteExcluirBaixaParcela(parcelaId){
-  await sb.from('comercial_frete_vale_parcelas').update({ paga: false, pago_em: null }).eq('id', parcelaId);
+  const r = await sb.from('comercial_frete_vale_parcelas').select('mes_referencia,mes_referencia_original').eq('id', parcelaId).single();
+  const upd = { paga: false, pago_em: null };
+  if(r.data && r.data.mes_referencia_original){ upd.mes_referencia = r.data.mes_referencia_original; upd.mes_referencia_original = null; }
+  await sb.from('comercial_frete_vale_parcelas').update(upd).eq('id', parcelaId);
   toast('Baixa excluída — parcela voltou a ficar em aberto.');
   await freteRenderConteudo();
 }
-
 
 /* ===== Contestacoes de frete (Comercial) ===== */
 async function freteCarregarContestacoesPendentes(){
