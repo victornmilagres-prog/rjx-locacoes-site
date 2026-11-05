@@ -1,0 +1,50 @@
+/* Controle de Insumos — complementos aos componentes da intranet (.card, .field, .btn, .subtab, .status-pill, .rjx-modal) */
+.ci-tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.ci-tabs .ci-n{display:inline-block;min-width:18px;padding:0 6px;margin-left:6px;border-radius:20px;background:rgba(0,0,0,.08);font-size:11px;line-height:18px;text-align:center;}
+.ci-tabs .subtab.active .ci-n{background:rgba(255,255,255,.25);}
+.ci-wrap{max-width:760px;}
+.ci-intro{font-size:13px;color:var(--gray);margin:-8px 0 16px;}
+.ci-pills{display:flex;flex-wrap:wrap;gap:8px;}
+.ci-pill{padding:8px 12px;border:1.5px solid var(--line);border-radius:100px;font-size:12.5px;font-weight:700;color:var(--gray);cursor:pointer;background:#fff;font-family:inherit;}
+.ci-pill.sel{border-color:var(--wine);background:#f7e9ea;color:var(--wine);}
+.ci-pill:disabled{opacity:.5;cursor:default;}
+.ci-pill[hidden]{display:none;}
+.ci-hint{font-size:12.5px;color:var(--gray);margin:5px 0 0;}
+.ci-echo{font-size:12.5px;color:var(--ok);font-weight:600;margin:5px 0 0;}
+.ci-echo:empty{display:none;}
+.ci-check{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:var(--ink-soft);margin:4px 0 16px;cursor:pointer;}
+.ci-check input{width:18px;height:18px;accent-color:var(--wine);flex:none;}
+.ci-resumo{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin:10px 0 16px;font-size:13px;}
+.ci-kv{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:3px 0;}
+.ci-kv span:last-child{text-align:right;font-weight:600;}
+.ci-kv.forte{font-size:14.5px;font-weight:700;border-top:1px solid var(--line);margin-top:4px;padding-top:7px;}
+.ci-err{background:var(--alert-bg);color:var(--alert);border-radius:var(--radius);padding:10px 12px;font-size:13.5px;margin:0 0 14px;}
+.ci-err:empty{display:none;}
+.ci-acoes{display:flex;flex-direction:column;gap:10px;margin-bottom:30px;}
+.ci-steps{display:flex;gap:4px;margin:14px 0 6px;}
+.ci-steps i{flex:1;height:6px;border-radius:3px;background:var(--paper-soft);border:1px solid var(--line);}
+.ci-steps i.on{background:var(--ok);border-color:var(--ok);}
+.ci-steps i.atual{background:var(--wait);border-color:var(--wait);}
+.ci-etapa{font-size:12.5px;color:var(--gray);}
+.ci-card-sec{margin-top:14px;}
+.ci-card-sec .grid2{gap:10px;}
+.ci-card-sec .field{margin-bottom:10px;}
+.ci-mini-label{display:block;font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;}
+.ci-hist summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--gray);margin-top:12px;}
+.ci-hist div{font-size:12.5px;color:var(--gray);padding:5px 0;border-bottom:1px dashed var(--line);}
+.ci-faixa{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 34px;gap:8px;align-items:end;margin-bottom:8px;}
+.ci-faixa .field{margin-bottom:0;}
+.ci-faixa .field label{font-size:11.5px;}
+.ci-faixa .field input{padding:9px 8px;}
+.ci-faixa .ci-del{height:40px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;color:var(--wine);font-size:18px;cursor:pointer;}
+.ci-faixa .ci-del:disabled{opacity:.35;cursor:default;}
+.ci-sim{background:#fff;border:1px dashed var(--line);border-radius:var(--radius);padding:12px;margin-top:14px;}
+.ci-sim .field{margin-bottom:6px;}
+.ci-sim-res{font-size:13px;color:var(--ink-soft);}
+.ci-alerta{background:var(--wait-bg);color:var(--wait);border-radius:var(--radius);padding:9px 12px;font-size:13px;margin-top:10px;}
+.loc-card .loc-actions .btn{flex:1 1 auto;}
+@media (max-width:600px){
+  .ci-wrap .form-card{padding:18px 16px;}
+  .ci-faixa{grid-template-columns:repeat(3,minmax(0,1fr)) 30px;gap:6px;}
+  .loc-card .loc-actions{justify-content:stretch;}
+}
