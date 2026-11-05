@@ -169,7 +169,7 @@
       '<p class="ci-intro">' + (ed ? 'Editando a locação nº ' + esc(ed.numero) + '. As mudanças valem na hora e ficam no histórico. O que o motorista já registrou continua guardado.'
         : 'Os motoristas escolhidos recebem a locação em Transportes → Minhas Locações, sem link.') + '</p>' +
       '<div class="card form-card"><h3>Dados da locação</h3><p class="cardsub">Quem recebe e quando.</p>' +
-        '<div class="field"><label for="ci-f-doutora">Nome da doutora</label><input type="text" id="ci-f-doutora" value="' + esc(D.doutora) + '" placeholder="Dra. Fulana de Tal" autocomplete="off"></div>' +
+        '<div class="field"><label for="ci-f-doutora">Nome do cliente</label><input type="text" id="ci-f-doutora" value="' + esc(D.doutora) + '" placeholder="Nome completo do cliente" autocomplete="off"></div>' +
         '<div class="grid2">' +
           '<div class="field"><label for="ci-f-doc">CNPJ ou CPF</label><input type="text" id="ci-f-doc" inputmode="numeric" value="' + esc(D.cpfCnpj) + '" placeholder="000.000.000-00"></div>' +
           '<div class="field"><label for="ci-f-numero">Número da locação</label><input type="text" id="ci-f-numero" value="' + esc(D.numero) + '" placeholder="Ex.: 1042"' + (iniciou ? ' disabled' : '') + '></div>' +
@@ -301,7 +301,7 @@
     const err = $('ci-err-form'), btn = $('ci-btn-salvar'), crio = D.equipamento === 'crio';
     err.textContent = '';
     const falha = t => { err.textContent = t; err.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
-    if (!String(D.doutora).trim() || !String(D.numero).trim() || !D.data) return falha('Preencha nome da doutora, número da locação e data.');
+    if (!String(D.doutora).trim() || !String(D.numero).trim() || !D.data) return falha('Preencha nome do cliente, número da locação e data.');
     if (!D.horario) return falha('Preencha o horário previsto da montagem combinado com o cliente.');
     if (!C.docValido(D.cpfCnpj)) return falha('O CPF precisa ter 11 dígitos e o CNPJ, 14.');
     if (D.contrato == null) return falha('Informe se o contrato de locação foi assinado.');
