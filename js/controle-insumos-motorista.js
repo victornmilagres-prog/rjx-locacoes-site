@@ -140,6 +140,20 @@
     const n = etapaInfo(l)[0];
     return '<div class="ci-steps" aria-hidden="true">' + [1, 2, 3, 4, 5, 6].map(i => '<i class="' + (i < n ? 'on' : i === n ? 'atual' : '') + '"></i>').join('') + '</div>';
   }
+  /* ---------------- horário da montagem em destaque ---------------- */
+  function montagemTxt(l) {
+    const d = new Date(String(l.data).slice(0, 10) + 'T00:00:00');
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const dif = Math.round((d - hoje) / 864e5);
+    const dia = isNaN(dif) ? dataBR(l.data)
+      : dif === 0 ? 'Hoje' : dif === 1 ? 'Amanhã' : dif === -1 ? 'Ontem'
+      : d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+    return { dia, hora: l.horario || 'sem horário', proxima: !isNaN(dif) && dif <= 1 };
+  }
+  function montagemBox(l) {
+    const m = montagemTxt(l);
+    return '<div class="ci-montagem' + (m.proxima ? ' proxima' : '') + '"><small>Montagem prevista</small><b>' + esc(m.dia) + ' às ' + esc(m.hora) + '</b></div>';
+  }
   function entregaFeitaPor(l) {
     return !faseEntrega(l) && l.motEntregaId !== l.motRetiradaId ? 'entrega feita por ' + nome(l.motEntregaId) : '';
   }
@@ -156,9 +170,9 @@
       : '<p class="ci-intro">' + L.length + ' locação(ões) esperando por você.</p>') + L.map(l => {
       const ent = faseEntrega(l), feita = entregaFeitaPor(l);
       return '<div class="card loc-card"><div class="loc-top"><div><div class="loc-eq">' + esc(C.EQUIP[l.equipamento]) + '</div>' +
-        '<div class="loc-name">Nº ' + esc(l.numero) + ' · ' + esc(l.doutora) + '</div><div class="loc-meta">' + esc(quando(l)) + '</div></div>' +
+        '<div class="loc-name">Nº ' + esc(l.numero) + ' · ' + esc(l.doutora) + '</div></div>' +
         '<span class="status-pill ' + (ent ? 'status-wait' : 'status-info') + '"><span class="dot"></span>' + (ent ? 'Entrega' : 'Retirada') + '</span></div>' +
-        contratoBox(l) + passos(l) +
+        montagemBox(l) + contratoBox(l) + passos(l) +
         '<div class="ci-etapa">Próxima etapa: ' + esc(U.etapaNome(l)) + (feita ? ' · ' + esc(feita) : '') +
           (ehGerencial() ? ' · com ' + esc(nome(dono(l))) : '') + '</div>' +
         '<div class="ci-acoes" style="margin:12px 0 0">' +
@@ -242,9 +256,10 @@
     if (!L.length) return;
     abrirModal('Você tem controle de insumos',
       '<p style="margin:0 0 10px;font-size:13.5px;color:var(--gray)">' + (L.length === 1 ? 'Uma locação está esperando por você:' : L.length + ' locações estão esperando por você:') + '</p>' +
-      L.map(l => '<div class="ci-aviso-item"><b>Nº ' + esc(l.numero) + ' · ' + esc(l.doutora) + '</b><span>' + esc(C.EQUIP[l.equipamento]) + ' · ' +
-        esc(quando(l)) + ' · ' + (faseEntrega(l) ? 'Entrega' : 'Retirada') + '</span>' +
-        (l.contrato === true ? '' : '<span class="ci-aviso-ct">contrato não assinado</span>') + '</div>').join(''),
+      L.map(l => { const m = montagemTxt(l); return '<div class="ci-aviso-item"><b>Nº ' + esc(l.numero) + ' · ' + esc(l.doutora) + '</b>' +
+        '<span class="ci-aviso-hora' + (m.proxima ? ' proxima' : '') + '">Montagem: ' + esc(m.dia) + ' às ' + esc(m.hora) + '</span>' +
+        '<span>' + esc(C.EQUIP[l.equipamento]) + ' · ' + (faseEntrega(l) ? 'Entrega' : 'Retirada') + '</span>' +
+        (l.contrato === true ? '' : '<span class="ci-aviso-ct">contrato não assinado</span>') + '</div>'; }).join(''),
       '<button type="button" class="btn btn-ghost" id="ci-av-depois">Mais tarde</button><button type="button" class="btn btn-primary" id="ci-av-agora">Continuar agora</button>');
     $('ci-av-depois').onclick = fecharModal;
     $('ci-av-agora').onclick = () => {
@@ -276,7 +291,7 @@
     return '<button type="button" class="ci-voltar" id="ci-voltar-lista">← Minhas Locações</button>' +
       '<h2 class="ci-titulo">' + esc(U.etapaNome(l)) + '</h2>' +
       '<p class="ci-sub">Nº ' + esc(l.numero) + ' · ' + esc(l.doutora) + ' · ' + esc(C.EQUIP[l.equipamento]) + ' · Etapa ' + info[0] + ' de 6</p>' +
-      contratoBox(l) + passos(l) + banner(l);
+      montagemBox(l) + contratoBox(l) + passos(l) + banner(l);
   }
   function ligarVoltar() { const v = $('ci-voltar-lista'); if (v) v.onclick = async () => { lembrarDet(null); await recarregar(); }; }
 

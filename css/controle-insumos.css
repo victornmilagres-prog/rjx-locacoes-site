@@ -45,6 +45,12 @@
 .loc-card .loc-actions .btn{flex:1 1 auto;}
 
 /* ----- tela do motorista ----- */
+.ci-montagem{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 4px;padding:10px 13px;border-radius:var(--radius);background:var(--info-bg);color:var(--info);border-left:5px solid var(--info);}
+.ci-montagem small{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+.ci-montagem b{font-size:19px;font-weight:700;text-align:right;}
+.ci-montagem.proxima{background:var(--wait-bg);color:var(--wait);border-left-color:var(--wait);}
+.ci-aviso-item .ci-aviso-hora{display:inline-block;margin:5px 0 2px;padding:3px 9px;border-radius:20px;background:var(--info-bg);color:var(--info);font-size:13px;font-weight:700;}
+.ci-aviso-item .ci-aviso-hora.proxima{background:var(--wait-bg);color:var(--wait);}
 .ci-ct{border-radius:var(--radius);padding:11px 13px;margin:12px 0 4px;font-size:15px;font-weight:700;line-height:1.25;}
 .ci-ct small{display:block;font-size:13px;font-weight:600;margin-top:3px;}
 .ci-ct.no{background:var(--wine-bright);color:#fff;}
