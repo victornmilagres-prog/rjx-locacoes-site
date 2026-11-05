@@ -71,7 +71,7 @@
     if (LOGO) { try { doc.addImage(LOGO, 'PNG', mx, y, lw, lh, undefined, 'FAST'); } catch (x) {} }
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(90, 85, 78); doc.text('CNPJ 51.797.671/0001-66 · AFE 8.34727-6', mx, y + lh + 5);
     doc.setFontSize(9); doc.setTextColor(23, 19, 15); doc.text(titulo, 194, y + 6, { align: 'right' }); doc.text(quando(l), 194, y + 11, { align: 'right' });
-    doc.setFontSize(8); doc.setTextColor(90, 85, 78); if (l.horario) doc.text('Montagem prevista', 194, y + 15, { align: 'right' });
+    doc.setFontSize(8); doc.setTextColor(90, 85, 78); if (l.horario) doc.text('Montagem agendada', 194, y + 15, { align: 'right' });
     y += Math.max(lh + 9, 16); doc.setDrawColor(122, 18, 32); doc.setLineWidth(1); doc.line(mx, y, 194, y); y += 8;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text(doc.splitTextToSize(l.doutora, 178)[0], mx, y);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(90, 85, 78);

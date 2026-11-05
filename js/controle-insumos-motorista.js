@@ -152,7 +152,7 @@
   }
   function montagemBox(l) {
     const m = montagemTxt(l);
-    return '<div class="ci-montagem' + (m.proxima ? ' proxima' : '') + '"><small>Horário montagem:</small><b>' + esc(m.dia) + ' às ' + esc(m.hora) + '</b></div>';
+    return '<div class="ci-montagem' + (m.proxima ? ' proxima' : '') + '"><small>Montagem agendada</small><b>' + esc(m.dia) + ' às ' + esc(m.hora) + '</b></div>';
   }
   function entregaFeitaPor(l) {
     return !faseEntrega(l) && l.motEntregaId !== l.motRetiradaId ? 'entrega feita por ' + nome(l.motEntregaId) : '';
@@ -257,7 +257,7 @@
     abrirModal('Você tem controle de insumos',
       '<p style="margin:0 0 10px;font-size:13.5px;color:var(--gray)">' + (L.length === 1 ? 'Uma locação está esperando por você:' : L.length + ' locações estão esperando por você:') + '</p>' +
       L.map(l => { const m = montagemTxt(l); return '<div class="ci-aviso-item"><b>Nº ' + esc(l.numero) + ' · ' + esc(l.doutora) + '</b>' +
-        '<span class="ci-aviso-hora' + (m.proxima ? ' proxima' : '') + '">Horário montagem: ' + esc(m.dia) + ' às ' + esc(m.hora) + '</span>' +
+        '<span class="ci-aviso-hora' + (m.proxima ? ' proxima' : '') + '">Montagem agendada: ' + esc(m.dia) + ' às ' + esc(m.hora) + '</span>' +
         '<span>' + esc(C.EQUIP[l.equipamento]) + ' · ' + (faseEntrega(l) ? 'Entrega' : 'Retirada') + '</span>' +
         (l.contrato === true ? '' : '<span class="ci-aviso-ct">contrato não assinado</span><span class="ci-aviso-ctx">Pegue a assinatura no contrato do Estoque Now.</span>') + '</div>'; }).join(''),
       '<button type="button" class="btn btn-ghost" id="ci-av-depois">Mais tarde</button><button type="button" class="btn btn-primary" id="ci-av-agora">Continuar agora</button>');
@@ -274,7 +274,7 @@
   /* ================= topo de todas as etapas ================= */
   function banner(l) {
     const crio = l.equipamento === 'crio', rows = [];
-    if (l.horario) rows.push(['Montagem prevista', quando(l)]);
+    if (l.horario) rows.push(['Montagem agendada', quando(l)]);
     if (crio) { rows.push(['Locação', C.fmtMoney(l.valorLocacao)]); rows.push(['Manta', l.semManta ? 'Não enviada' : C.fmtMoney(l.valorManta) + ' / un.']); }
     else {
       rows.push(['Locação', l.gratuidade === 'isenta' ? 'Isenta' : C.fmtMoney(l.valorLocacao)]);
