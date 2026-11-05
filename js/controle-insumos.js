@@ -545,7 +545,7 @@
     const s = await sb.auth.getSession();
     const token = s.data.session && s.data.session.access_token;
     if (!token) throw new Error('Sessão expirada. Entre de novo.');
-    const resp = await fetch('/api/excluir-controle-insumos', {
+    const resp = await fetch('/api/controle-insumos?acao=excluir', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ id: id })

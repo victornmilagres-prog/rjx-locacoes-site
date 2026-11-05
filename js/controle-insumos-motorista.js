@@ -808,7 +808,7 @@
       try {
         const s = await sb.auth.getSession();
         const token = s.data.session && s.data.session.access_token;
-        const resp = await fetch('/api/concluir-controle-insumos', {
+        const resp = await fetch('/api/controle-insumos?acao=concluir', {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
           body: JSON.stringify({ id: l.id })
         });

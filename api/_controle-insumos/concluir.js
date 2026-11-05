@@ -5,7 +5,7 @@
 // etapa "concluido" para quem não é o servidor.
 // Usa a service_role key no servidor - nunca expor no cliente.
 
-const CI = require('../js/controle-insumos-calc.js');
+const CI = require('../../js/controle-insumos-calc.js');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
