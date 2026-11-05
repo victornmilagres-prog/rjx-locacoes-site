@@ -134,7 +134,7 @@
   /* ---------------- faixa do contrato ---------------- */
   function contratoBox(l) {
     if (l.contrato === true) return '<div class="ci-ct ok">Contrato assinado</div>';
-    return '<div class="ci-ct no">CONTRATO NÃO ASSINADO<small>Atenção: confira com a doutora antes de montar o equipamento.</small></div>';
+    return '<div class="ci-ct no">CONTRATO NÃO ASSINADO<small>Pegue a assinatura da doutora no contrato do Estoque Now antes de montar o equipamento.</small></div>';
   }
   function passos(l) {
     const n = etapaInfo(l)[0];
@@ -259,7 +259,7 @@
       L.map(l => { const m = montagemTxt(l); return '<div class="ci-aviso-item"><b>Nº ' + esc(l.numero) + ' · ' + esc(l.doutora) + '</b>' +
         '<span class="ci-aviso-hora' + (m.proxima ? ' proxima' : '') + '">Montagem: ' + esc(m.dia) + ' às ' + esc(m.hora) + '</span>' +
         '<span>' + esc(C.EQUIP[l.equipamento]) + ' · ' + (faseEntrega(l) ? 'Entrega' : 'Retirada') + '</span>' +
-        (l.contrato === true ? '' : '<span class="ci-aviso-ct">contrato não assinado</span>') + '</div>'; }).join(''),
+        (l.contrato === true ? '' : '<span class="ci-aviso-ct">contrato não assinado</span><span class="ci-aviso-ctx">Pegue a assinatura no contrato do Estoque Now.</span>') + '</div>'; }).join(''),
       '<button type="button" class="btn btn-ghost" id="ci-av-depois">Mais tarde</button><button type="button" class="btn btn-primary" id="ci-av-agora">Continuar agora</button>');
     $('ci-av-depois').onclick = fecharModal;
     $('ci-av-agora').onclick = () => {

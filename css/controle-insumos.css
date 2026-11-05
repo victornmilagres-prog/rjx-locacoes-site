@@ -50,6 +50,7 @@
 .ci-montagem b{font-size:19px;font-weight:700;text-align:right;}
 .ci-montagem.proxima{background:var(--wait-bg);color:var(--wait);border-left-color:var(--wait);}
 .ci-aviso-item .ci-aviso-hora{display:inline-block;margin:5px 0 2px;padding:3px 9px;border-radius:20px;background:var(--info-bg);color:var(--info);font-size:13px;font-weight:700;}
+.ci-aviso-item .ci-aviso-ctx{color:var(--wine-bright);font-weight:700;font-size:12.5px;}
 .ci-aviso-item .ci-aviso-hora.proxima{background:var(--wait-bg);color:var(--wait);}
 .ci-ct{border-radius:var(--radius);padding:11px 13px;margin:12px 0 4px;font-size:15px;font-weight:700;line-height:1.25;}
 .ci-ct small{display:block;font-size:13px;font-weight:600;margin-top:3px;}
