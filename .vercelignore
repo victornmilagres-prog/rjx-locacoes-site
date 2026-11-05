@@ -1,0 +1,3 @@
+# Arquivos do repositório que não devem ser publicados no site.
+# Os SQL ficam no GitHub como registro, mas não em rjxlocacoes.com.br/sql/.
+sql/
