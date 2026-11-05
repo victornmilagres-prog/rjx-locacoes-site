@@ -1641,7 +1641,7 @@ async function selectComercialSubtab(tab){
   document.getElementById('cs-tab-comissao').classList.toggle('active', tab==='comissao');
   document.getElementById('cs-tab-logistica').classList.toggle('active', tab==='logistica');
   document.getElementById('cs-tab-frete').classList.toggle('active', tab==='frete');
-  if(tab === 'insumos'){ await carregarInsumosComercial(); }
+  if(tab === 'insumos'){ const ci = document.getElementById('comercial-content'); ci.style.maxWidth = ''; ci.innerHTML = '<div class="card"><p class="empty-hint"><b>Controle de Insumos</b><br>Em construção.</p></div>'; }
   else if(tab === 'leads'){ await carregarLeadsComercial(); }
   else if(tab === 'comissao'){ await carregarComissaoComercial(); }
   else if(tab === 'frete'){ await carregarFreteComercial(); }
