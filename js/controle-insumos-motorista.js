@@ -163,9 +163,11 @@
           (ehGerencial() ? ' · com ' + esc(nome(dono(l))) : '') + '</div>' +
         '<div class="ci-acoes" style="margin:12px 0 0">' +
           (l.assinaturas && l.assinaturas.entrega ? '<button type="button" class="btn btn-outline btn-block" data-rel="' + esc(l.id) + '">Abrir relatório de entrega</button>' : '') +
-          (ehGerencial() ? '' : '<button type="button" class="btn btn-primary btn-block" data-abrir="' + esc(l.id) + '">Continuar</button>') +
+          (ehGerencial() ? '<button type="button" class="btn btn-ghost btn-block" data-excluir="' + esc(l.id) + '">Excluir</button>'
+            : '<button type="button" class="btn btn-primary btn-block" data-abrir="' + esc(l.id) + '">Continuar</button>') +
         '</div></div>';
     }).join('');
+    ligarExcluir(area);
     area.querySelectorAll('[data-abrir]').forEach(b => b.onclick = async () => {
       lembrarDet(b.dataset.abrir);
       try { await carregarLinhas(); } catch (e) {}
@@ -199,9 +201,37 @@
             ? '<div class="ci-kv"><span>Mantas utilizadas</span><span>' + (l.semManta ? '—' : esc(f.utilizadas)) + '</span></div>'
             : '<div class="ci-kv"><span>Disparos utilizados</span><span>' + C.fmtNum(f.totalGeral) + '</span></div><div class="ci-kv"><span>Valor do disparo</span><span>' + C.fmtMoney(f.unit) + '</span></div>') +
           '<div class="ci-kv forte"><span>Total</span><span>' + C.fmtMoney(f.total) + '</span></div></div>' +
-        '<div class="ci-acoes" style="margin:12px 0 0"><button type="button" class="btn btn-outline btn-block" data-pdf="' + esc(l.id) + '">' + (l.dadosApagadosEm ? 'Abrir resumo em PDF' : 'Abrir PDF') + '</button></div></div>';
+        '<div class="ci-acoes" style="margin:12px 0 0"><button type="button" class="btn btn-outline btn-block" data-pdf="' + esc(l.id) + '">' + (l.dadosApagadosEm ? 'Abrir resumo em PDF' : 'Abrir PDF') + '</button>' +
+          (ehGerencial() ? '<button type="button" class="btn btn-ghost btn-block" data-excluir="' + esc(l.id) + '">Excluir</button>' : '') + '</div></div>';
     }).join('');
     area.querySelectorAll('[data-pdf]').forEach(b => b.onclick = () => abrirPdfFinal(ST.linhas.find(x => x.id === b.dataset.pdf)));
+    ligarExcluir(area);
+  }
+
+  /* Excluir: só o Gerencial, na visão de Transportes. Apaga a locação,
+     as fotos e as assinaturas (mesma rota do botão da Yasmin). */
+  function ligarExcluir(area) {
+    if (!ehGerencial()) return;
+    area.querySelectorAll('[data-excluir]').forEach(b => b.onclick = () => {
+      const l = ST.linhas.find(x => x.id === b.dataset.excluir);
+      if (!l) return;
+      confirma('Excluir a locação nº ' + l.numero + '?',
+        'Tudo o que foi registrado nela será apagado, inclusive fotos e assinaturas' + (l.status === 'concluido' ? ', e ela sai de Locações fechadas para os motoristas e para a Yasmin' : '') + '. Não dá para desfazer.',
+        'Excluir', async () => {
+          try {
+            const s = await sb.auth.getSession();
+            const token = s.data.session && s.data.session.access_token;
+            const resp = await fetch('/api/controle-insumos?acao=excluir', {
+              method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+              body: JSON.stringify({ id: l.id })
+            });
+            const d = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(d.error || 'Falha ao excluir.');
+            toast('Locação nº ' + l.numero + ' excluída.');
+          } catch (err) { toast('Erro ao excluir: ' + err.message); }
+          await recarregar();
+        });
+    });
   }
 
   /* ================= aviso ao abrir a intranet ================= */
