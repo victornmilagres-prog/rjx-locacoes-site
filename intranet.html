@@ -4398,17 +4398,17 @@ function carregarManualTransportes(){
       'Chegue <b>30 min antes</b> do horário de montagem do sistema — o equipamento precisa estar montado e funcionando no horário indicado, independente do início da locação.',
       'Monte o equipamento, tire <b>foto</b> do equipamento montado e grave <b>vídeo</b> dele funcionando.',
       'Endolaser e Lavieen: poste no grupo Transportes a foto + vídeo + <b>"Equipamento montado"</b>.',
-      'Ultraformer e Criodermis: antes de colher assinaturas, preencha o <b>Controle de Insumos inicial</b> (ver diferenças por equipamento abaixo).',
-      'Colha assinatura(s): checklist de entrega no sistema, contrato (se necessário) e do Controle de Insumos (quando houver).',
+      'Ultraformer e Criodermis: antes de colher assinaturas, abra <b>Transportes → Minhas Locações → Locações abertas</b> e preencha a entrega: número e foto de cada cartucho (Ultraformer) ou mantas e cintas com foto (Criodermis).',
+      'Colha assinatura(s): checklist de entrega, <b>contrato no Estoque Now</b> (quando aparecer CONTRATO NÃO ASSINADO) e a do cliente na tela de entrega. O relatório de entrega abre sozinho.',
       'No app <b>EstoqueNOW</b>, vá em Logística e marque a locação como "Entregue".'
     ]},
     { num:3, titulo:"Retirada na clínica", passos:[
       'Pelo menos <b>1h antes</b> do horário de retirada, poste no grupo + localização em tempo real: "A caminho da retirada" — ou, se já estiver próximo da clínica, "Próximo da retirada".',
       'Tire <b>foto</b> do equipamento e grave <b>vídeo</b> dele funcionando (mesmo processo da entrega).',
-      'Preencha o <b>Controle de Insumos final</b> (Ultraformer e Criodermis) e solicite o comprovante de pagamento à doutora.',
-      'Colha assinatura do Controle de Insumos, quando houver (ver diferenças por equipamento).',
-      'Poste no grupo Transportes: foto + vídeo + <b>"Locação finalizada"</b> + Controle de Insumos.',
-      'Poste no grupo Financeiro: Controle de Insumos (se houver) + comprovante de pagamento.',
+      'Em <b>Minhas Locações</b>, preencha o retorno com foto: disparo final de cada cartucho, ou mantas e cintas retornando. <b>O sistema calcula o total — não digite valor.</b> Solicite o comprovante de pagamento ao cliente.',
+      'Colha as assinaturas do fechamento (cliente e motorista), revise as fotos e toque em <b>Concluir locação</b>. O PDF final abre na tela: use <b>Baixar PDF</b>.',
+      'Poste no grupo Transportes: foto + vídeo + <b>"Locação finalizada"</b> + <b>PDF</b> do Controle de Insumos.',
+      'Poste no grupo Financeiro: <b>PDF</b> do Controle de Insumos (se houver) + comprovante de pagamento.',
       'No aplicativo <b>EstoqueNOW</b>, marque o equipamento como retirado.'
     ]},
     { num:4, titulo:"Retorno ao escritório (quando indicado)", passos:[
@@ -4425,8 +4425,8 @@ function carregarManualTransportes(){
     html += "</div>";
   });
   html += '<div style="margin-bottom:22px;"><h3 style="font-size:17px;margin-bottom:10px;">Diferenças por equipamento</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">';
-  html += '<div style="border-radius:8px;padding:16px 18px;border-top:4px solid #a83246;background:var(--paper);"><h4 style="font-size:15px;margin-bottom:8px;">Ultraformer MPT</h4><ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--ink-soft);"><li>Controle de insumos no início e no fim.</li><li>Foto da tela com os disparos de cada cartucho: Linear 1,5/2,0/3,0/4,5/6,0mm e Booster 1,5/3,0/4,5mm.</li><li>Motorista preenche sozinho no app.</li></ul></div>';
-  html += '<div style="border-radius:8px;padding:16px 18px;border-top:4px solid #2c7a7a;background:var(--paper);"><h4 style="font-size:15px;margin-bottom:8px;">Criodermis 2.0</h4><ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--ink-soft);"><li>Controle de insumos no início e no fim.</li><li>Quantidade de manta e cinta entregues/deixadas.</li><li>Fotos direto no aplicativo.</li></ul></div>';
+  html += '<div style="border-radius:8px;padding:16px 18px;border-top:4px solid #a83246;background:var(--paper);"><h4 style="font-size:15px;margin-bottom:8px;">Ultraformer MPT</h4><ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--ink-soft);"><li>Feito em Minhas Locações, no início e no fim.</li><li>Foto da tela com os disparos de cada cartucho: Linear 1,5/2,0/3,0/4,5/6,0mm e Booster 1,5/3,0/4,5mm.</li><li>A IA lê o número da foto, mas <b>confira sempre o número da tela</b>.</li></ul></div>';
+  html += '<div style="border-radius:8px;padding:16px 18px;border-top:4px solid #2c7a7a;background:var(--paper);"><h4 style="font-size:15px;margin-bottom:8px;">Criodermis 2.0</h4><ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--ink-soft);"><li>Feito em Minhas Locações, no início e no fim.</li><li>Quantidade de manta e cinta, com foto.</li><li>Se faltar cinta: R$ 18,00 por unidade, com assinatura do cliente.</li></ul></div>';
   html += '<div style="border-radius:8px;padding:16px 18px;border-top:4px solid #c9761f;background:var(--paper);"><h4 style="font-size:15px;margin-bottom:8px;">Endolaser</h4><ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--ink-soft);"><li>Sem controle de insumos.</li><li>Assinatura de checklist/contrato só na entrega.</li><li>Na retirada: só foto e vídeo, sem assinatura.</li></ul></div>';
   html += '<div style="border-radius:8px;padding:16px 18px;border-top:4px solid #3f8f7a;background:var(--paper);"><h4 style="font-size:15px;margin-bottom:8px;">Lavieen</h4><ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--ink-soft);"><li>Sem controle de insumos.</li><li>Testar a manopla no livro de teste — na entrega E na retirada.</li><li>Assinatura de checklist/contrato só na entrega. Na retirada, não assina nada.</li></ul></div>';
   html += "</div></div>";
