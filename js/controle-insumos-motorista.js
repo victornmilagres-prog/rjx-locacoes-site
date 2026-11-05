@@ -134,7 +134,7 @@
   /* ---------------- faixa do contrato ---------------- */
   function contratoBox(l) {
     if (l.contrato === true) return '<div class="ci-ct ok">Contrato assinado</div>';
-    return '<div class="ci-ct no">CONTRATO NÃO ASSINADO<small>Pegue a assinatura da doutora no contrato do Estoque Now antes de montar o equipamento.</small></div>';
+    return '<div class="ci-ct no">CONTRATO NÃO ASSINADO<small>Pegue a assinatura do cliente no contrato do Estoque Now antes de montar o equipamento.</small></div>';
   }
   function passos(l) {
     const n = etapaInfo(l)[0];
@@ -808,7 +808,7 @@
       else if (cob && cob.qtd === falt) pa.innerHTML = '<div class="ci-okbox" style="margin-top:10px">Cobrança de ' + falt + ' cinta(s) assinada: ' + C.fmtMoney(falt * C.VALOR_CINTA) + '.</div>';
       else {
         cintaOk = false;
-        pa.innerHTML = '<div class="ci-err" style="margin-top:10px">Faltam ' + falt + ' cinta(s). Confira com a doutora.</div>' +
+        pa.innerHTML = '<div class="ci-err" style="margin-top:10px">Faltam ' + falt + ' cinta(s). Confira com o cliente.</div>' +
           '<div class="ci-foto-bts"><button type="button" class="btn btn-sm btn-ghost" id="ci-c-ajustar">Ajustar quantidade</button>' +
           '<button type="button" class="btn btn-sm btn-outline" id="ci-c-cobrar">Cobrar cinta ausente</button></div>';
         $('ci-c-ajustar').onclick = () => inC.focus();
@@ -844,7 +844,7 @@
       $('ci-sig-cinta-voltar').onclick = () => { assinandoCinta = false; chk(); };
       $('ci-sig-cinta-ok').onclick = async () => {
         const e2 = $('ci-err-cinta'), b2 = $('ci-sig-cinta-ok');
-        if (pad.isEmpty()) { e2.textContent = 'Peça para a doutora assinar.'; return; }
+        if (pad.isEmpty()) { e2.textContent = 'Peça para o cliente assinar.'; return; }
         b2.disabled = true; b2.textContent = 'Enviando assinatura...';
         try {
           const meta = await subirAssinatura(l.id, 'cinta', pad);
@@ -917,7 +917,7 @@
   function etSigEntrega(l) {
     const content = $('transportes-content');
     content.innerHTML = topoEtapa(l) +
-      '<div class="card form-card"><h3>O que a doutora está confirmando</h3><p class="cardsub">' +
+      '<div class="card form-card"><h3>O que o cliente está confirmando</h3><p class="cardsub">' +
         (l.equipamento === 'crio' ? 'Itens entregues.' : 'Disparos iniciais de cada cartucho.') + '</p>' + resumoEntrega(l) + '</div>' +
       '<div class="card form-card"><h3>' + esc(l.doutora) + ' · Entrega</h3>' + (l.cpfCnpj ? '<p class="cardsub">CPF/CNPJ: ' + esc(l.cpfCnpj) + '</p>' : '') +
         '<p class="ci-aceite">Confirmo que recebi o equipamento com os valores acima.</p>' +
@@ -930,14 +930,14 @@
     $('ci-btn-voltar').onclick = () => mudarEtapa(l, 'inicial');
     $('ci-btn-ok').onclick = async () => {
       const err = $('ci-err-et'), btn = $('ci-btn-ok');
-      if (pad.isEmpty()) { err.textContent = 'Peça para a doutora assinar antes de continuar.'; return; }
+      if (pad.isEmpty()) { err.textContent = 'Peça para o cliente assinar antes de continuar.'; return; }
       btn.disabled = true; btn.textContent = 'Enviando assinatura...';
       try {
         const meta = await subirAssinatura(l.id, 'entrega', pad);
         const nova = await gravar(l.id, atual => {
           if (atual.status !== 'sig_entrega') throw new Mudou('A locação mudou de etapa.');
           const ass = Object.assign({}, atual.assinaturas, { entrega: meta });
-          return { patch: { assinaturas: ass, status: 'final' }, hist: ['Entrega assinada pela doutora'] };
+          return { patch: { assinaturas: ass, status: 'final' }, hist: ['Entrega assinada pelo cliente'] };
         });
         atualizarLinha(nova);
         telaEntregaConcluida(nova);
@@ -1013,7 +1013,7 @@
     const content = $('transportes-content');
     const c = C.calcular(l);
     content.innerHTML = topoEtapa(l) +
-      '<div class="card form-card"><h3>O que a doutora está confirmando</h3>' + linhasTotal(l, c) + '</div>' + totalBox(c) +
+      '<div class="card form-card"><h3>O que o cliente está confirmando</h3>' + linhasTotal(l, c) + '</div>' + totalBox(c) +
       '<div class="card form-card"><h3>' + esc(l.doutora) + ' · Retirada</h3>' + (l.cpfCnpj ? '<p class="cardsub">CPF/CNPJ: ' + esc(l.cpfCnpj) + '</p>' : '') +
         '<p class="ci-aceite">Confirmo a retirada do equipamento, os números e o total acima.</p>' +
         '<canvas class="ci-sig" id="ci-sig-dra"></canvas><button type="button" class="btn btn-sm btn-ghost" id="ci-sig-dra-limpar" style="margin-top:8px">Limpar assinatura</button></div>' +
@@ -1028,7 +1028,7 @@
     $('ci-btn-voltar').onclick = () => mudarEtapa(l, 'condicoes');
     $('ci-btn-ok').onclick = async () => {
       const err = $('ci-err-et'), btn = $('ci-btn-ok');
-      if (p2.isEmpty() || p3.isEmpty()) { err.textContent = 'Faltam assinaturas: doutora e motorista precisam assinar.'; return; }
+      if (p2.isEmpty() || p3.isEmpty()) { err.textContent = 'Faltam assinaturas: cliente e motorista precisam assinar.'; return; }
       btn.disabled = true; btn.textContent = 'Enviando assinaturas...';
       try {
         const m2 = await subirAssinatura(l.id, 'retirada', p2);
@@ -1036,7 +1036,7 @@
         const nova = await gravar(l.id, atual => {
           if (atual.status !== 'sig_fechamento') throw new Mudou('A locação mudou de etapa.');
           const ass = Object.assign({}, atual.assinaturas, { retirada: m2, logistica: m3 });
-          return { patch: { assinaturas: ass, status: 'revisao' }, hist: ['Retirada assinada pela doutora e pelo motorista'] };
+          return { patch: { assinaturas: ass, status: 'revisao' }, hist: ['Retirada assinada pelo cliente e pelo motorista'] };
         });
         atualizarLinha(nova); render();
       } catch (e) {
