@@ -282,11 +282,9 @@
 
   function telaEtapa(l) {
     const content = $('transportes-content');
-    if (l.equipamento === 'crio') {
-      content.innerHTML = topoEtapa(l) + '<div class="card"><p class="empty-hint">O fluxo da Criodermis entra na próxima etapa da implantação.</p></div>';
-      return ligarVoltar();
-    }
-    const telas = { inicial: etDisparo, sig_entrega: etSigEntrega, final: etDisparo, condicoes: etCondicoes, sig_fechamento: etSigFech, revisao: etRevisao };
+    const crio = l.equipamento === 'crio';
+    const telas = { inicial: crio ? etEntregaCrio : etDisparo, sig_entrega: etSigEntrega, final: crio ? etRetornoCrio : etDisparo,
+      condicoes: etCondicoes, sig_fechamento: etSigFech, revisao: etRevisao };
     (telas[l.status] || (() => { content.innerHTML = topoEtapa(l); }))(l);
     ligarVoltar();
   }
@@ -679,6 +677,207 @@
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && rascTimer) { clearTimeout(rascTimer); descarregarRascunho(); } });
   window.addEventListener('pagehide', () => { if (rascTimer) { clearTimeout(rascTimer); descarregarRascunho(); } });
 
+  /* ================= Criodermis: etapas 1 e 3 ================= */
+  // campo de quantidade no mesmo visor do Ultraformer; o id do campo é a chave da foto
+  function campoQtd(key, rotulo, val, extra) {
+    return '<div class="ci-cart"><div class="ci-cart-row"><div class="ci-cart-nome">' + esc(rotulo) + (extra ? '<small>' + esc(extra) + '</small>' : '') + '</div>' +
+      '<div class="ci-meter" id="ci-met-' + key + '"><input type="text" inputmode="numeric" pattern="[0-9]*" id="ci-inp-' + key + '" aria-label="' + esc(rotulo) + '" value="' + esc(val == null ? '' : val) + '" placeholder="0" autocomplete="off"><span>un.</span></div></div>' +
+      '<div class="ci-rowerr" id="ci-re-' + key + '" hidden></div><div id="ci-foto-' + key + '"></div></div>';
+  }
+  const linhaAtual = l => ST.linhas.find(x => x.id === l.id) || l;
+  function ligarQtd(l, etapaRasc, keys, depois) {
+    keys.forEach(k => {
+      const i = $('ci-inp-' + k);
+      i.addEventListener('input', () => {
+        const limpo = i.value.replace(/[^\d]/g, '');
+        if (limpo !== i.value) i.value = limpo;
+        salvarRascunho(l.id, etapaRasc, k, i.value);
+        depois(k);
+      });
+    });
+  }
+
+  function etEntregaCrio(l) {
+    const content = $('transportes-content');
+    const R = (l.rascunho && l.rascunho.inicial) || {}, conf = l.crio.entregues || {};
+    const val = (k, c) => (R[k] != null ? R[k] : (conf[c] != null ? conf[c] : ''));
+    const itens = (l.semManta ? [] : [['mantasE', 'Mantas entregues', 'mantas']]).concat([['cintasE', 'Cintas entregues', 'cintas']]);
+    content.innerHTML = topoEtapa(l) +
+      '<div class="card form-card"><h3>Itens entregues</h3><p class="cardsub">Quantidade e foto de cada item.</p>' +
+        itens.map(i => campoQtd(i[0], i[1], val(i[0], i[2]))).join('') + '</div>' +
+      '<div class="ci-err" id="ci-err-et" role="alert"></div>' +
+      '<div class="ci-acoes"><button type="button" class="btn btn-primary btn-block" id="ci-btn-ok">Confirmar entrega</button>' +
+      '<p class="ci-hint" style="text-align:center">A cinta não tem custo, mas precisa voltar. Se faltar, são ' + C.fmtMoney(C.VALOR_CINTA) + ' por unidade.</p></div>';
+    const keys = itens.map(i => i[0]);
+    keys.forEach(k => pintaFoto(l, 'entrega', k, false));
+    assinarUrls(keys.map(k => (fotosDe(l, 'entrega')[k] || {}).path)).then(() => keys.forEach(k => pintaFoto(linhaAtual(l), 'entrega', k, false)));
+    const checar = () => {
+      const pend = pendentesDe(l.id, 'entrega').length, btn = $('ci-btn-ok');
+      if (!btn) return;
+      btn.disabled = pend > 0;
+      btn.textContent = pend > 0 ? 'Aguardando envio de ' + pend + ' foto(s)...' : 'Confirmar entrega';
+    };
+    atualizarBotoes = checar;
+    ligarQtd(l, 'inicial', keys, checar);
+    checar();
+    $('ci-btn-ok').onclick = async () => {
+      const err = $('ci-err-et'), btn = $('ci-btn-ok');
+      err.textContent = '';
+      const m = l.semManta ? 0 : C.parseInt0($('ci-inp-mantasE').value), c = C.parseInt0($('ci-inp-cintasE').value);
+      if (!l.semManta && m <= 0) { err.textContent = 'Informe quantas mantas foram entregues.'; return; }
+      if (c <= 0) { err.textContent = 'Informe quantas cintas foram entregues.'; return; }
+      if (pendentesDe(l.id, 'entrega').length) { err.textContent = 'Ainda há foto pendente de envio. Aguarde ou confira a internet.'; return; }
+      btn.disabled = true; btn.textContent = 'Salvando...';
+      try {
+        await esperarRascunho();
+        const nova = await gravar(l.id, atual => {
+          const f = fotosDe(atual, 'entrega');
+          if (!f.cintasE || (!atual.semManta && !f.mantasE)) throw new Error('Anexe as fotos antes de continuar.');
+          const crio = Object.assign({}, atual.crio, { entregues: { mantas: m, cintas: c } });
+          return { patch: { crio, status: 'sig_entrega' }, hist: ['Entrega confirmada'] };
+        });
+        atualizarLinha(nova); render();
+      } catch (e) {
+        btn.disabled = false; checar();
+        if (e instanceof Mudou) return avisarErro(e);
+        err.textContent = e.message;
+      }
+    };
+  }
+
+  function etRetornoCrio(l) {
+    const content = $('transportes-content');
+    const ent = l.crio.entregues || { mantas: 0, cintas: 0 };
+    const R = (l.rascunho && l.rascunho.final) || {}, conf = l.crio.retornando || {};
+    const val = (k, c) => (R[k] != null ? R[k] : (conf[c] != null ? conf[c] : ''));
+    const itens = (l.semManta ? [] : [['mantasR', 'Mantas retornando', 'mantas', 'Entregues: ' + C.fmtNum(ent.mantas)]])
+      .concat([['cintasR', 'Cintas retornando', 'cintas', 'Entregues: ' + C.fmtNum(ent.cintas)]]);
+    const feita = entregaFeitaPor(l);
+    content.innerHTML = topoEtapa(l) +
+      (feita ? '<div class="ci-okbox">Entrega feita por ' + esc(nome(l.motEntregaId)) + '.</div>' : '') +
+      '<button type="button" class="btn btn-outline btn-block" id="ci-btn-rel" style="margin-bottom:14px">Abrir relatório de entrega</button>' +
+      '<div class="card form-card"><h3>Itens retornando</h3><p class="cardsub">Quantidade e foto de cada item.</p>' +
+        itens.map(i => campoQtd(i[0], i[1], val(i[0], i[2]), i[3])).join('') + '<div id="ci-cinta"></div></div>' +
+      '<div class="ci-err" id="ci-err-et" role="alert"></div>' +
+      '<div class="ci-acoes"><button type="button" class="btn btn-primary btn-block" id="ci-btn-ok">Calcular saldo</button></div>';
+    $('ci-btn-rel').onclick = () => abrirRelatorioEntrega(l);
+    const keys = itens.map(i => i[0]);
+    keys.forEach(k => pintaFoto(l, 'retorno', k, false));
+    assinarUrls(keys.map(k => (fotosDe(l, 'retorno')[k] || {}).path)).then(() => keys.forEach(k => pintaFoto(linhaAtual(l), 'retorno', k, false)));
+
+    const inC = $('ci-inp-cintasR'), inM = $('ci-inp-mantasR'), pa = $('ci-cinta');
+    let assinandoCinta = false, cancelando = false;
+
+    const chk = () => {
+      if (assinandoCinta) return;
+      const err = $('ci-err-et'), btn = $('ci-btn-ok');
+      if (!btn) return;
+      err.textContent = '';
+      const atual = linhaAtual(l), cob = atual.crio.cobrancaCinta;
+      const cr = C.parseInt0(inC.value), falt = Math.max(0, ent.cintas - cr);
+      // a quantidade mudou depois da cobrança assinada: a cobrança deixa de valer
+      if (cob && inC.value !== '' && cob.qtd !== falt && !cancelando) {
+        cancelando = true;
+        gravar(l.id, a => {
+          if (!a.crio.cobrancaCinta) return null;
+          return { patch: { crio: Object.assign({}, a.crio, { cobrancaCinta: null }) }, hist: ['Cobrança de cinta cancelada: quantidade corrigida'] };
+        }).then(nova => { atualizarLinha(nova); toast('Cobrança de cinta cancelada: a quantidade mudou.'); })
+          .catch(e => { if (e instanceof Mudou) avisarErro(e); })
+          .finally(() => { cancelando = false; chk(); });
+        return;
+      }
+      let cintaOk = true;
+      if (inC.value === '') { cintaOk = false; pa.innerHTML = ''; }
+      else if (cr > ent.cintas) { pa.innerHTML = '<div class="ci-err" style="margin-top:10px">Voltaram mais cintas do que foram entregues. Confira.</div>'; cintaOk = false; }
+      else if (falt === 0) pa.innerHTML = '<div class="ci-okbox" style="margin-top:10px">Todas as cintas conferem.</div>';
+      else if (cob && cob.qtd === falt) pa.innerHTML = '<div class="ci-okbox" style="margin-top:10px">Cobrança de ' + falt + ' cinta(s) assinada: ' + C.fmtMoney(falt * C.VALOR_CINTA) + '.</div>';
+      else {
+        cintaOk = false;
+        pa.innerHTML = '<div class="ci-err" style="margin-top:10px">Faltam ' + falt + ' cinta(s). Confira com a doutora.</div>' +
+          '<div class="ci-foto-bts"><button type="button" class="btn btn-sm btn-ghost" id="ci-c-ajustar">Ajustar quantidade</button>' +
+          '<button type="button" class="btn btn-sm btn-outline" id="ci-c-cobrar">Cobrar cinta ausente</button></div>';
+        $('ci-c-ajustar').onclick = () => inC.focus();
+        $('ci-c-cobrar').onclick = () => assinaCinta(falt);
+      }
+      let mOk = true;
+      if (!l.semManta) {
+        const mr = C.parseInt0(inM.value);
+        const ruim = inM.value !== '' && mr > ent.mantas;
+        $('ci-met-mantasR').classList.toggle('bad', ruim);
+        $('ci-re-mantasR').hidden = !ruim; $('ci-re-mantasR').textContent = ruim ? 'Voltaram mais mantas do que foram entregues (' + C.fmtNum(ent.mantas) + ').' : '';
+        if (inM.value === '' || ruim) mOk = false;
+      }
+      $('ci-met-cintasR').classList.toggle('bad', cr > ent.cintas);
+      const pend = pendentesDe(l.id, 'retorno').length;
+      btn.disabled = !cintaOk || !mOk || pend > 0;
+      btn.textContent = pend > 0 ? 'Aguardando envio de ' + pend + ' foto(s)...' : 'Calcular saldo';
+    };
+
+    const assinaCinta = q => {
+      assinandoCinta = true;
+      $('ci-btn-ok').disabled = true;
+      pa.innerHTML = '<div class="ci-cinta-box"><h3>Cobrança de cinta ausente</h3>' +
+        '<p class="ci-aceite">' + q + ' cinta(s) × ' + C.fmtMoney(C.VALOR_CINTA) + ' = <b>' + C.fmtMoney(q * C.VALOR_CINTA) + '</b>, somado ao total.</p>' +
+        '<p class="cardsub" style="margin:0 0 8px">' + esc(l.doutora) + ' · Cinta ausente</p>' +
+        '<canvas class="ci-sig" id="ci-sig-cinta"></canvas>' +
+        '<div class="ci-foto-bts" style="margin-top:8px"><button type="button" class="btn btn-sm btn-ghost" id="ci-sig-cinta-limpar">Limpar assinatura</button>' +
+        '<button type="button" class="btn btn-sm btn-ghost" id="ci-sig-cinta-voltar">Voltar</button></div>' +
+        '<div class="ci-err" id="ci-err-cinta" style="margin-top:10px"></div>' +
+        '<button type="button" class="btn btn-primary btn-block" id="ci-sig-cinta-ok">Confirmar cobrança</button></div>';
+      const pad = initSignaturePad('ci-sig-cinta');
+      $('ci-sig-cinta-limpar').onclick = () => pad.clear();
+      $('ci-sig-cinta-voltar').onclick = () => { assinandoCinta = false; chk(); };
+      $('ci-sig-cinta-ok').onclick = async () => {
+        const e2 = $('ci-err-cinta'), b2 = $('ci-sig-cinta-ok');
+        if (pad.isEmpty()) { e2.textContent = 'Peça para a doutora assinar.'; return; }
+        b2.disabled = true; b2.textContent = 'Enviando assinatura...';
+        try {
+          const meta = await subirAssinatura(l.id, 'cinta', pad);
+          const nova = await gravar(l.id, a => ({
+            patch: { crio: Object.assign({}, a.crio, { cobrancaCinta: { qtd: q, valorUnit: C.VALOR_CINTA, total: q * C.VALOR_CINTA, assinatura: meta } }) },
+            hist: ['Cinta ausente cobrada: ' + q]
+          }));
+          atualizarLinha(nova);
+          assinandoCinta = false; chk();
+        } catch (e) {
+          b2.disabled = false; b2.textContent = 'Confirmar cobrança';
+          if (e instanceof Mudou) return avisarErro(e);
+          e2.textContent = e.message;
+        }
+      };
+    };
+
+    atualizarBotoes = chk;
+    ligarQtd(l, 'final', keys, k => { if (k === 'cintasR') assinandoCinta = false; chk(); });
+    chk();
+
+    $('ci-btn-ok').onclick = async () => {
+      const err = $('ci-err-et'), btn = $('ci-btn-ok');
+      const m = l.semManta ? 0 : C.parseInt0(inM.value), c = C.parseInt0(inC.value);
+      if (pendentesDe(l.id, 'retorno').length) { err.textContent = 'Ainda há foto pendente de envio. Aguarde ou confira a internet.'; return; }
+      btn.disabled = true; btn.textContent = 'Salvando...';
+      try {
+        await esperarRascunho();
+        const nova = await gravar(l.id, atual => {
+          const f = fotosDe(atual, 'retorno');
+          if (!f.cintasR || (!atual.semManta && !f.mantasR)) throw new Error('Anexe as fotos antes de continuar.');
+          const e = atual.crio.entregues || {};
+          if (c > e.cintas || (!atual.semManta && m > e.mantas)) throw new Error('Voltaram mais itens do que foram entregues. Confira.');
+          const falt = Math.max(0, e.cintas - c), cob = atual.crio.cobrancaCinta;
+          if (falt > 0 && !(cob && cob.qtd === falt)) throw new Error('Faltam ' + falt + ' cinta(s): ajuste a quantidade ou colha a assinatura da cobrança.');
+          const crio = Object.assign({}, atual.crio, { retornando: { mantas: m, cintas: c } });
+          if (falt === 0) crio.cobrancaCinta = null;
+          return { patch: { crio, status: 'condicoes' }, hist: ['Retorno registrado'] };
+        });
+        atualizarLinha(nova); render();
+      } catch (e) {
+        btn.disabled = false; chk();
+        if (e instanceof Mudou) return avisarErro(e);
+        err.textContent = e.message;
+      }
+    };
+  }
+
   /* ================= assinatura: envio do PNG ================= */
   async function subirAssinatura(locId, tipo, pad) {
     const dataUrl = pad.toDataURL();
@@ -693,12 +892,18 @@
 
   /* ================= etapa 2: assinatura da entrega ================= */
   function resumoEntrega(l) {
+    if (l.equipamento === 'crio') {
+      const e = l.crio.entregues || {};
+      return (l.semManta ? '' : '<div class="ci-kv"><span>Mantas entregues</span><span>' + C.fmtNum(e.mantas) + '</span></div>') +
+        '<div class="ci-kv"><span>Cintas entregues</span><span>' + C.fmtNum(e.cintas) + '</span></div>';
+    }
     return cartuchos(l).map(c => '<div class="ci-kv"><span>' + esc(c.label) + '</span><span>' + C.fmtNum((l.ultra.inicial || {})[c.key]) + '</span></div>').join('');
   }
   function etSigEntrega(l) {
     const content = $('transportes-content');
     content.innerHTML = topoEtapa(l) +
-      '<div class="card form-card"><h3>O que a doutora está confirmando</h3><p class="cardsub">Disparos iniciais de cada cartucho.</p>' + resumoEntrega(l) + '</div>' +
+      '<div class="card form-card"><h3>O que a doutora está confirmando</h3><p class="cardsub">' +
+        (l.equipamento === 'crio' ? 'Itens entregues.' : 'Disparos iniciais de cada cartucho.') + '</p>' + resumoEntrega(l) + '</div>' +
       '<div class="card form-card"><h3>' + esc(l.doutora) + ' · Entrega</h3>' + (l.cpfCnpj ? '<p class="cardsub">CPF/CNPJ: ' + esc(l.cpfCnpj) + '</p>' : '') +
         '<p class="ci-aceite">Confirmo que recebi o equipamento com os valores acima.</p>' +
         '<canvas class="ci-sig" id="ci-sig-ent"></canvas><button type="button" class="btn btn-sm btn-ghost" id="ci-sig-ent-limpar" style="margin-top:8px">Limpar assinatura</button></div>' +
@@ -751,6 +956,17 @@
 
   /* ================= etapa 4: saldo e total ================= */
   function linhasTotal(l, c) {
+    if (l.equipamento === 'crio') {
+      const ent = l.crio.entregues || {}, ret = l.crio.retornando || {}, cob = l.crio.cobrancaCinta;
+      return (l.semManta ? '<div class="ci-kv"><span>Mantas</span><span>Não enviadas</span></div>'
+          : '<div class="ci-kv"><span>Mantas entregues / retornando</span><span>' + C.fmtNum(ent.mantas) + ' / ' + C.fmtNum(ret.mantas) + '</span></div>' +
+            '<div class="ci-kv forte" style="border-top:none;margin-top:0;padding-top:3px"><span>Mantas utilizadas</span><span>' + C.fmtNum(c.utilizadas) + '</span></div>' +
+            '<div class="ci-kv"><span>' + C.fmtNum(c.utilizadas) + ' × ' + C.fmtMoney(l.valorManta) + '</span><span>' + C.fmtMoney(c.totalManta) + '</span></div>') +
+        '<div class="ci-kv"><span>Cintas entregues / retornando</span><span>' + C.fmtNum(ent.cintas) + ' / ' + C.fmtNum(ret.cintas) + '</span></div>' +
+        (c.cinta ? '<div class="ci-kv"><span>Cinta ausente (' + C.fmtNum(cob.qtd) + ' × ' + C.fmtMoney(C.VALOR_CINTA) + ')</span><span>' + C.fmtMoney(c.cinta) + '</span></div>' : '') +
+        '<div class="ci-kv"><span>Locação Criodermis</span><span>' + C.fmtMoney(c.locAplicada) + '</span></div>' +
+        (l.frete ? '<div class="ci-kv"><span>Frete</span><span>' + C.fmtMoney(c.frete) + '</span></div>' : '');
+    }
     return '<div class="ci-kv forte" style="border-top:none;margin-top:0;padding-top:3px"><span>Total de disparos utilizados</span><span>' + C.fmtNum(c.totalGeral) + '</span></div>' +
       '<div class="ci-kv"><span>Faixa aplicada</span><span>' + (c.faixa ? esc(C.faixaTxt(c.faixa)) : '—') + '</span></div>' +
       '<div class="ci-kv"><span>' + C.fmtNum(c.totalGeral) + ' × ' + C.fmtMoney(c.unit) + '</span><span>' + C.fmtMoney(c.subtotal) + '</span></div>' +
@@ -761,17 +977,18 @@
   function totalBox(c) { return '<div class="ci-total"><small>Total a pagar</small><b>' + C.fmtMoney(c.total) + '</b></div>'; }
   function etCondicoes(l) {
     const content = $('transportes-content');
+    const crio = l.equipamento === 'crio';
     const c = C.calcular(l), dv = C.divergencias(l);
     content.innerHTML = topoEtapa(l) +
-      '<div class="card form-card"><h3>Saldo por cartucho</h3><p class="cardsub">Inicial menos final, de cada cartucho.</p>' +
+      (crio ? '' : '<div class="card form-card"><h3>Saldo por cartucho</h3><p class="cardsub">Inicial menos final, de cada cartucho.</p>' +
         '<div class="ci-grupo">Linear</div>' + c.linear.map(x => '<div class="ci-kv"><span>' + esc(x.label) + '</span><span>' + C.fmtNum(x.saldo) + '</span></div>').join('') +
-        '<div class="ci-grupo">Booster</div>' + c.booster.map(x => '<div class="ci-kv"><span>' + esc(x.label) + '</span><span>' + C.fmtNum(x.saldo) + '</span></div>').join('') + '</div>' +
+        '<div class="ci-grupo">Booster</div>' + c.booster.map(x => '<div class="ci-kv"><span>' + esc(x.label) + '</span><span>' + C.fmtNum(x.saldo) + '</span></div>').join('') + '</div>') +
       '<div class="card form-card"><h3>Fechamento</h3>' + linhasTotal(l, c) + '</div>' + totalBox(c) +
       '<p class="ci-hint" style="text-align:center;margin-bottom:12px">Calculado pelo sistema com as condições lançadas pela Yasmin.</p>' +
       (dv.length ? '<div class="ci-waitbox">' + dv.length + ' número(s) diferente(s) da leitura da foto:<br>' +
         dv.map(d => esc(d.label) + ' (' + (d.et === 'inicial' ? 'inicial' : 'final') + '): registrado ' + C.fmtNum(d.reg) + ', IA leu ' + C.fmtNum(d.ia)).join('<br>') + '</div>' : '') +
       '<div class="ci-acoes"><button type="button" class="btn btn-primary btn-block" id="ci-btn-ok">Confirmar fechamento</button>' +
-      '<button type="button" class="btn btn-ghost btn-block" id="ci-btn-voltar">Voltar e corrigir o disparo final</button></div>';
+      '<button type="button" class="btn btn-ghost btn-block" id="ci-btn-voltar">Voltar e corrigir ' + (crio ? 'o retorno' : 'o disparo final') + '</button></div>';
     $('ci-btn-voltar').onclick = () => mudarEtapa(l, 'final');
     $('ci-btn-ok').onclick = () => mudarEtapa(l, 'sig_fechamento');
   }
@@ -818,18 +1035,30 @@
   /* ================= etapa 6: revisão de fotos ================= */
   function etRevisao(l) {
     const content = $('transportes-content');
-    const lista = cartuchos(l);
-    const fi = fotosDe(l, 'inicial'), ff = fotosDe(l, 'final');
+    const crio = l.equipamento === 'crio';
+    // pares [legenda, foto] na ordem da grade
+    let pares;
+    if (crio) {
+      const fe = fotosDe(l, 'entrega'), fr = fotosDe(l, 'retorno');
+      pares = (l.semManta ? [] : [['Mantas, entrega', fe.mantasE], ['Mantas, retorno', fr.mantasR]])
+        .concat([['Cintas, entrega', fe.cintasE], ['Cintas, retorno', fr.cintasR]]);
+      const cob = l.crio.cobrancaCinta;
+      if (cob && cob.assinatura) pares.push(['Assinatura da cinta ausente', cob.assinatura]);
+    } else {
+      const fi = fotosDe(l, 'inicial'), ff = fotosDe(l, 'final');
+      pares = [];
+      cartuchos(l).forEach(c => { pares.push([c.label + ', inicial', fi[c.key]]); pares.push([c.label + ', final', ff[c.key]]); });
+    }
     const cel = (cap, p) => p
       ? '<div><img src="' + esc(ST.urls[p.path] || '') + '" alt="' + esc(cap) + '" data-path="' + esc(p.path) + '"><div class="ci-cap">' + esc(cap) + ' · ' + esc(dtBR(p.ts)) + '</div></div>'
       : '<div><div class="ci-miss">Sem foto</div><div class="ci-cap">' + esc(cap) + '</div></div>';
     content.innerHTML = topoEtapa(l) +
-      '<div class="ci-fotogrid">' + lista.map(c => cel(c.label + ', inicial', fi[c.key]) + cel(c.label + ', final', ff[c.key])).join('') + '</div>' +
+      '<div class="ci-fotogrid">' + pares.map(p => cel(p[0], p[1])).join('') + '</div>' +
       '<div class="ci-err" id="ci-err-et" role="alert"></div>' +
       '<div class="ci-acoes"><button type="button" class="btn btn-primary btn-block" id="ci-btn-ok">Concluir locação</button>' +
       '<button type="button" class="btn btn-ghost btn-block" id="ci-btn-voltar">Voltar</button>' +
       '<p class="ci-hint" style="text-align:center">A locação vai para Locações fechadas, com o PDF disponível por ' + C.DIAS_RETENCAO + ' dias.</p></div>';
-    const paths = lista.map(c => (fi[c.key] || {}).path).concat(lista.map(c => (ff[c.key] || {}).path)).filter(Boolean);
+    const paths = pares.map(p => (p[1] || {}).path).filter(Boolean);
     assinarUrls(paths).then(() => content.querySelectorAll('img[data-path]').forEach(img => { const u = ST.urls[img.dataset.path]; if (u) img.src = u; }));
     $('ci-btn-voltar').onclick = () => mudarEtapa(l, 'sig_fechamento');
     $('ci-btn-ok').onclick = async () => {

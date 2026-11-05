@@ -198,9 +198,12 @@
   function retratoFinanceiro(loc) {
     const c = calcular(loc);
     if (loc.equipamento === 'crio') {
+      const cob = loc.crio.cobrancaCinta;
       return {
-        equipamento: 'crio', utilizadas: c.utilizadas, valorManta: centavos(loc.valorManta),
-        totalManta: centavos(c.totalManta), cinta: centavos(c.cinta), frete: centavos(c.frete),
+        equipamento: 'crio', semManta: !!loc.semManta,
+        entregues: loc.crio.entregues || null, retornando: loc.crio.retornando || null,
+        utilizadas: c.utilizadas, valorManta: centavos(loc.valorManta),
+        totalManta: centavos(c.totalManta), cintaQtd: cob ? cob.qtd : 0, cinta: centavos(c.cinta), frete: centavos(c.frete),
         locAplicada: centavos(c.locAplicada), total: centavos(c.total)
       };
     }

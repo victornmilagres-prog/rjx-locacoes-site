@@ -52,17 +52,33 @@ module.exports = async (req, res) => {
       const chk = CI.checarFaixas(loc.faixas);
       if (chk) return res.status(409).json({ error: 'Condições de valor inválidas: ' + chk });
     } else {
-      // o fluxo da Criodermis entra na etapa 4 da implantação
-      return res.status(409).json({ error: 'A conclusão da Criodermis ainda não está disponível.' });
+      // Criodermis
+      const e = loc.crio.entregues, r = loc.crio.retornando;
+      if (!e || !r) return res.status(409).json({ error: 'Faltam as quantidades de entrega ou de retorno.' });
+      if (!(e.cintas > 0)) return res.status(409).json({ error: 'Falta a quantidade de cintas entregues.' });
+      if (r.cintas > e.cintas || (!loc.semManta && r.mantas > e.mantas)) return res.status(409).json({ error: 'Voltaram mais itens do que foram entregues.' });
+      const fe = loc.fotos.crio.entrega || {}, fr = loc.fotos.crio.retorno || {};
+      if (!fe.cintasE || !fr.cintasR || (!loc.semManta && (!fe.mantasE || !fr.mantasR))) return res.status(409).json({ error: 'Faltam fotos da entrega ou do retorno.' });
+      const falt = Math.max(0, e.cintas - r.cintas), cob = loc.crio.cobrancaCinta;
+      if (falt > 0) {
+        if (!cob || cob.qtd !== falt || !cob.assinatura) return res.status(409).json({ error: 'Faltam ' + falt + ' cinta(s) sem cobrança assinada.' });
+        // o valor da cinta é sempre recalculado aqui, nunca vem do celular
+        loc.crio.cobrancaCinta = Object.assign({}, cob, { qtd: falt, valorUnit: CI.VALOR_CINTA, total: falt * CI.VALOR_CINTA });
+      } else {
+        loc.crio.cobrancaCinta = null;
+      }
+      if (!loc.valorLocacao) return res.status(409).json({ error: 'A locação da Criodermis está sem valor. Fale com a Yasmin.' });
     }
 
     // 4) grava o retrato do cálculo e fecha
     const financeiro = CI.retratoFinanceiro(loc);
     const agora = new Date().toISOString();
     const historico = [{ ts: agora, quem: eu.nome, txt: 'Locação concluída · total ' + CI.fmtMoney(financeiro.total) }].concat(linha.historico || []);
+    const campos = { status: 'concluido', financeiro, finalizada_em: agora, historico };
+    if (loc.equipamento === 'crio') campos.crio = loc.crio; // grava a cobrança de cinta com o valor recalculado
     const up = await fetch(SUPABASE_URL + '/rest/v1/controle_locacoes?id=eq.' + id + '&status=eq.revisao', {
       method: 'PATCH', headers: Object.assign({ Prefer: 'return=representation' }, hdr),
-      body: JSON.stringify({ status: 'concluido', financeiro, finalizada_em: agora, historico })
+      body: JSON.stringify(campos)
     });
     const rows = await up.json().catch(() => []);
     if (!up.ok || !Array.isArray(rows) || !rows.length) return res.status(409).json({ error: 'A locação mudou enquanto concluía. Atualize a tela.' });
