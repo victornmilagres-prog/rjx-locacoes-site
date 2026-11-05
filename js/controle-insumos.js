@@ -555,24 +555,37 @@
     return data;
   }
 
-  /* ================= Finalizadas (a etapa 6 completa: PDF e retenção) ================= */
+  /* ================= Finalizadas: card com retenção de 30 dias ================= */
+  const diasRestantes = l => Math.max(0, C.DIAS_RETENCAO - Math.floor((Date.now() - new Date(l.finalizadaEm).getTime()) / 864e5));
+  // topo e corpo do card de locação finalizada (usado aqui e na tela do motorista)
+  function cardFinalizada(l, nomeFn) {
+    const f = l.financeiro || {};
+    const dv = (f.divergencias || []).length;
+    const n = diasRestantes(l);
+    const selo = l.dadosApagadosEm
+      ? '<span class="status-pill status-info">Só resumo</span>'
+      : '<span class="status-pill ' + (n <= 3 ? 'status-wait' : 'status-ok') + '"><span class="dot"></span>Apaga em ' + n + (n === 1 ? ' dia' : ' dias') + '</span>';
+    return '<div class="loc-top"><div><div class="loc-eq">' + esc(C.EQUIP[l.equipamento]) + '</div>' +
+        '<div class="loc-name">Nº ' + esc(l.numero) + ' · ' + esc(l.doutora) + '</div><div class="loc-meta">' + esc(quando(l)) + '</div></div>' + selo + '</div>' +
+      '<div style="margin-top:10px">' +
+        '<div class="ci-kv"><span>Entrega / retirada</span><span>' + esc(nomeFn(l.motEntregaId)) + ' / ' + esc(nomeFn(l.motRetiradaId)) + '</span></div>' +
+        (l.equipamento === 'crio'
+          ? '<div class="ci-kv"><span>Mantas utilizadas</span><span>' + (l.semManta ? 'Não enviadas' : C.fmtNum(f.utilizadas) + ' × ' + C.fmtMoney(f.valorManta)) + '</span></div>' +
+            (f.cinta ? '<div class="ci-kv"><span>Cinta ausente</span><span>' + C.fmtMoney(f.cinta) + '</span></div>' : '')
+          : '<div class="ci-kv"><span>Disparos utilizados</span><span>' + C.fmtNum(f.totalGeral) + '</span></div><div class="ci-kv"><span>Valor do disparo</span><span>' + C.fmtMoney(f.unit) + '</span></div>') +
+        '<div class="ci-kv forte"><span>Total</span><span>' + C.fmtMoney(f.total) + '</span></div></div>' +
+      (dv ? '<div class="ci-waitbox" style="margin:10px 0 0">' + dv + ' número(s) registrado(s) diferente(s) da leitura da foto.</div>' : '') +
+      '<p class="ci-hint">Finalizada em ' + esc(dtBR(l.finalizadaEm)) + '.' +
+        (l.dadosApagadosEm ? ' Fotos e assinaturas apagadas em ' + esc(dtBR(l.dadosApagadosEm)) + '.' : '') + '</p>';
+  }
   function telaFinalizadas() {
     const area = $('ci-area');
     const L = finalizadas();
     if (!L.length) { area.innerHTML = '<div class="card"><p class="empty-hint"><b>Nenhuma locação finalizada</b><br>As locações concluídas ficam guardadas aqui.</p></div>'; return; }
-    area.innerHTML = '<p class="ci-intro">Fotos e assinaturas ficam guardadas por ' + C.DIAS_RETENCAO + ' dias. Depois disso, o resumo continua aqui.</p>' + L.map(l => {
-      const f = l.financeiro || {};
-      return '<div class="card loc-card"><div class="loc-top"><div><div class="loc-eq">' + esc(C.EQUIP[l.equipamento]) + '</div>' +
-        '<div class="loc-name">Nº ' + esc(l.numero) + ' · ' + esc(l.doutora) + '</div><div class="loc-meta">' + esc(quando(l)) + '</div></div>' +
-        (l.dadosApagadosEm ? '<span class="status-pill status-info">Só resumo</span>' : '<span class="status-pill status-ok"><span class="dot"></span>Finalizada</span>') + '</div>' +
-        '<div style="margin-top:10px">' +
-          '<div class="ci-kv"><span>Entrega / retirada</span><span>' + esc(nomeMot(l.motEntregaId)) + ' / ' + esc(nomeMot(l.motRetiradaId)) + '</span></div>' +
-          (l.equipamento === 'crio'
-            ? '<div class="ci-kv"><span>Mantas utilizadas</span><span>' + (l.semManta ? '—' : esc(f.utilizadas)) + '</span></div>'
-            : '<div class="ci-kv"><span>Disparos utilizados</span><span>' + C.fmtNum(f.totalGeral) + '</span></div><div class="ci-kv"><span>Valor do disparo</span><span>' + C.fmtMoney(f.unit) + '</span></div>') +
-          '<div class="ci-kv forte"><span>Total</span><span>' + C.fmtMoney(f.total) + '</span></div></div>' +
-        '<div class="loc-actions"><button type="button" class="btn btn-sm btn-ghost" data-pdf="' + esc(l.id) + '">' + (l.dadosApagadosEm ? 'Abrir resumo em PDF' : 'Abrir PDF') + '</button></div></div>';
-    }).join('');
+    area.innerHTML = '<p class="ci-intro">Fotos e assinaturas ficam guardadas por ' + C.DIAS_RETENCAO + ' dias. Depois disso, o resumo continua aqui.</p>' + L.map(l =>
+      '<div class="card loc-card">' + cardFinalizada(l, nomeMot) +
+        '<div class="loc-actions"><button type="button" class="btn btn-sm btn-ghost" data-pdf="' + esc(l.id) + '">' + (l.dadosApagadosEm ? 'Abrir resumo em PDF' : 'Abrir PDF') + '</button></div></div>'
+    ).join('');
     area.querySelectorAll('[data-pdf]').forEach(b => b.onclick = () => {
       const l = ST.linhas.find(x => x.id === b.dataset.pdf);
       if (typeof window.ciAbrirPdfFinal === 'function') window.ciAbrirPdfFinal(l);
@@ -582,5 +595,5 @@
   /* ---------------- escopo global ---------------- */
   window.ciCarregarComercial = ciCarregarComercial;
   // utilitários compartilhados com a tela do motorista (js/controle-insumos-motorista.js)
-  window.CIUI = { esc, dataBR, dtBR, quando, abrirModal, fecharModal, confirma, entradaHist, etapaNome, passos };
+  window.CIUI = { esc, dataBR, dtBR, quando, abrirModal, fecharModal, confirma, entradaHist, etapaNome, passos, cardFinalizada };
 })();

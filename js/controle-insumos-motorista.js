@@ -205,16 +205,7 @@
     const L = fechadas();
     if (!L.length) { area.innerHTML = '<div class="card"><p class="empty-hint"><b>Nenhuma locação fechada</b><br>As locações concluídas ficam guardadas aqui.</p></div>'; return; }
     area.innerHTML = '<p class="ci-intro">Fotos e assinaturas ficam guardadas por ' + C.DIAS_RETENCAO + ' dias. Depois disso, o resumo continua aqui.</p>' + L.map(l => {
-      const f = l.financeiro || {};
-      return '<div class="card loc-card"><div class="loc-top"><div><div class="loc-eq">' + esc(C.EQUIP[l.equipamento]) + '</div>' +
-        '<div class="loc-name">Nº ' + esc(l.numero) + ' · ' + esc(l.doutora) + '</div><div class="loc-meta">' + esc(quando(l)) + '</div></div>' +
-        (l.dadosApagadosEm ? '<span class="status-pill status-info">Só resumo</span>' : '<span class="status-pill status-ok"><span class="dot"></span>Fechada</span>') + '</div>' +
-        '<div style="margin-top:10px">' +
-          '<div class="ci-kv"><span>Entrega / retirada</span><span>' + esc(nome(l.motEntregaId)) + ' / ' + esc(nome(l.motRetiradaId)) + '</span></div>' +
-          (l.equipamento === 'crio'
-            ? '<div class="ci-kv"><span>Mantas utilizadas</span><span>' + (l.semManta ? '—' : esc(f.utilizadas)) + '</span></div>'
-            : '<div class="ci-kv"><span>Disparos utilizados</span><span>' + C.fmtNum(f.totalGeral) + '</span></div><div class="ci-kv"><span>Valor do disparo</span><span>' + C.fmtMoney(f.unit) + '</span></div>') +
-          '<div class="ci-kv forte"><span>Total</span><span>' + C.fmtMoney(f.total) + '</span></div></div>' +
+      return '<div class="card loc-card">' + U.cardFinalizada(l, nome) +
         '<div class="ci-acoes" style="margin:12px 0 0"><button type="button" class="btn btn-outline btn-block" data-pdf="' + esc(l.id) + '">' + (l.dadosApagadosEm ? 'Abrir resumo em PDF' : 'Abrir PDF') + '</button>' +
           (ehGerencial() ? '<button type="button" class="btn btn-ghost btn-block" data-excluir="' + esc(l.id) + '">Excluir</button>' : '') + '</div></div>';
     }).join('');
