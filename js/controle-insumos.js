@@ -570,8 +570,13 @@
           (l.equipamento === 'crio'
             ? '<div class="ci-kv"><span>Mantas utilizadas</span><span>' + (l.semManta ? '—' : esc(f.utilizadas)) + '</span></div>'
             : '<div class="ci-kv"><span>Disparos utilizados</span><span>' + C.fmtNum(f.totalGeral) + '</span></div><div class="ci-kv"><span>Valor do disparo</span><span>' + C.fmtMoney(f.unit) + '</span></div>') +
-          '<div class="ci-kv forte"><span>Total</span><span>' + C.fmtMoney(f.total) + '</span></div></div></div>';
+          '<div class="ci-kv forte"><span>Total</span><span>' + C.fmtMoney(f.total) + '</span></div></div>' +
+        '<div class="loc-actions"><button type="button" class="btn btn-sm btn-ghost" data-pdf="' + esc(l.id) + '">' + (l.dadosApagadosEm ? 'Abrir resumo em PDF' : 'Abrir PDF') + '</button></div></div>';
     }).join('');
+    area.querySelectorAll('[data-pdf]').forEach(b => b.onclick = () => {
+      const l = ST.linhas.find(x => x.id === b.dataset.pdf);
+      if (typeof window.ciAbrirPdfFinal === 'function') window.ciAbrirPdfFinal(l);
+    });
   }
 
   /* ---------------- escopo global ---------------- */
