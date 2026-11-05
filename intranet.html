@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="css/controle-insumos.css">
 <script src="js/controle-insumos-calc.js"></script>
 <script src="js/controle-insumos.js"></script>
+<script src="js/controle-insumos-motorista.js"></script>
 <style>
 :root{
   --paper:#faf7f2; --paper-soft:#f1ebe1; --line:#e4dccd;
@@ -733,6 +734,7 @@ async function boot(){
   }
   if(currentUsuario.senha_temporaria){ screenTrocaObrigatoria(); return; }
   renderShell();
+  if(window.ciAvisoEntrada) ciAvisoEntrada();
 }
 
 function screenTrocaObrigatoria(){
@@ -2245,6 +2247,7 @@ async function renderTransportes(container){
     '<div class="pagehead"><div class="crumb">Intranet / <b>Transportes</b></div><h1>Transportes</h1><div class="sub">' + escapeHtml(currentUsuario.nome) + ' &middot; acesso Transportes</div></div>' +
     '<div class="subnav">' +
 '<button class="subtab active" id="ts-tab-insumos" onclick="selectTransportesSubtab(&quot;insumos&quot;)">Meus controles</button>' +
+'<button class="subtab" id="ts-tab-locacoes" onclick="selectTransportesSubtab(&quot;locacoes&quot;)">Minhas Locações</button>' +
 '<button class="subtab" id="ts-tab-premiacao" onclick="selectTransportesSubtab(&quot;premiacao&quot;)">Premiação</button>' +
 '<button class="subtab" id="ts-tab-manual" onclick="selectTransportesSubtab(&quot;manual&quot;)">Manual de Entrega</button>' +
 '</div>' +
@@ -2256,9 +2259,11 @@ async function renderTransportes(container){
 async function selectTransportesSubtab(tab){
   rjxSubSalvar('transportes', tab);
   document.getElementById('ts-tab-insumos').classList.toggle('active', tab==='insumos');
+  document.getElementById('ts-tab-locacoes').classList.toggle('active', tab==='locacoes');
   document.getElementById('ts-tab-premiacao').classList.toggle('active', tab==='premiacao');
   document.getElementById('ts-tab-manual').classList.toggle('active', tab==='manual');
   if(tab === 'insumos'){ await tsCarregarMeusControles(); }
+  else if(tab === 'locacoes'){ await ciCarregarTransportes(); }
   else if(tab === 'premiacao'){ await carregarPremiacaoTransportes(); }
   else { carregarManualTransportes(); }
 }

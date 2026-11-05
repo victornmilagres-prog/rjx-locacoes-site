@@ -576,4 +576,6 @@
 
   /* ---------------- escopo global ---------------- */
   window.ciCarregarComercial = ciCarregarComercial;
+  // utilitários compartilhados com a tela do motorista (js/controle-insumos-motorista.js)
+  window.CIUI = { esc, dataBR, dtBR, quando, abrirModal, fecharModal, confirma, entradaHist, etapaNome, passos };
 })();
