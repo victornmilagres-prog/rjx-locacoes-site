@@ -1,6 +1,25 @@
 // api/ler-disparo.js
 // Lê o número de disparos ("Remain") na tela do Ultraformer MPT a partir de uma foto.
 // Usa Claude Haiku (visão) via API da Anthropic. Requer a env var ANTHROPIC_API_KEY na Vercel.
+// Exige login da intranet (token Bearer do Supabase) de um usuário ativo, como as outras
+// rotas: sem isso qualquer pessoa poderia gastar o crédito da Anthropic.
+
+async function usuarioAtivo(req) {
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (!token || !SUPABASE_URL || !SERVICE_KEY) return false;
+  const u = await fetch(SUPABASE_URL + '/auth/v1/user', { headers: { Authorization: 'Bearer ' + token, apikey: SERVICE_KEY } });
+  if (!u.ok) return false;
+  const user = await u.json();
+  if (!user || !user.id) return false;
+  const r = await fetch(SUPABASE_URL + '/rest/v1/usuarios?select=ativo&id=eq.' + encodeURIComponent(user.id), {
+    headers: { Authorization: 'Bearer ' + SERVICE_KEY, apikey: SERVICE_KEY }
+  });
+  if (!r.ok) return false;
+  const linhas = await r.json();
+  return Array.isArray(linhas) && !!linhas[0] && linhas[0].ativo === true;
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -9,6 +28,11 @@ export default async function handler(req, res) {
   }
 
   try {
+    if (!(await usuarioAtivo(req))) {
+      res.status(401).json({ error: 'Faça login na intranet.' });
+      return;
+    }
+
     const { image } = req.body || {};
     if (!image || typeof image !== 'string') {
       res.status(400).json({ error: 'Imagem ausente' });

@@ -135,6 +135,28 @@
 </style>
 </head>
 <body>
+<!-- Aviso de mudança: o Controle de Insumos passou para a intranet (05/11/2026).
+     O link continua abrindo para quem precisa terminar uma locação já começada aqui,
+     porque os dados deste link ficam só no celular. -->
+<div id="aviso-mudou" style="position:fixed;inset:0;z-index:9999;background:#17130f;color:#faf7f2;display:flex;align-items:center;justify-content:center;padding:24px;font-family:'Source Sans 3',-apple-system,sans-serif;">
+  <div style="max-width:420px;width:100%;text-align:center;">
+    <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#a9813f;margin-bottom:10px;">RJX Locações</div>
+    <h1 style="font-family:'Fraunces',Georgia,serif;font-size:26px;font-weight:600;margin:0 0 12px;">O Controle de Insumos mudou para a intranet</h1>
+    <p style="font-size:15px;line-height:1.5;color:#e4dccd;margin:0 0 22px;">Este link não é mais usado. Entre na intranet e abra <b style="color:#fff;">Transportes → Minhas Locações</b>. As locações já aparecem lá, sem link.</p>
+    <a href="intranet.html" style="display:block;background:#7a1220;color:#fff;text-decoration:none;font-weight:700;font-size:16px;padding:14px 18px;border-radius:8px;margin-bottom:16px;">Abrir a intranet</a>
+    <button type="button" id="aviso-mudou-continuar" style="background:none;border:none;color:#a89f92;font-size:13px;text-decoration:underline;cursor:pointer;font-family:inherit;">Terminar uma locação que já comecei neste link</button>
+  </div>
+</div>
+<script>
+  (function () {
+    var aviso = document.getElementById('aviso-mudou');
+    try { if (sessionStorage.getItem('rjx_aviso_mudou_ok') === '1') aviso.style.display = 'none'; } catch (e) {}
+    document.getElementById('aviso-mudou-continuar').onclick = function () {
+      try { sessionStorage.setItem('rjx_aviso_mudou_ok', '1'); } catch (e) {}
+      aviso.style.display = 'none';
+    };
+  })();
+</script>
 <div class="device">
   <header class="topbar">
     <div class="brand"><img id="logo-header" alt="RJX Locações"><span>Insumos</span></div>
