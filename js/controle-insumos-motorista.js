@@ -286,8 +286,15 @@
   }
   function ligarVoltar() { const v = $('ci-voltar-lista'); if (v) v.onclick = async () => { lembrarDet(null); await recarregar(); }; }
 
+  // as telas das etapas ficam numa coluna central, igual ao resto da intranet
+  function alvoEtapa() {
+    const c = $('transportes-content');
+    let w = $('ci-etapa');
+    if (!w || !c.contains(w)) { c.innerHTML = '<div class="ci-wrap" id="ci-etapa"></div>'; w = $('ci-etapa'); }
+    return w;
+  }
   function telaEtapa(l) {
-    const content = $('transportes-content');
+    const content = alvoEtapa();
     const crio = l.equipamento === 'crio';
     const telas = { inicial: crio ? etEntregaCrio : etDisparo, sig_entrega: etSigEntrega, final: crio ? etRetornoCrio : etDisparo,
       condicoes: etCondicoes, sig_fechamento: etSigFech, revisao: etRevisao };
@@ -570,7 +577,7 @@
   }
 
   function etDisparo(l) {
-    const content = $('transportes-content');
+    const content = alvoEtapa();
     const etapa = l.status === 'inicial' ? 'inicial' : 'final';
     const ehFinal = etapa === 'final';
     const lista = cartuchos(l);
@@ -704,7 +711,7 @@
   }
 
   function etEntregaCrio(l) {
-    const content = $('transportes-content');
+    const content = alvoEtapa();
     const R = (l.rascunho && l.rascunho.inicial) || {}, conf = l.crio.entregues || {};
     const val = (k, c) => (R[k] != null ? R[k] : (conf[c] != null ? conf[c] : ''));
     const itens = (l.semManta ? [] : [['mantasE', 'Mantas entregues', 'mantas']]).concat([['cintasE', 'Cintas entregues', 'cintas']]);
@@ -752,7 +759,7 @@
   }
 
   function etRetornoCrio(l) {
-    const content = $('transportes-content');
+    const content = alvoEtapa();
     const ent = l.crio.entregues || { mantas: 0, cintas: 0 };
     const R = (l.rascunho && l.rascunho.final) || {}, conf = l.crio.retornando || {};
     const val = (k, c) => (R[k] != null ? R[k] : (conf[c] != null ? conf[c] : ''));
@@ -906,7 +913,7 @@
     return cartuchos(l).map(c => '<div class="ci-kv"><span>' + esc(c.label) + '</span><span>' + C.fmtNum((l.ultra.inicial || {})[c.key]) + '</span></div>').join('');
   }
   function etSigEntrega(l) {
-    const content = $('transportes-content');
+    const content = alvoEtapa();
     content.innerHTML = topoEtapa(l) +
       '<div class="card form-card"><h3>O que o cliente está confirmando</h3><p class="cardsub">' +
         (l.equipamento === 'crio' ? 'Itens entregues.' : 'Disparos iniciais de cada cartucho.') + '</p>' + resumoEntrega(l) + '</div>' +
@@ -941,7 +948,7 @@
   }
   function telaEntregaConcluida(l) {
     lembrarDet(null);
-    const content = $('transportes-content');
+    const content = alvoEtapa();
     window.scrollTo(0, 0);
     content.innerHTML = '<div class="card form-card" style="text-align:center"><h3>Entrega concluída</h3>' +
       '<p class="cardsub" style="margin:6px 0 0">Nº ' + esc(l.numero) + ' · ' + esc(l.doutora) + '</p>' +
@@ -982,7 +989,7 @@
   }
   function totalBox(c) { return '<div class="ci-total"><small>Total a pagar</small><b>' + C.fmtMoney(c.total) + '</b></div>'; }
   function etCondicoes(l) {
-    const content = $('transportes-content');
+    const content = alvoEtapa();
     const crio = l.equipamento === 'crio';
     const c = C.calcular(l), dv = C.divergencias(l);
     content.innerHTML = topoEtapa(l) +
@@ -1001,7 +1008,7 @@
 
   /* ================= etapa 5: assinaturas do fechamento ================= */
   function etSigFech(l) {
-    const content = $('transportes-content');
+    const content = alvoEtapa();
     const c = C.calcular(l);
     content.innerHTML = topoEtapa(l) +
       '<div class="card form-card"><h3>O que o cliente está confirmando</h3>' + linhasTotal(l, c) + '</div>' + totalBox(c) +
@@ -1040,7 +1047,7 @@
 
   /* ================= etapa 6: revisão de fotos ================= */
   function etRevisao(l) {
-    const content = $('transportes-content');
+    const content = alvoEtapa();
     const crio = l.equipamento === 'crio';
     // pares [legenda, foto] na ordem da grade
     let pares;
@@ -1090,7 +1097,7 @@
   }
   function telaConcluida(l) {
     lembrarDet(null);
-    const content = $('transportes-content');
+    const content = alvoEtapa();
     window.scrollTo(0, 0);
     const f = l.financeiro || {};
     content.innerHTML = '<div class="card form-card" style="text-align:center"><h3>Locação concluída</h3>' +
