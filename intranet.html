@@ -632,6 +632,7 @@ function premiacaoEtapasBase(equip){
   return tem ? PREMIACAO_ETAPAS_COM_INSUMOS : PREMIACAO_ETAPAS_SEM_INSUMOS;
 }
 const PONTOS_UNIFORME_PREMIACAO = 5;
+function premiacaoCli(loc){ return loc && loc.cliente ? ' · ' + escapeHtml(loc.cliente) : ''; }
 function premiacaoIsoHoje(offsetDias){
   const d = new Date();
   d.setDate(d.getDate() + (offsetDias || 0));
@@ -2156,6 +2157,7 @@ async function carregarPremiacaoComercial(){
   html += '<div class="card form-card"><h3>Abrir locação para o dia seguinte</h3>';
   html += '<p class="cardsub">Número, equipamento, motorista e data. Depois de aberta, você pode trocar o motorista, mas quem pontua e fecha é o Operacional.</p>';
   html += '<div class="grid2"><div class="field"><label>Número da locação</label><input id="pc-numero" placeholder="Ex: 4521"></div><div class="field"><label>Equipamento</label><select id="pc-equipamento">' + equipOptions + '</select></div></div>';
+  html += '<div class="field"><label>Nome da Dra.</label><input id="pc-cliente" placeholder="Ex: Dra. Raquel"></div>';
   html += '<div class="grid2"><div class="field"><label>Motorista</label><select id="pc-motorista">' + motoristaOptions + '</select></div><div class="field"><label>Data da locação</label><input type="date" id="pc-data"></div></div>';
   html += '<div id="pc-error" class="login-error" style="display:none;"></div><div id="pc-success" class="login-success" style="display:none;"></div>';
   html += '<button class="btn btn-primary" id="btn-abrir-locacao-premiacao">Abrir locação</button></div>';
@@ -2168,16 +2170,17 @@ async function carregarPremiacaoComercial(){
 
 async function criarLocacaoPremiacao(){
   const numero = document.getElementById('pc-numero').value.trim();
+  const cliente = document.getElementById('pc-cliente').value.trim();
   const equipamento = document.getElementById('pc-equipamento').value;
   const motoristaId = document.getElementById('pc-motorista').value;
   const data = document.getElementById('pc-data').value;
   const errEl = document.getElementById('pc-error');
   const okEl = document.getElementById('pc-success');
   errEl.style.display='none'; okEl.style.display='none';
-  if(!numero || !motoristaId || !data){ errEl.textContent = 'Preencha número, motorista e data.'; errEl.style.display='block'; return; }
+  if(!numero || !cliente || !motoristaId || !data){ errEl.textContent = 'Preencha número, nome da Dra., motorista e data.'; errEl.style.display='block'; return; }
   const btn = document.getElementById('btn-abrir-locacao-premiacao');
   btn.disabled = true; btn.textContent = 'Abrindo...';
-  const insertLoc = await sb.from('premiacao_locacoes').insert({ numero: numero, equipamento: equipamento, motorista_id: motoristaId, data_locacao: data, criado_por: currentUsuario.id }).select('id').single();
+  const insertLoc = await sb.from('premiacao_locacoes').insert({ numero: numero, cliente: cliente, equipamento: equipamento, motorista_id: motoristaId, data_locacao: data, criado_por: currentUsuario.id }).select('id').single();
   if(insertLoc.error){ errEl.textContent = 'Erro ao abrir: ' + insertLoc.error.message; errEl.style.display='block'; btn.disabled=false; btn.textContent='Abrir locação'; return; }
   const locId = insertLoc.data.id;
   const etapasNomes = premiacaoEtapasBase(equipamento);
@@ -2185,6 +2188,7 @@ async function criarLocacaoPremiacao(){
   await sb.from('premiacao_etapas').insert(etapasRows);
   okEl.textContent = 'Locação ' + numero + ' aberta.'; okEl.style.display = 'block';
   document.getElementById('pc-numero').value = '';
+  document.getElementById('pc-cliente').value = '';
   btn.disabled = false; btn.textContent = 'Abrir locação';
   await carregarListaAbertasComercial();
 }
@@ -2194,7 +2198,7 @@ async function carregarListaAbertasComercial(){
   const motoristas = await getMotoristas();
   const motoristaNome = {};
   motoristas.forEach(function(m){ motoristaNome[m.id] = m.nome; });
-  const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status,atraso').eq('status','aberta').order('data_locacao');
+  const result = await sb.from('premiacao_locacoes').select('id,numero,cliente,equipamento,motorista_id,data_locacao,status,atraso').eq('status','aberta').order('data_locacao');
   if(result.error){ wrap.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>'; return; }
   const rows = result.data || [];
   if(!rows.length){ wrap.innerHTML = '<p class="empty-hint">Nenhuma locação aberta no momento.</p>'; return; }
@@ -2216,7 +2220,7 @@ async function carregarListaAbertasComercial(){
         '</div>';
     }
     return '<div class="card" style="padding:12px 14px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
-      '<div><b>Locação #' + escapeHtml(loc.numero) + '</b><div style="font-size:12px;color:var(--gray);">' + eq.label + ' - ' + premiacaoDataBR(loc.data_locacao) + '</div></div>' +
+      '<div><b>Locação #' + escapeHtml(loc.numero) + premiacaoCli(loc) + '</b><div style="font-size:12px;color:var(--gray);">' + eq.label + ' - ' + premiacaoDataBR(loc.data_locacao) + '</div></div>' +
       '<span class="status-pill status-wait"><span class="dot"></span>' + escapeHtml(nomeMot) + '</span></div>' + actionHtml + '</div>';
   }).join('');
 }
@@ -2297,7 +2301,7 @@ function tsSelectPremSubtab(tab){
 async function tsCarregarLocacoesInner(){
   const content = document.getElementById('ts-prem-content');
   content.innerHTML = '<p class="empty-hint">Carregando...</p>';
-  const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,data_locacao,status,atraso').eq('motorista_id', currentUsuario.id).order('data_locacao', { ascending: false });
+  const result = await sb.from('premiacao_locacoes').select('id,numero,cliente,equipamento,data_locacao,status,atraso').eq('motorista_id', currentUsuario.id).order('data_locacao', { ascending: false });
   if(result.error){
     content.innerHTML = '<p class="empty-hint">Erro ao carregar: ' + escapeHtml(result.error.message) + '</p>';
     return;
@@ -2401,7 +2405,7 @@ async function tsCarregarLocacoesInner(){
       const etapas = etapasPorLoc[loc.id] || [];
       const feitas = etapas.filter(function(e){ return e.concluida; }).length;
       const total = etapas.length;
-      return '<div class="card" style="padding:12px 14px;margin-bottom:8px;"><b>Locação #' + escapeHtml(loc.numero) + '</b><div style="font-size:12px;color:var(--gray);">' + eq.label + ' - ' + premiacaoDataBR(loc.data_locacao) + ' - ' + (loc.status==='aberta'?'em andamento':'finalizada') + ' - ' + feitas + '/' + total + ' etapas</div></div>';
+      return '<div class="card" style="padding:12px 14px;margin-bottom:8px;"><b>Locação #' + escapeHtml(loc.numero) + premiacaoCli(loc) + '</b><div style="font-size:12px;color:var(--gray);">' + eq.label + ' - ' + premiacaoDataBR(loc.data_locacao) + ' - ' + (loc.status==='aberta'?'em andamento':'finalizada') + ' - ' + feitas + '/' + total + ' etapas</div></div>';
     }).join('');
   }
   html += '</div></div>';
@@ -4052,7 +4056,7 @@ async function carregarPremiacaoOperacional(isGestor){
   const motoristas = await getMotoristas();
   const motoristaNome = {};
   motoristas.forEach(function(m){ motoristaNome[m.id] = m.nome; });
-  const result = await sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status,atraso').order('data_locacao', { ascending: false });
+  const result = await sb.from('premiacao_locacoes').select('id,numero,cliente,equipamento,motorista_id,data_locacao,status,atraso').order('data_locacao', { ascending: false });
   const rContest = await sb.from('premiacao_contestacoes').select('*').order('criado_em', { ascending:false });
   window.__opContestacoes = rContest.data || [];
   atualizarBadgeContestacoesSidebar();
@@ -4067,7 +4071,7 @@ async function carregarPremiacaoOperacional(isGestor){
         contestBannerHtml += '<div class="card contest-alert"><h3>🔔 ' + pendentes.length + ' contestação(ões) pendente(s)</h3>';
         pendentes.forEach(function(c){
           const locC = locs.find(function(l){ return l.id === c.locacao_id; }) || {};
-          contestBannerHtml += '<div class="contest-row"><div><b>' + escapeHtml(locC.equipamento||'') + '</b> — Locação #' + (locC.numero||'') + '</div><button class="btn btn-primary btn-sm" onclick="abrirModalContestacao(&quot;' + c.id + '&quot;)">Ver contestação</button></div>';
+          contestBannerHtml += '<div class="contest-row"><div><b>' + escapeHtml(locC.equipamento||'') + '</b> — Locação #' + (locC.numero||'') + premiacaoCli(locC) + '</div><button class="btn btn-primary btn-sm" onclick="abrirModalContestacao(&quot;' + c.id + '&quot;)">Ver contestação</button></div>';
         });
         contestBannerHtml += '</div>';
       }
@@ -4154,7 +4158,7 @@ async function carregarPremiacaoOperacional(isGestor){
           const locR = locsFiltradas.find(function(l){ return l.id === c.locacao_id; }) || {};
           const map = { aceita:['status-ok','Aceita — pontuação ajustada'], rejeitada:['status-wait','Rejeitada'], reaberta:['status-wait','Reaberta pra correção'] };
           const mm = map[c.status] || ['status-wait', c.status];
-          html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);"><div><b>' + escapeHtml(locR.equipamento||'') + '</b> — #' + (locR.numero||'') + '</div><span class="status-pill ' + mm[0] + '"><span class="dot"></span>' + mm[1] + '</span></div>';
+          html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);"><div><b>' + escapeHtml(locR.equipamento||'') + '</b> — #' + (locR.numero||'') + premiacaoCli(locR) + '</div><span class="status-pill ' + mm[0] + '"><span class="dot"></span>' + mm[1] + '</span></div>';
         });
         html += '</div>';
       }
@@ -4178,7 +4182,7 @@ async function carregarPremiacaoOperacional(isGestor){
       }).join("");
       return '<div class="card" style="margin-bottom:12px;overflow:hidden;">' +
         '<div onclick="opToggleLocCard(&quot;' + loc.id + '&quot;)" style="display:flex;justify-content:space-between;align-items:center;padding:15px 18px;cursor:pointer;">' +
-          '<div><div style="font-size:15px;font-weight:600;">Locação #' + (loc.numero||"") + " — " + escapeHtml(eq.label||"") + '</div>' +
+          '<div><div style="font-size:15px;font-weight:600;">Locação #' + (loc.numero||"") + premiacaoCli(loc) + " — " + escapeHtml(eq.label||"") + '</div>' +
           '<div style="font-size:12.5px;color:var(--gray);margin-top:2px;">' + nomeMotor + " · " + equipFormatDataBr(loc.data_locacao) + " · aberta há " + dias + (dias===1?" dia":" dias") + '</div></div>' +
           '<div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">' +
           '<span style="font-size:12.5px;color:var(--gray);">' + feitas + "/" + total + ' etapas</span>' +
@@ -4200,7 +4204,7 @@ async function carregarPremiacaoOperacional(isGestor){
         const nomeMotor = escapeHtml(motoristaNome[loc.motorista_id]||"");
         const pontos = loc.atraso ? 0 : feitas;
         return '<tr style="border-top:1px solid var(--line);">' +
-          '<td style="padding:11px 10px;">' + (loc.numero||"") + '</td>' +
+          '<td style="padding:11px 10px;">' + (loc.numero||"") + premiacaoCli(loc) + '</td>' +
           '<td style="padding:11px 10px;font-weight:600;">' + escapeHtml(eq.label||"") + '</td>' +
           '<td style="padding:11px 10px;">' + nomeMotor + '</td>' +
           '<td style="padding:11px 10px;">' + feitas + "/" + total + '</td>' +
@@ -4277,7 +4281,7 @@ function tsDiasEntre(iso1, iso2){ const d1 = new Date(iso1); const d2 = new Date
 async function tsCarregarHistoricoInner(){
   const content = document.getElementById("ts-prem-content");
   content.innerHTML = '<p class="empty-hint">Carregando...</p>';
-  const rLoc = await sb.from("premiacao_locacoes").select("id,numero,equipamento,data_locacao,status,atraso,atualizado_em").eq("motorista_id", currentUsuario.id).eq("status","fechada").order("atualizado_em", { ascending:false });
+  const rLoc = await sb.from("premiacao_locacoes").select("id,numero,cliente,equipamento,data_locacao,status,atraso,atualizado_em").eq("motorista_id", currentUsuario.id).eq("status","fechada").order("atualizado_em", { ascending:false });
   if(rLoc.error){ content.innerHTML = '<p class="empty-hint">Erro: ' + escapeHtml(rLoc.error.message) + '</p>'; return; }
   const locs = rLoc.data || [];
   const ids = locs.map(function(l){ return l.id; });
@@ -4310,7 +4314,7 @@ function tsRenderHistorico(){
       }
       let corpo = '<div style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;" onclick="tsToggleHistorico(&quot;' + l.id + '&quot;)">' +
         '<span style="width:14px;color:var(--gray-soft);">' + (aberto?"▾":"▸") + '</span>' +
-        '<b style="flex:1;">#' + escapeHtml(String(l.numero||"")) + " " + escapeHtml(l.equipamento||"") + '</b>' +
+        '<b style="flex:1;">#' + escapeHtml(String(l.numero||"")) + " " + escapeHtml(l.equipamento||"") + premiacaoCli(l) + '</b>' +
         (l.atraso ? '<span class="status-pill status-wait"><span class="dot"></span>Atraso</span>' : "") +
         contestBadge +
         '<span style="font-weight:700;">' + pts + " / " + etapas.length + ' pts</span></div>';
@@ -4438,7 +4442,7 @@ async function abrirModalContestacao(contestId){
   if(!c) return;
   const rEtapas = await sb.from("premiacao_etapas").select("id,ordem,nome,concluida").eq("locacao_id", c.locacao_id).order("ordem");
   const etapas = rEtapas.data || [];
-  const rLoc = await sb.from("premiacao_locacoes").select("numero,equipamento,atraso").eq("id", c.locacao_id).maybeSingle();
+  const rLoc = await sb.from("premiacao_locacoes").select("numero,cliente,equipamento,atraso").eq("id", c.locacao_id).maybeSingle();
   const loc = rLoc.data || {};
   let overlay = document.getElementById("op-contest-modal");
   if(overlay) overlay.remove();
@@ -4448,7 +4452,7 @@ async function abrirModalContestacao(contestId){
   let etapasHtml = etapas.map(function(e){
     return '<div class="etapa-row" style="padding:6px 0;"><input type="checkbox" class="etapa-check" id="cxop-' + e.id + '" ' + (e.concluida?"checked":"") + '><span class="etapa-label" style="font-size:13px;">' + e.ordem + ". " + escapeHtml(e.nome) + "</span></div>";
   }).join("");
-  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Contestação — #' + (loc.numero||"") + " " + escapeHtml(loc.equipamento||"") + '</h3><button class="rjx-modal-close" onclick="document.getElementById(&quot;op-contest-modal&quot;).remove()">✕</button></div><div class="rjx-modal-body">' +
+  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Contestação — #' + (loc.numero||"") + " " + escapeHtml(loc.equipamento||"") + premiacaoCli(loc) + '</h3><button class="rjx-modal-close" onclick="document.getElementById(&quot;op-contest-modal&quot;).remove()">✕</button></div><div class="rjx-modal-body">' +
     '<p class="cardsub">' + escapeHtml(c.texto) + '</p>' +
     '<div style="display:flex;align-items:center;gap:10px;margin:14px 0 10px;"><input type="checkbox" id="cxop-atraso" ' + (loc.atraso?"checked":"") + '><label for="cxop-atraso" style="font-weight:600;color:var(--alert);">Teve atraso em alguma etapa</label></div>' +
     etapasHtml +
@@ -4541,7 +4545,7 @@ function opAbrirDetalhesLocFechada(id){
     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px;"><input type="checkbox" ' + (e.concluida?"checked":"") + ' onchange="opEditarEtapaFechada(&quot;' + id + '&quot;, &quot;' + e.id + '&quot;, this.checked)" style="width:18px;height:18px;accent-color:var(--wine);flex-shrink:0;cursor:pointer;"><span style="flex:1;' + (e.concluida?"":"color:var(--gray-soft);") + '">' + escapeHtml(e.ordem + ". " + e.nome) + '</span></div>';
   }).join("");
   const barraEdicaoHtml = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 10px;"><input type="checkbox" id="op-edit-atraso" ' + (loc.atraso ? "checked" : "") + ' onchange="opEditarAtrasoFechada(&quot;' + id + '&quot;, this.checked)" style="width:18px;height:18px;accent-color:var(--wine);cursor:pointer;"><label for="op-edit-atraso" style="font-weight:600;color:var(--alert);cursor:pointer;font-size:13px;">Atraso (zera os pontos da loca\u00e7\u00e3o)</label><button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="opMarcarTodasEtapas(&quot;' + id + '&quot;)">Marcar todas as etapas</button></div><p class="cardsub" style="margin-bottom:6px;">As altera\u00e7\u00f5es s\u00e3o salvas na hora.</p>';
-  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Locação #' + (loc.numero||"") + '</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body"><p class="cardsub">' + escapeHtml(eq.label||"") + ' · ' + nomeMotor + '</p>' + barraEdicaoHtml + etapasHtml + '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="opFecharModal()">Fechar</button></div></div></div>';
+  overlay.innerHTML = '<div class="rjx-modal"><div class="rjx-modal-head"><h3>Locação #' + (loc.numero||"") + premiacaoCli(loc) + '</h3><button class="rjx-modal-close" onclick="opFecharModal()">✕</button></div><div class="rjx-modal-body"><p class="cardsub">' + escapeHtml(eq.label||"") + ' · ' + nomeMotor + '</p>' + barraEdicaoHtml + etapasHtml + '</div><div class="rjx-modal-foot"><div></div><div class="right-group"><button class="btn btn-ghost" onclick="opFecharModal()">Fechar</button></div></div></div>';
   document.body.appendChild(overlay);
 }
 async function opMarcarTodasEtapas(locId){
@@ -6405,7 +6409,7 @@ async function tsGerCalcularPremiacao(motoristas, mesRef){
   if(!usuarioIds.length) return res;
   const fimMes = (function(){ const p = mesRef.split('-'); const d = new Date(Number(p[0]), Number(p[1]), 1); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01'; })();
   const locs = await tsGerFetchAll(function(){
-    return sb.from('premiacao_locacoes').select('id,numero,equipamento,motorista_id,data_locacao,status,atraso').in('motorista_id', usuarioIds).gte('data_locacao', mesRef + '-01').lt('data_locacao', fimMes).order('data_locacao', { ascending: false }).order('id');
+    return sb.from('premiacao_locacoes').select('id,numero,cliente,equipamento,motorista_id,data_locacao,status,atraso').in('motorista_id', usuarioIds).gte('data_locacao', mesRef + '-01').lt('data_locacao', fimMes).order('data_locacao', { ascending: false }).order('id');
   });
   let etapas = [];
   for(let i = 0; i < locs.length; i += 100){
@@ -7058,7 +7062,7 @@ function tsGerRenderPremiacao(){
             const outro = e.concluida && !meu;
             return '<div class="tsg-et"><span class="tsg-ck ' + (meu ? 'y' : (outro ? 'o' : 'n')) + '">' + (meu ? '✓' : (outro ? '–' : '✕')) + '</span><span class="' + (meu ? '' : 'no') + '">' + escapeHtml(e.nome) + (outro ? ' (feita por outro transportador)' : '') + '</span></div>';
           }).join('');
-          return '<div class="tsg-loc"><div class="tsg-loc-head"><span class="status-pill ' + (completa ? 'status-ok' : 'status-wait') + '"><span class="dot"></span>' + escapeHtml(eqLbl) + ' #' + escapeHtml(loc.numero || '') + '</span>' +
+          return '<div class="tsg-loc"><div class="tsg-loc-head"><span class="status-pill ' + (completa ? 'status-ok' : 'status-wait') + '"><span class="dot"></span>' + escapeHtml(eqLbl) + ' #' + escapeHtml(loc.numero || '') + premiacaoCli(loc) + '</span>' +
             '<span style="color:var(--gray);font-weight:400;">' + freteFmtData(loc.data_locacao) + ' · ' + ld.feitas + ' / ' + ld.etapas.length + ' etapas</span></div>' +
             '<div class="tsg-etapas">' + etHtml + '</div></div>';
         }).join('');
