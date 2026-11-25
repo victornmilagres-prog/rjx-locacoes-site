@@ -1400,7 +1400,7 @@ async function freteRenderConteudo(){
     (rLancContest.data||[]).forEach(function(l){ lancamentosPorId[l.id] = l; });
   }
 
-  const mesAtualReal = new Date().toISOString().slice(0,7);
+  const mesAtualReal = premiacaoIsoHoje(0).slice(0,7);
   const mesesSet = {};
   todosLancamentos.forEach(function(l){ mesesSet[l.data.slice(0,7)] = true; });
   mesesSet[mesAtualReal] = true;
@@ -1441,7 +1441,7 @@ async function freteRenderConteudo(){
     html += '<div class="card form-card"><h3>Novo lançamento — ' + escapeHtml(m.nome) + '</h3>' +
       '<p class="cardsub">Preencha pedido, equipamento e KM. Base e valor são calculados automaticamente pela tabela de preço deste motorista.</p>' +
       '<div class="form-row">' +
-      '<div class="field"><label>Data</label><input type="date" id="frete-novo-data" value="' + new Date().toISOString().slice(0,10) + '"></div>' +
+      '<div class="field"><label>Data</label><input type="date" id="frete-novo-data" value="' + premiacaoIsoHoje(0) + '"></div>' +
       '<div class="field"><label>Pedido</label><input id="frete-novo-pedido" placeholder="Ex: 260901/001"></div>' +
       '<div class="field"><label>Equipamento</label><select id="frete-novo-equipamento" onchange="fretePreviaAtualizar()">' + FRETE_EQUIPAMENTOS.map(function(e){ return '<option value="' + e.id + '">' + e.label + "</option>"; }).join("") + '</select></div>' +
       '<div class="field"><label>KM</label><input type="number" step="0.1" id="frete-novo-km" placeholder="0" oninput="fretePreviaAtualizar()"></div>' +
@@ -1889,7 +1889,7 @@ function leadsRenderSeletorMes(){
   const anosSet = {};
   leads.forEach(function(l){ if(l.data) anosSet[l.data.slice(0,4)] = true; });
   const anos = Object.keys(anosSet).sort();
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = premiacaoIsoHoje(0);
   const anoHoje = hoje.slice(0,4);
   const mesHoje = hoje.slice(0,7);
   if(anos.indexOf(anoHoje) === -1) anos.push(anoHoje);
@@ -2303,7 +2303,7 @@ async function tsCarregarLocacoesInner(){
     return;
   }
   const locsTodasMeses = result.data || [];
-  const mesAtualDrv = new Date().toISOString().slice(0,7);
+  const mesAtualDrv = premiacaoIsoHoje(0).slice(0,7);
   const mesesDrv = [];
   for(let k = 0; k < 3; k++){ const dd = new Date(); dd.setDate(1); dd.setMonth(dd.getMonth() - k); mesesDrv.push(dd.getFullYear() + '-' + String(dd.getMonth()+1).padStart(2,'0')); }
   if(!window.__tsPremMesDriver || mesesDrv.indexOf(window.__tsPremMesDriver) === -1) window.__tsPremMesDriver = mesAtualDrv;
@@ -2324,7 +2324,7 @@ async function tsCarregarLocacoesInner(){
   const diasSet = {};
   locs.forEach(function(loc){ diasSet[loc.data_locacao] = true; });
   const dias = Object.keys(diasSet).sort().reverse();
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = premiacaoIsoHoje(0);
 
   let selfiesPorDia = {};
   if(dias.length){
@@ -6418,7 +6418,7 @@ async function tsGerCalcularPremiacao(motoristas, mesRef){
   const selfies = await tsGerFetchAll(function(){
     return sb.from('premiacao_selfies_dia').select('*').in('motorista_id', usuarioIds).gte('data_ref', mesRef + '-01').lt('data_ref', fimMes).order('data_ref');
   });
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = premiacaoIsoHoje(0);
   const P = PONTOS_UNIFORME_PREMIACAO;
   /* Mesma regra da barra do premio (Operacional): cada etapa conta pra quem a fez (ou dono da locacao);
      atraso na locacao zera os pontos das etapas dela; selfie validada +5 e expirada -5 (nao enviada/reprovada so descontam ao virar o dia) */
@@ -6662,7 +6662,7 @@ async function tsGerFecharCLT(motId){
   const r = await sb.from('comercial_frete_fechamentos').upsert(payload, { onConflict: 'motorista_id,mes_ref' }).select().single();
   if(r.error){ alert('Erro ao fechar frete: ' + r.error.message); return; }
   if(idsParaBaixar.length){
-    await sb.from('comercial_frete_vale_parcelas').update({ paga: true, pago_em: new Date().toISOString().slice(0,10) }).in('id', idsParaBaixar);
+    await sb.from('comercial_frete_vale_parcelas').update({ paga: true, pago_em: premiacaoIsoHoje(0) }).in('id', idsParaBaixar);
   }
   toast('Frete de ' + L.m.nome + ' fechado para ' + freteMesLabel(d.mesRef) + '.');
   await tsGerRecarregar();
@@ -6787,7 +6787,7 @@ async function tsGerConfirmarFechar(motId){
     return;
   }
   if(idsParaBaixar.length){
-    await sb.from('comercial_frete_vale_parcelas').update({ paga: true, pago_em: new Date().toISOString().slice(0,10) }).in('id', idsParaBaixar);
+    await sb.from('comercial_frete_vale_parcelas').update({ paga: true, pago_em: premiacaoIsoHoje(0) }).in('id', idsParaBaixar);
   }
   tsGerFecharModal();
   try{ await tsGerBaixarPDF(r.data.id); }catch(e){ alert('Frete fechado, mas houve erro ao gerar o PDF: ' + (e.message || e) + '. Use o botão PDF pra tentar de novo.'); }
@@ -6992,7 +6992,7 @@ async function tsGerCarregarPremiacao(){
   content.innerHTML = '<p class="empty-hint">Carregando...</p>';
   try{
     const rMot = await sb.from('comercial_frete_motoristas').select('*').eq('ativo', true).order('ordem');
-    const mesRef = window.__tsGerPremMes || new Date().toISOString().slice(0,7);
+    const mesRef = window.__tsGerPremMes || premiacaoIsoHoje(0).slice(0,7);
     const motoristas = (rMot.data || []).filter(function(m){ return !m.criado_em || m.criado_em.slice(0,7) <= mesRef; });
     const prem = await tsGerCalcularPremiacao(motoristas, mesRef);
     window.__tsGerPremData = { motoristas: motoristas, prem: prem, mesRef: mesRef };
@@ -7112,7 +7112,7 @@ function mcRenderShell(){
 function mcSelectTab(tab){ window.__mcTab = tab; mcRenderShell(); }
 
 async function mcCalcularPremiacaoPct(){
-  const mesAtual = new Date().toISOString().slice(0,7);
+  const mesAtual = premiacaoIsoHoje(0).slice(0,7);
   const hojeD = new Date();
   const fimMesAtual = (function(){ const dd = new Date(hojeD.getFullYear(), hojeD.getMonth()+1, 1); return dd.getFullYear() + '-' + String(dd.getMonth()+1).padStart(2,'0') + '-01'; })();
   const result = await sb.from('premiacao_locacoes').select('id,data_locacao').eq('motorista_id', currentUsuario.id).gte('data_locacao', mesAtual + '-01').lt('data_locacao', fimMesAtual);
@@ -7129,7 +7129,7 @@ async function mcCalcularPremiacaoPct(){
   const diasSet = {};
   locs.forEach(function(loc){ diasSet[loc.data_locacao] = true; });
   const dias = Object.keys(diasSet);
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = premiacaoIsoHoje(0);
   let selfiesPorDia = {};
   if(dias.length){
     const rSelfies = await sb.from('premiacao_selfies_dia').select('*').eq('motorista_id', currentUsuario.id).in('data_ref', dias).gte('data_ref', mesAtual + '-01').lt('data_ref', fimMesAtual);
@@ -7158,7 +7158,7 @@ async function mcCalcularPremiacaoPct(){
 async function mcRenderResumo(){
   const m = window.__mcMotorista, tabela = window.__mcTabela || {};
   const wrap = document.getElementById('mc-content');
-  const mesAtual = new Date().toISOString().slice(0,7);
+  const mesAtual = premiacaoIsoHoje(0).slice(0,7);
   const rFechPend = await sb.from('comercial_frete_fechamentos').select('*').eq('motorista_id', m.id).neq('status', 'enviado').order('mes_ref', { ascending: false });
   const fechamentosPendentes = rFechPend.data || [];
   const cardsAssinatura = fechamentosPendentes.map(function(f){
@@ -7408,7 +7408,7 @@ function freteRenderCardVales(m, vales, parcelasPorVale, saldoMotorista){
     '</div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr 1.4fr auto;gap:10px;align-items:end;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--line);">' +
     '<div><label style="font-size:12px;font-weight:700;display:block;margin-bottom:5px;">Valor (R$)</label><input id="vale-novo-valor" type="number" step="0.01" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;" placeholder="0,00"></div>' +
-    '<div><label style="font-size:12px;font-weight:700;display:block;margin-bottom:5px;">Data</label><input id="vale-novo-data" type="date" value="' + new Date().toISOString().slice(0,10) + '" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;"></div>' +
+    '<div><label style="font-size:12px;font-weight:700;display:block;margin-bottom:5px;">Data</label><input id="vale-novo-data" type="date" value="' + premiacaoIsoHoje(0) + '" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;"></div>' +
     '<div><label style="font-size:12px;font-weight:700;display:block;margin-bottom:5px;">Motivo</label><input id="vale-novo-motivo" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;" placeholder="Ex: adiantamento pessoal"></div>' +
     '<button class="btn btn-primary" onclick="freteLancarVale(&quot;' + m.id + '&quot;)">+ Lançar vale</button>' +
     '</div>';
